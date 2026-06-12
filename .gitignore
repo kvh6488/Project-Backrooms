@@ -27,3 +27,6 @@ env/
 # Temp/System files
 .DS_Store
 Thumbs.db
+
+# ImGui state
+imgui.ini

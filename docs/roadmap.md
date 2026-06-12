@@ -25,7 +25,7 @@ A **2D top-down psychological horror maze game** (visual style similar to *The E
 - **Portfolio piece** (primary) — demonstrate systems engineering, algorithm design, and performance optimization to recruiters/senior engineers.
 - **Real game** (secondary) — a genuinely fun and atmospheric horror experience.
 
-**Developer context:** Built by a 2nd-year CS student as a first major project. All decisions should be well-documented for learning purposes. Help me out with Git & GitHub use understanding — explain when it's time to commit and push, manage branches, etc.
+**Developer context:** Built by a 2nd-year CS student as a first major project. All decisions should be well-documented for learning purposes.
 
 ---
 
@@ -89,7 +89,7 @@ These are locked in based on our discussions. Changes require explicit discussio
 
 ---
 
-### Phase 0 — Project Scaffold *(Days 1–3)*
+### Phase 0 (COMPLETE) — Project Scaffold *(Days 1–3)*
 Get the project compiling, a window open, and the debug overlay working.
 - CMake project with FetchContent (Raylib, ImGui, rlImGui)
 - Window opens, renders a colored background
