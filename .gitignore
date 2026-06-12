@@ -1,0 +1,29 @@
+# CMake & Build outputs
+build/
+out/
+bin/
+*.exe
+*.o
+*.obj
+*.dll
+*.lib
+*.pdb
+
+# Visual Studio & IDEs
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.user
+*.suo
+.vscode/
+
+# Python (for our future Data Science telemetry)
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+venv/
+env/
+
+# Temp/System files
+.DS_Store
+Thumbs.db
