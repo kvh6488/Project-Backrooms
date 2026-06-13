@@ -69,3 +69,37 @@ target_link_libraries(Backrooms PRIVATE raylib)
 # Raylib recently renamed IsTextureReady to IsTextureValid. rlImGui expects the new name.
 # This define maps it back to the old name so it compiles with Raylib 5.0.
 target_compile_definitions(Backrooms PRIVATE IsTextureValid=IsTextureReady)
+
+# ==============================================================================
+# 5. TESTING SUITE (Google Test)
+# ==============================================================================
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+)
+# For Windows: Prevent GTest from overriding the parent project's MSVC runtime
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+# Enable testing globally so VS Code's "Testing" sidebar works
+enable_testing()
+
+# Create a brand new, completely separate executable just for running tests.
+# Notice we do NOT include main.cpp here, because gtest_main provides its own main()!
+add_executable(BackroomsTests
+    tests/test_maze.cpp
+    src/maze.cpp
+)
+
+# Tell the test executable where to find our source header files
+target_include_directories(BackroomsTests PRIVATE src)
+
+# Link Google Test and Raylib to the test executable
+target_link_libraries(BackroomsTests PRIVATE
+    gtest_main
+    raylib
+)
+
+# Register the executable with CTest so VS Code can magically discover it
+include(GoogleTest)
+gtest_discover_tests(BackroomsTests)

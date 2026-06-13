@@ -2,6 +2,7 @@
 #include "rlImGui.h"
 #include "imgui.h"
 #include "maze.hpp"
+#include <ctime>
 int main() {
     // 1. Initialization
     const int screenWidth = 1280;
@@ -9,20 +10,18 @@ int main() {
 
     // Set some window flags (make it resizable)
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(screenWidth, screenHeight, "Project Backrooms - Phase 0");
+    InitWindow(screenWidth, screenHeight, "Project Backrooms");
     SetTargetFPS(60);
     
     // Initialize the ImGui bridge
     rlImGuiSetup(true);
 
     // Initialize the Maze (width: 40, height: 22, cellSize: 32)
-    // 40 * 32 = 1280, 22 * 32 = 704
-    Maze maze(40, 22, 32);
+    // We pass the current time as the seed so the maze is unique every run!
+    Maze maze(40, 22, 32, std::time(nullptr));
     
-    // Quick test: carve a little floor space in the top left
-    maze.setCell(1, 1, Maze::CELL_FLOOR);
-    maze.setCell(2, 1, Maze::CELL_FLOOR);
-    maze.setCell(3, 1, Maze::CELL_ROOM);
+    // Generate the rooms using Binary Space Partitioning!
+    maze.generateBSP();
 
     // 2. Main Game Loop
     while (!WindowShouldClose()) { // Detect window close button or ESC key
@@ -45,9 +44,6 @@ int main() {
         // Create a simple debug window
         ImGui::Begin("Debug Engine");
         ImGui::Text("FPS: %d", GetFPS());
-        ImGui::Text("Phase 0: Scaffold Complete!");
-        ImGui::Spacing();
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "System is ready for Phase 1.");
         ImGui::End();
 
         // End ImGui drawing

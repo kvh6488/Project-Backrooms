@@ -2,6 +2,8 @@
 
 #include <vector>  // For std::vector (our dynamic 1D array)
 #include <cstdint> // For fixed-width integer types (uint8_t)
+#include <memory>  // For std::shared_ptr (memory management for BSP tree)
+#include <random>  // For std::mt19937 (random number generator)
 #include "raylib.h" // For Vector2, Rectangle, Color, and drawing functions
 
 // ============================================================================
@@ -27,9 +29,13 @@ public:
     static constexpr int CELL_ROOM  = 2; // Room floor — part of a BSP-carved office room
 
     // --- Constructor ---
-    // Creates a maze of the given dimensions (in cells, not pixels).
-    // All cells start as CELL_WALL (solid rock) before generation carves them out.
-    Maze(int width, int height, int cellSize = 32);
+    // Creates a maze of the given dimensions.
+    // seed determines the random layout. Same seed = same maze.
+    Maze(int width, int height, int cellSize = 32, unsigned int seed = 12345);
+
+    // --- Maze Generation Algorithms ---
+    // Executes the Binary Space Partitioning algorithm to carve rooms.
+    void generateBSP();
 
     // --- Core Accessors ---
 
@@ -69,4 +75,34 @@ private:
     // A 100x100 maze = 10,000 integers, all sitting next to each other in RAM.
     // We access cell (x, y) using: m_grid[y * m_width + x]
     std::vector<int> m_grid;
+
+    // --- BSP Generation State ---
+    // Our Random Number Generator. By storing it here, we guarantee
+    // the maze generation is deterministic based on the initial seed.
+    std::mt19937 m_rng;
+
+    // A block of "cookie dough" in the BSP algorithm.
+    struct BSPLeaf {
+        int x, y, width, height; // The rectangular area this leaf owns
+        std::shared_ptr<BSPLeaf> leftChild;
+        std::shared_ptr<BSPLeaf> rightChild;
+        
+        // Coordinates of the actual carved room (if this leaf has one)
+        int roomX, roomY, roomWidth, roomHeight;
+        bool hasRoom = false;
+
+        BSPLeaf(int _x, int _y, int _w, int _h) : x(_x), y(_y), width(_w), height(_h) {}
+
+        // Slices the leaf in half. Returns true if successful.
+        bool split(std::mt19937& rng);
+        
+        // Recursively carves actual rooms into the Maze
+        void createRooms(Maze& maze, std::mt19937& rng);
+    };
+
+    // The root of our BSP tree
+    std::shared_ptr<BSPLeaf> m_rootLeaf;
+    
+    // Keep track of all leaves so we can easily iterate over them later
+    std::vector<std::shared_ptr<BSPLeaf>> m_leaves;
 };
