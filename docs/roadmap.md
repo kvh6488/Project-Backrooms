@@ -42,8 +42,9 @@ These are locked in based on our discussions. Changes require explicit discussio
 | **Target platform** | Windows only (initially) | Other OS support is a future feature |
 | **Pause behaviour** | No pause menu while exploring | Game loop runs continuously during exploration |
 | **Tile aesthetics (Phase 1)** | Placeholder solid colors | Proper textures loaded at end of Phase 1 |
-| **Algorithms** | **Not fixed** — all are open to exploration and change | We research and decide together |
-| **Maze "infinity"** | Fixed-size grid with a memory cap; wrapping to create illusion of infinite space | Exact size TBD |
+| **Algorithms** | Hybrid BSP + Prim's + Loops | Evaluated DFS vs Prim's. Selected Prim's for highly branching corridors, BSP for office rooms. |
+| **Maze Data Structure** | 1D Flat Array (Implicit Grid) | Maximizes CPU cache locality. Maps 2D via index = y * width + x. |
+| **Maze "infinity"** | Fixed-size grid with Toroidal Wrapping | Uses modulo arithmetic `(x % width + width) % width` to wrap coordinates. |
 | **Escape trigger** | When cure conquers enough of the maze + a certain generation threshold, guide the player to exit | Detailed mechanics TBD in Phases 3–4 |
 | **Permadeath** | On completing a round, difficulty increases and player re-enters the same maze | Full reset only on Level 3 death (future phase) |
 
@@ -99,13 +100,12 @@ Get the project compiling, a window open, and the debug overlay working.
 
 ### Phase 1 — Procedural Maze & Player *(Days 4–12)*
 Generate a maze, render it, and let the player walk through it.
-- **Maze generation algorithm** — to be researched and chosen together
+- **Maze generation algorithm** — Hybrid BSP + Prim's Algorithm + Random Loops
 - Maze data structure (cell/wall representation in a flat array)
 - Render maze as colored tiles (placeholder)
 - Player entity: position, WASD movement, wall collision
 - Camera following the player
 - Toroidal wrapping (modulo addressing for "infinite" feel)
-- Fog-of-war / limited visibility
 - Load proper tile textures (end of phase)
 
 ### Phase 2 — Dynamic Maze & Non-Euclidean Topology *(Days 13–22)*
@@ -114,6 +114,7 @@ Make the maze shift and break physical rules.
 - "Look-away" detection: re-roll rooms outside the player's view
 - Edge pointer-swapping for non-Euclidean room flipping
 - Noclip hidden exits (wall cells secretly passable)
+- - Fog-of-war / limited visibility
 - Spray can marking system + mark invalidation on shift
 
 ### Phase 3 — Virus & BFS Territory *(Days 23–34)*
@@ -221,6 +222,7 @@ Get Level 1 and everything in it looking perfect.
 - Mob sprites and animations
 - Item sprites and UI icons
 - HUD design (health, infection meter, inventory bar, day counter)
+- Clean up any left over testing framework shown in the GUI, or code, and move it into a dedicated testing mode (in normal gameplay mode, testing GUI element will not appear)
 - Screen distortion effects (VHS aesthetic)
 - Audio polish: ambient buzz, flickering lights, distrusting messages, mechanical maze shifting sounds, hallucination triggers, cryptic clues
 - Micro-animations and visual feedback (damage, pickups, cure spreading)
@@ -321,10 +323,10 @@ Items still needing discussion or research before we can proceed.
 
 | # | Topic | Status | Notes |
 |---|---|---|---|
-| 1 | **Maze generation algorithm** | 🔴 Not decided | We will research alternatives together before committing |
+| 1 | **Maze generation algorithm** | 🟢 Decided | Hybrid BSP + Prim's algorithm with loop injection |
 | 2 | **Grid size for Level 1** | 🔴 Not decided | Needs to feel "infinite" but fit within a memory cap. 64×64? 128×128? Chunk-based? |
 | 3 | **Cell size in pixels** | 🟢 Decided (32×32) | Starting point, will adjust after first visual |
-| 4 | **Maze data structure** | 🟡 Leaning SoA | Per the design doc, but exact layout TBD after algorithm choice |
+| 4 | **Maze data structure** | 🟢 Decided | Implicit 2D grid graph stored as a contiguous 1D array for cache locality |
 | 5 | **Camera system details** | 🟡 Basic plan | Follow-player with viewport clipping. Fog-of-war / view cone specifics TBD |
 | 6 | **"Look-away" detection** | 🔴 Not decided | How do we determine which cells the player "isn't looking at" in 2D top-down? |
 | 7 | **Escape / memory cap threshold** | 🔴 Not decided | What % of maze cured triggers the escape? What's the fixed size? |
@@ -340,14 +342,14 @@ All algorithms and theoretical approaches from the original design document. The
 ### Memory & Data Architecture
 | Concept | Approach | Used For |
 |---|---|---|
-| **Data-Oriented Design (DOD)** | Store maze state and entity pools in contiguous 1D vectors using Struct of Arrays (SoA). Minimizes heap fragmentation, improves sequential CPU cache reads. | Maze grid, entity pools |
-| **Pre-Allocated Memory Cycling** | Statically pre-allocate fixed-size 1D array at startup. Cycle environment data using modulo arithmetic. Zero runtime heap allocations or garbage collection. | Toroidal "infinite" grid |
+| **Implicit Grid & DOD** | Store maze state as an implicit graph in a 1D flat array (`std::vector<int>`). Edges are inferred mathematically (`y * width + x`) rather than stored as pointers, maximizing CPU cache locality. Entity pools will use SoA. | Maze grid, entity pools |
+| **Toroidal Wrapping (Modulo Math)** | Statically pre-allocate fixed-size 1D array. Use modulo arithmetic `(x % width + width) % width` to wrap coordinates. Mathematically transforms the flat grid into a continuous torus graph with no boundary walls. | Toroidal "infinite" grid |
 | **Zero-Allocation Ring Buffer** | Fixed-size circular buffer continuously tracks minimal struct of player state (position, health, inventory flags). Instant rollback in O(1). | VHS Tape time-rewind mechanic |
 
 ### Maze Generation & Topology
 | Concept | Approach | Used For |
 |---|---|---|
-| **Deterministic Procedural Generation** | Iterative Randomized Prim's Algorithm + fixed-seed PRNG. Flat iterative loop guarantees stack safety and repeatable environments. | Initial maze layout |
+| **Hybrid Procedural Generation** | BSP ($O(R \log R)$) for office rooms + Prim's ($O(V \log V)$) for highly-branched spanning tree corridors + Loop Injection pass ($O(V)$) to break the tree and add cycles. | Initial maze layout |
 | **Non-Euclidean Spatial Topology** | Edge pointer-swapping to physically connect disjointed maze sectors in O(1) without moving rendered assets. | Room flipping, looping edges, impossible geometry |
 
 ### Macro Simulations & Territory
