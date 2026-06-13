@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.14)
 project(ProjectBackrooms CXX)
 
+# Fix for CMake 3.30+ crashing on raylib 5.0's older cmake_minimum_required(2.8)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE INTERNAL "")
+
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
 endif()
@@ -45,6 +48,7 @@ endif()
 # 4. Define our executable and include the external source files directly
 add_executable(Backrooms 
     src/main.cpp 
+    src/maze.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
