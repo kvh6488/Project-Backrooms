@@ -1,5 +1,6 @@
 #include "maze.hpp"
 #include "raylib.h"
+#include <queue>
 
 // ============================================================================
 // Constructor
@@ -577,6 +578,132 @@ void Maze::generateLoops() {
       // All checks passed — smash the wall to create a loop!
       setCell(x, y, CELL_FLOOR);
     }
+  }
+}
+
+// ============================================================================
+// THE TUNNEL BORER (Ensuring 100% Connectivity)
+// ============================================================================
+void Maze::ensureConnectivity() {
+  // We need to keep looping because connecting one isolated room might still
+  // leave others isolated. We stop when no isolated rooms remain.
+  while (true) {
+    // 1. Map the Main Network (Flood-Fill BFS)
+    // We will find the very first valid room cell and flood outward, marking
+    // every reachable floor/room cell as true.
+    std::vector<bool> mainNetwork(m_width * m_height, false);
+    std::queue<std::pair<int, int>> q;
+
+    // Find a starting point (any non-wall cell)
+    for (int y = 0; y < m_height; ++y) {
+      for (int x = 0; x < m_width; ++x) {
+        if (getCell(x, y) != CELL_WALL) {
+          q.push({x, y});
+          mainNetwork[getIndex(x, y)] = true;
+          goto START_FLOOD; // Break out of nested loops
+        }
+      }
+    }
+  START_FLOOD:
+
+    // Standard BFS: pop a cell, check its 4 neighbors
+    const int dx[] = {0, 1, 0, -1};
+    const int dy[] = {-1, 0, 1, 0};
+
+    while (!q.empty()) {
+      auto [cx, cy] = q.front();
+      q.pop();
+
+      for (int i = 0; i < 4; ++i) {
+        int nx = cx + dx[i];
+        int ny = cy + dy[i];
+
+        if (isInBounds(nx, ny)) {
+          int nIndex = getIndex(nx, ny);
+          // If neighbor is open space and hasn't been visited yet
+          if (!mainNetwork[nIndex] && getCell(nx, ny) != CELL_WALL) {
+            mainNetwork[nIndex] = true;
+            q.push({nx, ny});
+          }
+        }
+      }
+    }
+
+    // 2. Detect Isolation
+    // Scan the maze. Is there a room cell that mainNetwork didn't reach?
+    int isolatedX = -1, isolatedY = -1;
+    for (int y = 0; y < m_height; ++y) {
+      for (int x = 0; x < m_width; ++x) {
+        if (getCell(x, y) == CELL_ROOM && !mainNetwork[getIndex(x, y)]) {
+          isolatedX = x;
+          isolatedY = y;
+          goto FOUND_ISOLATED;
+        }
+      }
+    }
+  FOUND_ISOLATED:
+
+    // If we didn't find any isolated rooms, we are 100% connected!
+    if (isolatedX == -1) break; 
+
+    // 3. Bore the Tunnel (Pathfinding BFS)
+    // We start a new BFS from the isolated room.
+    // This BFS CAN walk through solid rock (CELL_WALL).
+    // It keeps track of "parents" so we can retrace the path.
+    std::vector<int> parent(m_width * m_height, -1);
+    std::vector<bool> visited(m_width * m_height, false);
+    std::queue<std::pair<int, int>> borerQ;
+
+    borerQ.push({isolatedX, isolatedY});
+    visited[getIndex(isolatedX, isolatedY)] = true;
+
+    int intersectX = -1, intersectY = -1;
+
+    while (!borerQ.empty()) {
+      auto [cx, cy] = borerQ.front();
+      borerQ.pop();
+
+      // Did our borer just break into the main network?
+      if (mainNetwork[getIndex(cx, cy)]) {
+        intersectX = cx;
+        intersectY = cy;
+        break; // Stop! We found the shortest path.
+      }
+
+      for (int i = 0; i < 4; ++i) {
+        int nx = cx + dx[i];
+        int ny = cy + dy[i];
+
+        // Skip the outer border so we don't bore tunnels outside the map
+        if (nx > 0 && nx < m_width - 1 && ny > 0 && ny < m_height - 1) {
+          int nIndex = getIndex(nx, ny);
+          if (!visited[nIndex]) {
+            visited[nIndex] = true;
+            parent[nIndex] = getIndex(cx, cy); // Remember where we came from
+            borerQ.push({nx, ny});
+          }
+        }
+      }
+    }
+
+    // 4. Trace back and carve!
+    // Start from the intersection point and walk backwards using the 'parent' array
+    int currIdx = getIndex(intersectX, intersectY);
+    int startIdx = getIndex(isolatedX, isolatedY);
+
+    while (currIdx != startIdx && currIdx != -1) {
+      int cx = currIdx % m_width;
+      int cy = currIdx / m_width;
+
+      // Smash the wall!
+      if (getCell(cx, cy) == CELL_WALL) {
+        setCell(cx, cy, CELL_FLOOR);
+      }
+
+      currIdx = parent[currIdx]; // Move backwards one step
+    }
+
+    // Loop repeats to check if there are ANY OTHER isolated rooms left!
   }
 }
 

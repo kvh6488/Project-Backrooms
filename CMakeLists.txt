@@ -89,16 +89,29 @@ enable_testing()
 add_executable(BackroomsTests
     tests/test_maze.cpp
     src/maze.cpp
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${rlimhui_SOURCE_DIR}/rlImGui.cpp
 )
 
 # Tell the test executable where to find our source header files
-target_include_directories(BackroomsTests PRIVATE src)
+target_include_directories(BackroomsTests PRIVATE 
+    src
+    ${imgui_SOURCE_DIR}
+    ${rlimhui_SOURCE_DIR}
+)
 
 # Link Google Test and Raylib to the test executable
 target_link_libraries(BackroomsTests PRIVATE
     gtest_main
     raylib
 )
+
+# Raylib recently renamed IsTextureReady to IsTextureValid. rlImGui expects the new name.
+target_compile_definitions(BackroomsTests PRIVATE IsTextureValid=IsTextureReady)
 
 # Register the executable with CTest so VS Code can magically discover it
 include(GoogleTest)

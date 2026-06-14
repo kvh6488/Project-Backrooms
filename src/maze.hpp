@@ -48,6 +48,11 @@ public:
   // from simply following one wall to find the exit.
   void generateLoops();
 
+  // Ensures 100% of the maze is connected.
+  // Uses a Flood-Fill BFS to find isolated rooms, and a Pathfinding BFS
+  // to bore straight tunnels through solid rock to connect them.
+  void ensureConnectivity();
+
   // --- Core Accessors ---
 
   // Convert 2D grid coordinates (x, y) to a 1D array index.

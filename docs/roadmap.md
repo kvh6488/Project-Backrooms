@@ -211,6 +211,7 @@ Fun gameplay systems that enrich Level 1 but aren't core to the loop.
   - Batteries, wires, scrap metal, and chemicals
 - Symbiotic Infection (voluntary infection with mutated strains for buffs like Night Vision — eliminates torch reliance — at cost of emitting biological hum that attracts predators)
 - Gases fill rooms and force players to crawl (deadly in level 2 vents)
+- Potentially add rounds (will be days) were the number of mobs increases each round (like in cod zombies), meaning the game gets harder and each day and your chance of surviving decreases, although could affect overall gameplay goal and cure/virus dynamic. Not sure if I like this mechanic yet.
 - Extra Items:
   - Magic Map (dynamically updates, rare find, limited region, only found when on LSD)
   - Pulsar Radar Gun (tracks base through shifting walls, pings enemies, frontal shield, built using crystals found in level 3)
@@ -259,7 +260,7 @@ Data science showcase.
 Presentation layer.
 - README.md with GIF hook, architecture diagrams, 3-min summary
 - Academic report: Big O proofs & analysis, Python charts, algorithm analysis
-- Code cleanup, commenting, final profiling pass
+- Code cleanup, commenting (finalise comments & clean them up), final profiling pass
 
 ---
 

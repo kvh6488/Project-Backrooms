@@ -1,66 +1,73 @@
-#include "raylib.h"
-#include "rlImGui.h"
 #include "imgui.h"
 #include "maze.hpp"
+#include "raylib.h"
+#include "rlImGui.h"
 #include <ctime>
 int main() {
-    // 1. Initialization
-    const int screenWidth = 1280;
-    const int screenHeight = 720;
+  // 1. Initialization
+  const int screenWidth = 1280;
+  const int screenHeight = 720;
 
-    // Set some window flags (make it resizable)
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(screenWidth, screenHeight, "Project Backrooms");
-    SetTargetFPS(60);
-    
-    // Initialize the ImGui bridge
-    rlImGuiSetup(true);
+  // Set some window flags (make it resizable)
+  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+  InitWindow(screenWidth, screenHeight, "Project Backrooms");
+  SetTargetFPS(60);
 
-    // Initialize the Maze (width: 40, height: 22, cellSize: 32)
-    // We pass the current time as the seed so the maze is unique every run!
-    Maze maze(40, 22, 32, std::time(nullptr));
-    
-    // Generate the rooms using Binary Space Partitioning!
-    maze.generateBSP();
+  // Initialize the ImGui bridge
+  rlImGuiSetup(true);
 
-    // Grow organic corridors between the rooms using Randomized Prim's Algorithm!
-    maze.generateCorridors();
+  // Initialize the Maze (width: 40, height: 22, cellSize: 32)
+  // We pass the current time as the seed so the maze is unique every run!
+  Maze maze(40, 22, 32, std::time(nullptr));
+  // Hardcoding seed to 7 temporarily to test disconnected maze edge-cases!
+  // (Normally we use std::random_device rd; unsigned int seed = rd();)
+  //   unsigned int seed = 7;
+  //   Maze maze(40, 22, 32, seed);
 
-    // Break the perfect maze by randomly smashing walls to create loops!
-    maze.generateLoops();
+  // Generate the rooms using Binary Space Partitioning!
+  maze.generateBSP();
 
-    // 2. Main Game Loop
-    while (!WindowShouldClose()) { // Detect window close button or ESC key
-        
-        // --- Update Logic ---
-        // (Nothing here yet, we will add maze logic later)
+  // Grow organic corridors between the rooms using Randomized Prim's Algorithm!
+  maze.generateCorridors();
 
-        // --- Draw Logic ---
-        BeginDrawing();
-        
-        // Clear the screen to a dark horror-esque grey
-        ClearBackground(Color{ 20, 20, 25, 255 });
+  // Break the perfect maze by randomly smashing walls to create loops!
+  maze.generateLoops();
 
-        // Draw the maze first (so UI draws over it)
-        maze.render();
+  // Run the Tunnel Borer to guarantee 100% connectivity for isolated rooms!
+  maze.ensureConnectivity();
 
-        // Start drawing the ImGui user interface
-        rlImGuiBegin();
+  // 2. Main Game Loop
+  while (!WindowShouldClose()) { // Detect window close button or ESC key
 
-        // Create a simple debug window
-        ImGui::Begin("Debug Engine");
-        ImGui::Text("FPS: %d", GetFPS());
-        ImGui::End();
+    // --- Update Logic ---
+    // (Nothing here yet, we will add maze logic later)
 
-        // End ImGui drawing
-        rlImGuiEnd();
+    // --- Draw Logic ---
+    BeginDrawing();
 
-        EndDrawing();
-    }
+    // Clear the screen to a dark horror-esque grey
+    ClearBackground(Color{20, 20, 25, 255});
 
-    // 3. De-Initialization
-    rlImGuiShutdown();
-    CloseWindow();
+    // Draw the maze first (so UI draws over it)
+    maze.render();
 
-    return 0;
+    // Start drawing the ImGui user interface
+    rlImGuiBegin();
+
+    // Create a simple debug window
+    ImGui::Begin("Debug Engine");
+    ImGui::Text("FPS: %d", GetFPS());
+    ImGui::End();
+
+    // End ImGui drawing
+    rlImGuiEnd();
+
+    EndDrawing();
+  }
+
+  // 3. De-Initialization
+  rlImGuiShutdown();
+  CloseWindow();
+
+  return 0;
 }
