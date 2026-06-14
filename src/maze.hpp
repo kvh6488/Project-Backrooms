@@ -43,6 +43,11 @@ public:
   // open, growing outward until every room is connected.
   void generateCorridors();
 
+  // Breaks the "perfect maze" structure by randomly smashing walls to create
+  // loops and cycles. This makes the maze confusing and prevents the player
+  // from simply following one wall to find the exit.
+  void generateLoops();
+
   // --- Core Accessors ---
 
   // Convert 2D grid coordinates (x, y) to a 1D array index.

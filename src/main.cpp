@@ -26,6 +26,9 @@ int main() {
     // Grow organic corridors between the rooms using Randomized Prim's Algorithm!
     maze.generateCorridors();
 
+    // Break the perfect maze by randomly smashing walls to create loops!
+    maze.generateLoops();
+
     // 2. Main Game Loop
     while (!WindowShouldClose()) { // Detect window close button or ESC key
         

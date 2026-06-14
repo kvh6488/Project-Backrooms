@@ -439,12 +439,14 @@ void Maze::generateCorridors() {
     // Collect all candidate doorway positions for this room
     std::vector<std::pair<int, int>> doorCandidates;
 
-    // Scan the 4 borders of the room looking for wall cells adjacent to corridors
+    // Scan the 4 borders of the room looking for wall cells adjacent to
+    // corridors
     for (int ix = leaf->roomX; ix < leaf->roomX + leaf->roomWidth; ++ix) {
       // Check the wall cell directly ABOVE the room (roomY - 1)
       int wy = leaf->roomY - 1;
       if (isInBounds(ix, wy) && getCell(ix, wy) == CELL_WALL) {
-        // Is there a corridor on the OTHER side of this wall? (one more step up)
+        // Is there a corridor on the OTHER side of this wall? (one more step
+        // up)
         if (isInBounds(ix, wy - 1) && getCell(ix, wy - 1) == CELL_FLOOR) {
           doorCandidates.push_back({ix, wy});
         }
@@ -476,8 +478,8 @@ void Maze::generateCorridors() {
 
     // If we found any candidates, punch a random one open as a doorway
     if (!doorCandidates.empty()) {
-      int pick = std::uniform_int_distribution<>(
-          0, (int)doorCandidates.size() - 1)(m_rng);
+      int pick = std::uniform_int_distribution<>(0, (int)doorCandidates.size() -
+                                                        1)(m_rng);
       setCell(doorCandidates[pick].first, doorCandidates[pick].second,
               CELL_FLOOR);
     }
@@ -485,22 +487,114 @@ void Maze::generateCorridors() {
 }
 
 // ============================================================================
-// getIndex — The Heart of 1D-to-2D Mapping
+// LOOP GENERATION — Breaking the Perfect Maze
 // ============================================================================
-// Converts a 2D coordinate (x, y) into a 1D array index.
+// Prim's algorithm creates a "perfect maze" (a spanning tree with zero loops).
+// This means there is exactly ONE path between any two points. A player who
+// knows the "wall following" trick (always keep your left hand on the wall)
+// could navigate it trivially.
 //
-// Imagine our grid laid out like rows of a spreadsheet:
-//   Row 0 (y=0): indices [0, 1, 2, 3, 4]       (if width = 5)
-//   Row 1 (y=1): indices [5, 6, 7, 8, 9]
-//   Row 2 (y=2): indices [10, 11, 12, 13, 14]
+// To create confusion, we do a single pass over the entire grid. Every wall
+// cell gets a small random chance (3%) to be smashed open. This randomly
+// connects parallel hallways and dead ends, creating circular paths.
 //
-// To get to row y, we skip y full rows of 'width' cells each: y * width
-// Then we move x cells to the right within that row: + x
+// We reuse the same diagonal leak check from Prim's to ensure we never
+// create ugly corner-only connections.
 //
-// Example: getIndex(3, 2) on a width=5 grid
-//   = 2 * 5 + 3
-//   = 10 + 3
-//   = 13  ← That's the correct index in our 1D array!
+// COMPLEXITY: Θ(V) — We visit every cell exactly once. This is provably
+// optimal because we must examine each wall to decide its fate. There is
+// no way to create well-distributed loops without inspecting every candidate.
+//
+// NOTE: Some loops may already exist naturally where Prim's corridors
+// touched BSP rooms from multiple directions. This pass adds MORE loops
+// on top of those organic ones.
+// ============================================================================
+
+void Maze::generateLoops() {
+  // The probability that any given wall gets smashed (out of 100).
+  // 3% creates a nice balance: enough loops to confuse, but not so many
+  // that the maze becomes a wide-open field.
+  const int LOOP_CHANCE = 5;
+
+  // Skip the outer border (row 0, last row, column 0, last column)
+  // so the maze always stays fully enclosed.
+  for (int y = 1; y < m_height - 1; ++y) {
+    for (int x = 1; x < m_width - 1; ++x) {
+
+      // Only consider wall cells
+      if (getCell(x, y) != CELL_WALL)
+        continue;
+
+      // Roll the dice — 3% chance to break this wall
+      if (std::uniform_int_distribution<>(0, 99)(m_rng) >= LOOP_CHANCE)
+        continue;
+
+      // A wall only makes sense to break if it actually separates two
+      // carved areas. Check that at least 2 cardinal neighbors are carved
+      // (floor or room). If only 0 or 1 neighbors are carved, smashing
+      // this wall would just extend a dead end, not create a loop.
+      const int dx[] = {1, -1, 0, 0};
+      const int dy[] = {0, 0, 1, -1};
+      int carvedCount = 0;
+      for (int d = 0; d < 4; ++d) {
+        int nx = x + dx[d];
+        int ny = y + dy[d];
+        if (isInBounds(nx, ny)) {
+          int t = getCell(nx, ny);
+          if (t == CELL_FLOOR || t == CELL_ROOM)
+            ++carvedCount;
+        }
+      }
+
+      // We need at least 2 carved neighbors to form an actual loop
+      if (carvedCount < 2)
+        continue;
+
+      // --- Diagonal Leak Check (same logic as Prim's Step 4b) ---
+      // Even though we WANT loops here, we still don't want diagonal-only
+      // connections because they break wall rendering.
+      bool hasDiagonalLeak = false;
+      const int diagX[] = {1, 1, -1, -1};
+      const int diagY[] = {1, -1, 1, -1};
+      for (int d = 0; d < 4; ++d) {
+        int dnx = x + diagX[d];
+        int dny = y + diagY[d];
+        if (isInBounds(dnx, dny)) {
+          int diagType = getCell(dnx, dny);
+          if (diagType == CELL_FLOOR || diagType == CELL_ROOM) {
+            int sharedA = getCell(x + diagX[d], y);
+            int sharedB = getCell(x, y + diagY[d]);
+            if (sharedA == CELL_WALL && sharedB == CELL_WALL) {
+              hasDiagonalLeak = true;
+              break;
+            }
+          }
+        }
+      }
+      if (hasDiagonalLeak)
+        continue;
+
+      // All checks passed — smash the wall to create a loop!
+      setCell(x, y, CELL_FLOOR);
+    }
+  }
+}
+
+// get index - The heart of 1D-to-2D Mapping
+//  Converts a 2D coordinate (x, y) into a 1D array index.
+//
+//  Imagine our grid laid out like rows of a spreadsheet:
+//    Row 0 (y=0): indices [0, 1, 2, 3, 4]       (if width = 5)
+//    Row 1 (y=1): indices [5, 6, 7, 8, 9]
+//    Row 2 (y=2): indices [10, 11, 12, 13, 14]
+//
+//  To get to row y, we skip y full rows of 'width' cells each: y * width
+//  Then we move x cells to the right within that row: + x
+//
+//  Example: getIndex(3, 2) on a width=5 grid
+//    = 2 * 5 + 3
+//    = 10 + 3
+//    = 13  ← That's the correct index in our 1D array!
 int Maze::getIndex(int x, int y) const { return y * m_width + x; }
 
 // ============================================================================
