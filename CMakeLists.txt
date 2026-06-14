@@ -53,6 +53,7 @@ add_executable(Backrooms
     src/generators/loop_generator.cpp
     src/generators/prims_generator.cpp
     src/generators/tunnel_borer.cpp
+    src/player.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -97,6 +98,7 @@ add_executable(BackroomsTests
     src/generators/loop_generator.cpp
     src/generators/prims_generator.cpp
     src/generators/tunnel_borer.cpp
+    src/player.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp

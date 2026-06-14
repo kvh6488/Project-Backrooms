@@ -6,6 +6,7 @@
 #include "generators/tunnel_borer.hpp"
 #include "raylib.h"
 #include "rlImGui.h"
+#include "player.hpp"
 #include <ctime>
 int main() {
   // 1. Initialization
@@ -36,11 +37,20 @@ int main() {
   TunnelBorer borer;
   borer.ensureConnectivity(maze);
 
+  // Spawn player in the center of the first generated room
+  Vector2 playerStartPos = { 0.0f, 0.0f };
+  if (!maze.getRooms().empty()) {
+    const auto& firstRoom = maze.getRooms()[0];
+    playerStartPos.x = (firstRoom.x + firstRoom.width / 2.0f) * maze.getCellSize();
+    playerStartPos.y = (firstRoom.y + firstRoom.height / 2.0f) * maze.getCellSize();
+  }
+  Player player(playerStartPos);
+
   // 2. Main Game Loop
   while (!WindowShouldClose()) { // Detect window close button or ESC key
 
     // --- Update Logic ---
-    // (Nothing here yet, we will add maze logic later)
+    player.update(maze);
 
     // --- Draw Logic ---
     BeginDrawing();
@@ -50,6 +60,9 @@ int main() {
 
     // Draw the maze first (so UI draws over it)
     maze.render();
+    
+    // Draw the player
+    player.render();
 
     // Start drawing the ImGui user interface
     rlImGuiBegin();

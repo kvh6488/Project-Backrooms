@@ -4,11 +4,17 @@
 // PRIM'S ALGORITHM IMPLEMENTATION (Corridor Generation)
 // ============================================================================
 void PrimsGenerator::generate(Maze& maze, std::mt19937& rng) {
+  // 1. The Frontier List: Stores the indices of all rock/wall cells that are 
+  // adjacent to a carved floor. We will randomly pick from this list to grow the maze.
   std::vector<int> frontier;
 
   int seedX = -1, seedY = -1;
   const auto& rooms = maze.getRooms();
 
+  // --- STEP 1: Find a Seed Point ---
+  // Prim's algorithm needs a starting point (a "seed"). Instead of picking a random
+  // rock cell, we want the maze to grow *out* of the BSP rooms. 
+  // We scan the perimeter of the existing rooms to find a solid rock wall to start carving.
   for (const auto &room : rooms) {
     seedX = room.x - 1;
     seedY = room.y;
@@ -27,11 +33,15 @@ void PrimsGenerator::generate(Maze& maze, std::mt19937& rng) {
 
   if (seedX == -1 || seedY == -1) return;
 
+  // Carve the seed cell to start the maze
   maze.setCell(seedX, seedY, Maze::CELL_FLOOR);
 
+  // Cardinal directions: Right, Left, Down, Up
   const int dx[] = {1, -1, 0, 0};
   const int dy[] = {0, 0, 1, -1};
 
+  // Add all solid walls immediately adjacent to the seed into the frontier list.
+  // The frontier represents the "edge" of our growing mold.
   for (int d = 0; d < 4; ++d) {
     int nx = seedX + dx[d];
     int ny = seedY + dy[d];
@@ -40,16 +50,23 @@ void PrimsGenerator::generate(Maze& maze, std::mt19937& rng) {
     }
   }
 
+  // 2. Main Prim's Loop: Keep going until the frontier is empty.
   while (!frontier.empty()) {
+    // Pick a random wall from the frontier. This randomness creates the chaotic,
+    // organic mold-like growth characteristic of the Backrooms.
     int randIdx = std::uniform_int_distribution<>(0, (int)frontier.size() - 1)(rng);
     int wallIndex = frontier[randIdx];
 
+    // Fast O(1) Removal: Instead of shifting the entire vector down (which is O(N)),
+    // we swap the chosen element with the very last element, and then pop the back.
     frontier[randIdx] = frontier.back();
     frontier.pop_back();
 
+    // Convert the 1D index back into 2D grid coordinates
     int wx = wallIndex % maze.getWidth();
     int wy = wallIndex / maze.getWidth();
 
+    // If this cell was somehow already carved (perhaps by another path), skip it
     if (maze.getCell(wx, wy) != Maze::CELL_WALL) continue;
 
     int carvedNeighborCount = 0;
@@ -64,8 +81,13 @@ void PrimsGenerator::generate(Maze& maze, std::mt19937& rng) {
       }
     }
 
+    // A valid Prim's wall MUST have exactly 1 carved neighbor. 
+    // If it has 2 or more, breaking it would create a loop, violating the perfect maze tree structure.
     if (carvedNeighborCount != 1) continue;
 
+    // --- Diagonal Leak Check ---
+    // In grid mazes, carving cells diagonally adjacent can create visual "leaks" where two rooms 
+    // touch only at the corner, making the wall geometry look broken in 3D.
     bool hasDiagonalLeak = false;
     const int diagX[] = {1, 1, -1, -1};
     const int diagY[] = {1, -1, 1, -1};
@@ -86,8 +108,10 @@ void PrimsGenerator::generate(Maze& maze, std::mt19937& rng) {
     }
     if (hasDiagonalLeak) continue;
 
+    // All checks passed! Smash the wall and turn it into a floor.
     maze.setCell(wx, wy, Maze::CELL_FLOOR);
 
+    // Add all of the newly exposed rock/wall neighbors to the frontier.
     for (int d = 0; d < 4; ++d) {
       int nx = wx + dx[d];
       int ny = wy + dy[d];
@@ -97,8 +121,13 @@ void PrimsGenerator::generate(Maze& maze, std::mt19937& rng) {
     }
   }
 
-  // --- STEP 6: Punch Doorways ---
+  // --- STEP 3: Punch Doorways ---
+  // Prim's algorithm specifically avoids carving into existing carved areas to prevent loops.
+  // Because of this, it naturally wraps *around* the BSP rooms but never actually connects to them!
+  // We must do a final pass around the perimeter of every room and forcefully punch a door
+  // to connect the room to the corridor network.
   for (const auto &room : rooms) {
+    // Collect all viable spots for a door (must have rock on the perimeter, and floor right outside it)
     std::vector<std::pair<int, int>> doorCandidates;
 
     for (int ix = room.x; ix < room.x + room.width; ++ix) {

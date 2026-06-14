@@ -2,7 +2,13 @@
 #include "../maze.hpp"
 #include <random>
 #include <memory>
-
+// ============================================================================
+// BSPGenerator
+// ============================================================================
+// Implements Binary Space Partitioning. It recursively slices the maze into
+// smaller rectangles (leaves), and then carves random "office rooms" inside
+// those leaves. This ensures rooms are well-distributed and non-overlapping.
+// ============================================================================
 class BSPGenerator {
 public:
     void generate(Maze& maze, std::mt19937& rng);
