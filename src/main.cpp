@@ -1,5 +1,9 @@
 #include "imgui.h"
 #include "maze.hpp"
+#include "generators/bsp_generator.hpp"
+#include "generators/prims_generator.hpp"
+#include "generators/loop_generator.hpp"
+#include "generators/tunnel_borer.hpp"
 #include "raylib.h"
 #include "rlImGui.h"
 #include <ctime>
@@ -16,25 +20,21 @@ int main() {
   // Initialize the ImGui bridge
   rlImGuiSetup(true);
 
-  // Initialize the Maze (width: 40, height: 22, cellSize: 32)
-  // We pass the current time as the seed so the maze is unique every run!
-  Maze maze(40, 22, 32, std::time(nullptr));
-  // Hardcoding seed to 7 temporarily to test disconnected maze edge-cases!
-  // (Normally we use std::random_device rd; unsigned int seed = rd();)
-  //   unsigned int seed = 7;
-  //   Maze maze(40, 22, 32, seed);
+  unsigned int seed = std::time(nullptr);
+  Maze maze(40, 22, 32, seed);
+  std::mt19937 rng(seed);
 
-  // Generate the rooms using Binary Space Partitioning!
-  maze.generateBSP();
+  BSPGenerator bsp;
+  bsp.generate(maze, rng);
 
-  // Grow organic corridors between the rooms using Randomized Prim's Algorithm!
-  maze.generateCorridors();
+  PrimsGenerator prims;
+  prims.generate(maze, rng);
 
-  // Break the perfect maze by randomly smashing walls to create loops!
-  maze.generateLoops();
+  LoopGenerator loops;
+  loops.generate(maze, rng);
 
-  // Run the Tunnel Borer to guarantee 100% connectivity for isolated rooms!
-  maze.ensureConnectivity();
+  TunnelBorer borer;
+  borer.ensureConnectivity(maze);
 
   // 2. Main Game Loop
   while (!WindowShouldClose()) { // Detect window close button or ESC key

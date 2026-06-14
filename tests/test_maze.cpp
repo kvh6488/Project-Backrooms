@@ -1,3 +1,7 @@
+#include "generators/bsp_generator.hpp"
+#include "generators/loop_generator.hpp"
+#include "generators/prims_generator.hpp"
+#include "generators/tunnel_borer.hpp"
 #include "imgui.h"
 #include "maze.hpp"
 #include "raylib.h"
@@ -76,7 +80,9 @@ TEST(MazeTest, BSPGenerationCarvesRooms) {
   EXPECT_EQ(roomCountBefore, 0);
 
   // 2. Execute the BSP algorithm
-  maze.generateBSP();
+  std::mt19937 rng(12345);
+  BSPGenerator bsp;
+  bsp.generate(maze, rng);
 
   // 3. After generation, we should have successfully carved hundreds of room
   // tiles
@@ -98,7 +104,9 @@ TEST(MazeTest, CorridorGenerationCarvesFloors) {
   Maze maze(40, 22, 32, 12345);
 
   // Generate rooms first (corridors need rooms to grow from)
-  maze.generateBSP();
+  std::mt19937 rng(12345);
+  BSPGenerator bsp;
+  bsp.generate(maze, rng);
 
   // 1. Before corridors, there should be zero CELL_FLOOR tiles
   //    (BSP only creates CELL_ROOM tiles, not CELL_FLOOR)
@@ -113,7 +121,8 @@ TEST(MazeTest, CorridorGenerationCarvesFloors) {
   EXPECT_EQ(floorCountBefore, 0);
 
   // 2. Execute Prim's corridor generation
-  maze.generateCorridors();
+  PrimsGenerator prims;
+  prims.generate(maze, rng);
 
   // 3. After corridors, we should have many CELL_FLOOR tiles
   int floorCountAfter = 0;
@@ -144,10 +153,15 @@ TEST(MazeTest, FullConnectivityEnsured) {
   Maze maze(40, 22, 32, seed);
 
   // Run the full generation pipeline
-  maze.generateBSP();
-  maze.generateCorridors();
-  maze.generateLoops();
-  maze.ensureConnectivity();
+  std::mt19937 rng(seed);
+  BSPGenerator bsp;
+  bsp.generate(maze, rng);
+  PrimsGenerator prims;
+  prims.generate(maze, rng);
+  LoopGenerator loops;
+  loops.generate(maze, rng);
+  TunnelBorer borer;
+  borer.ensureConnectivity(maze);
 
   // 1. Count total valid cells (Rooms + Floors)
   int totalValidCells = 0;

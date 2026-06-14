@@ -4,7 +4,7 @@ This document outlines the design and implementation steps for Phase 1 of Projec
 
 ## 1. Maze Generation Algorithm: The Hybrid Approach
 
-To achieve the non-Euclidean looping geometry and a mix of wide office rooms and narrow corridors characteristic of the Backrooms, we will implement a **Hybrid BSP + Prim's Algorithm**.
+To produce a maze that contains a mix of wide office rooms and narrow, twisting corridors characteristic of the Backrooms.
 
 ### The Algorithm Steps & Complexity
 
@@ -19,6 +19,16 @@ To achieve the non-Euclidean looping geometry and a mix of wide office rooms and
 3. **Loop Generation (Breaking the Tree)**
    - **How it works:** Prim's algorithm generates a "perfect maze" with zero loops (a spanning tree). To introduce confusion and cycles, we perform a final pass. We iterate over every remaining wall cell in the maze. For each wall, we give it a small random chance (e.g., 3%) to be deleted and turned into a floor. This connects dead ends together and creates circular paths.
    - **Complexity:** O(V) as we iterate over the grid once.
+
+4. **Tunnel Borer (Ensuring 100% Connectivity)**
+   - **How it works:** Even after Prim's and Loop Generation, some BSP rooms might remain completely isolated if the mold never reached them. To fix this, we use a two-step graph traversal approach. First, we run a **Flood-Fill BFS (Breadth-First Search)** starting from any open floor to map out the "main network" of connected rooms and corridors. Second, if we find any room that wasn't reached by the flood-fill, we run a **Pathfinding BFS** starting from that isolated room. Crucially, this pathfinding BFS is allowed to walk through solid rock. Once it collides with the main network, we trace the shortest path backwards and carve a straight tunnel through the rock to connect them. We repeat this process until zero isolated rooms remain.
+   - **Complexity:** O(V) per isolated room, as both the Flood-Fill BFS and Pathfinding BFS traverse the grid cells (vertices) at most once per pass.
+
+### Overall Maze Generation Complexity
+Combining all four algorithms gives us the total time complexity for generating a full Backrooms level:
+- **Best Case (Lower Bound): Ω(V).** If BSP splits perfectly and the Tunnel Borer finds zero isolated islands on its first scan, every step scales linearly with the number of grid cells (V). We are mathematically certain it can never run faster than this, as we must at least visit every cell once.
+- **Worst Case (Upper Bound): O(V²).** In a pathological edge-case where the initial generation algorithms somehow create hundreds of completely isolated 1x1 rooms (proportional to V), the Tunnel Borer's `while` loop would execute O(V) times, running a full O(V) BFS on each iteration. We are certain it will never be worse than this quadratic time limit.
+- **Average/Common Case:** In typical runs, the algorithms remain strictly linear. Because Prim's algorithm naturally creates a highly-connected web, the Tunnel Borer rarely finds more than 0 to 2 isolated rooms. Running a BFS a constant number of times means the average everyday performance heavily skews toward our lower bound, running in **O(V)** time.
 
 ## 2. Core Data Structures: Implicit Grid Graph
 
@@ -61,10 +71,3 @@ The maze graph will be represented implicitly on a 2D grid. We do not use explic
 - Implement the basic game loop: input -> update -> begin drawing -> begin camera -> render maze -> render player -> end camera -> end drawing.
 
 ---
-
-## Verification Plan
-### Manual Verification
-- Compile and run the game.
-- Verify the player can move smoothly using WASD.
-- Verify the player slides against walls instead of getting stuck on corners.
-- Verify the camera follows the player correctly across the massive maze canvas.

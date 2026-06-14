@@ -49,6 +49,10 @@ endif()
 add_executable(Backrooms 
     src/main.cpp 
     src/maze.cpp
+    src/generators/bsp_generator.cpp
+    src/generators/loop_generator.cpp
+    src/generators/prims_generator.cpp
+    src/generators/tunnel_borer.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -89,6 +93,10 @@ enable_testing()
 add_executable(BackroomsTests
     tests/test_maze.cpp
     src/maze.cpp
+    src/generators/bsp_generator.cpp
+    src/generators/loop_generator.cpp
+    src/generators/prims_generator.cpp
+    src/generators/tunnel_borer.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp

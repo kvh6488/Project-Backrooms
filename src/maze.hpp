@@ -1,8 +1,6 @@
 #pragma once // Tells the compiler: only include this file once, even if
              // multiple files #include it.
 
-#include <memory> // For std::shared_ptr (memory management for BSP tree)
-#include <random> // For std::mt19937 (random number generator)
 #include <vector> // For std::vector (our dynamic 1D array)
 
 // ============================================================================
@@ -33,25 +31,7 @@ public:
   // seed determines the random layout. Same seed = same maze.
   Maze(int width, int height, int cellSize = 32, unsigned int seed = 12345);
 
-  // --- Maze Generation Algorithms ---
-  // Executes the Binary Space Partitioning algorithm to carve rooms.
-  void generateBSP();
 
-  // Grows organic corridors between the BSP rooms using Randomized Prim's Algorithm.
-  // This works like mold spreading through rock — it picks random walls on the
-  // "frontier" (the boundary between carved space and solid rock) and smashes them
-  // open, growing outward until every room is connected.
-  void generateCorridors();
-
-  // Breaks the "perfect maze" structure by randomly smashing walls to create
-  // loops and cycles. This makes the maze confusing and prevents the player
-  // from simply following one wall to find the exit.
-  void generateLoops();
-
-  // Ensures 100% of the maze is connected.
-  // Uses a Flood-Fill BFS to find isolated rooms, and a Pathfinding BFS
-  // to bore straight tunnels through solid rock to connect them.
-  void ensureConnectivity();
 
   // --- Core Accessors ---
 
@@ -81,49 +61,23 @@ public:
   int getHeight() const { return m_height; }
   int getCellSize() const { return m_cellSize; }
 
+  struct Room {
+    int x, y, width, height;
+  };
+
+  void addRoom(const Room& room) { m_rooms.push_back(room); }
+  const std::vector<Room>& getRooms() const { return m_rooms; }
+
 private:
   int m_width;    // Number of cells horizontally
   int m_height;   // Number of cells vertically
   int m_cellSize; // Size of each cell in pixels (default 32x32)
 
   // THE 1D FLAT ARRAY
-  // This single contiguous block of memory holds every cell in the maze.
-  // A 100x100 maze = 10,000 integers, all sitting next to each other in RAM.
-  // We access cell (x, y) using: m_grid[y * m_width + x]
   std::vector<int> m_grid;
 
-  // --- BSP Generation State ---
-  // Our Random Number Generator. By storing it here, we guarantee
-  // the maze generation is deterministic based on the initial seed.
-  std::mt19937 m_rng;
+  // List of all carved rooms
+  std::vector<Room> m_rooms;
 
-  // A block of "cookie dough" in the BSP algorithm.
-  struct BSPLeaf {
-    int x, y, width, height; // The rectangular area this leaf owns
-    std::shared_ptr<BSPLeaf> leftChild;
-    std::shared_ptr<BSPLeaf> rightChild;
 
-    // Coordinates of the actual carved room (if this leaf has one)
-    int roomX, roomY, roomWidth, roomHeight;
-    bool hasRoom = false;
-
-    BSPLeaf(int _x, int _y, int _w, int _h)
-        : x(_x), y(_y), width(_w), height(_h) {}
-
-    // Slices the leaf in half. Returns true if successful.
-    bool split(std::mt19937 &rng);
-
-    // Recursively carves actual rooms into the Maze
-    void createRooms(Maze &maze, std::mt19937 &rng);
-  };
-
-  // The root of our BSP tree
-  std::shared_ptr<BSPLeaf> m_rootLeaf;
-
-  // Keep track of all leaves so we can easily iterate over them later
-  std::vector<std::shared_ptr<BSPLeaf>> m_leaves;
-
-  // After BSP carves isolated rooms, this pass occasionally smashes the thin
-  // walls between nearby rooms to create larger, combined L-shaped formations.
-  void mergeAdjacentRooms();
 };
