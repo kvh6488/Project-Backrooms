@@ -1,12 +1,12 @@
+#include "generators/bsp_generator.hpp"
+#include "generators/loop_generator.hpp"
+#include "generators/prims_generator.hpp"
+#include "generators/tunnel_borer.hpp"
 #include "imgui.h"
 #include "maze.hpp"
-#include "generators/bsp_generator.hpp"
-#include "generators/prims_generator.hpp"
-#include "generators/loop_generator.hpp"
-#include "generators/tunnel_borer.hpp"
+#include "player.hpp"
 #include "raylib.h"
 #include "rlImGui.h"
-#include "player.hpp"
 #include <ctime>
 int main() {
   // 1. Initialization
@@ -38,11 +38,13 @@ int main() {
   borer.ensureConnectivity(maze);
 
   // Spawn player in the center of the first generated room
-  Vector2 playerStartPos = { 0.0f, 0.0f };
+  Vector2 playerStartPos = {0.0f, 0.0f};
   if (!maze.getRooms().empty()) {
-    const auto& firstRoom = maze.getRooms()[0];
-    playerStartPos.x = (firstRoom.x + firstRoom.width / 2.0f) * maze.getCellSize();
-    playerStartPos.y = (firstRoom.y + firstRoom.height / 2.0f) * maze.getCellSize();
+    const auto &firstRoom = maze.getRooms()[0];
+    playerStartPos.x =
+        (firstRoom.x + firstRoom.width / 2.0f) * maze.getCellSize();
+    playerStartPos.y =
+        (firstRoom.y + firstRoom.height / 2.0f) * maze.getCellSize();
   }
   Player player(playerStartPos);
 
@@ -60,7 +62,7 @@ int main() {
 
     // Draw the maze first (so UI draws over it)
     maze.render();
-    
+
     // Draw the player
     player.render();
 
