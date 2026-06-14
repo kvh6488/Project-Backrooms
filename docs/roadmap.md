@@ -105,17 +105,16 @@ Generate a maze, render it, and let the player walk through it.
 - Render maze as colored tiles (placeholder)
 - Player entity: position, WASD movement, wall collision
 - **Dynamic 2D Camera** — Camera follows the player through a massively expanded maze grid
-- Load proper tile textures (end of phase)
 
 ### Phase 2 — Dynamic Maze & Non-Euclidean Topology *(Days 13–22)*
 Make the maze shift and break physical rules.
 - Toroidal wrapping (modulo addressing for "infinite" feel)
 - Maze mutation: reconnect edges on timer or distance trigger
 - "Look-away" detection: re-roll rooms outside the player's view
-- Edge pointer-swapping for non-Euclidean room flipping
+- Edge pointer-swapping for non-Euclidean room flipping , or rotating ring
 - Noclip hidden exits (wall cells secretly passable)
 - Fog-of-war / limited visibility
-- Spray can marking system + mark invalidation on shift
+- Load proper tile textures (end of phase)
 
 ### Phase 3 — Virus & BFS Territory *(Days 23–34)*
 The mathematical heart — competing virus systems spreading across the grid.
