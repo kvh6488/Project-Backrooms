@@ -165,14 +165,17 @@ Entities that move, hunt, and fight using the flow-field.
 ### Phase 6 — Base Building, Crafting & Essential Items *(Days 53–64)*
 Player agency, progression, and core items needed for fundamental gameplay.
 - **Furniture spawns**: Like the Backrooms film, odd furniture pieces (desks, chairs, filing cabinets, shelves) are occasionally placed throughout the maze. These are where found items (items that cannot be crafted) spawn. Players search furniture to discover items, raw materials, and lore. Mechanic to be expanded further.
-- **Base crafting materials**: Raw materials found throughout the maze (e.g., scrap metal, wires, wood, cloth, chemicals, electronic components) that aren't useful on their own but are combined in the crafting system to build useful items. Exact material list TBD — we will figure out what these are later as we design the crafting recipes.
-- Base placement (safe zone cells)
+- **Fundamental crafting materials**: Raw materials found throughout the maze (e.g., scrap metal, wires, wood, cloth, chemicals, electronic components) that aren't useful on their own but are combined in the crafting system to build useful items. Exact material list TBD — we will figure out what these are later as we design the crafting recipes.
+- Base placement - bases must be placed within a room, you can choose any room to build you base in but you must balance the number of exits too few if mobs break through your door, you can get cornererd easily as no other direction, too many and you are forced
+to maintain a large amount of doors meaning one of them is more likely to get broken down by mobs. Size is also a consideration smaller rooms often have less entrances/exits meaning there easier to defend, but have less space for building your base equipment
+like farming, chemical lab etc, where as larger rooms often have a great amount of room for equipment but many more entrances/exits.
 - Bed + sleep mechanic:
   - Allows sleeping, temporarily pauses game (time limit)
   - Sleeping is mandatory — failing to sleep causes sluggishness, increased hallucinations, can lead to passing out (lost/respawned)
   - Sleeping accelerates maze shuffling in outer regions (distant map scrambled when you wake up)
 - Crafting system: inventory → recipe → item
-- Barricade placement (modify BFS cost map / block enemy BFS pathfinding)
+- Barricade & Door placement (modify BFS cost map / block enemy BFS pathfinding)
+  - Doors can be placed in room exits. They can be opened/closed by the player but must be broken down by mobs.
 - Cure disperser building + upgrade tiers
   - Strategy choice: few heavily upgraded dispersers large radar (severely reduced mob spawns) vs. dozens of weak ones (stops maze merging but easily destroyed by mobs)
 - Item pickup / inventory system
@@ -183,6 +186,7 @@ Player agency, progression, and core items needed for fundamental gameplay.
   - Classic Map (limited region, full-screen overlay, unreliable due to maze shifts)
   - Spray Can (mark walls, invalidated by maze shifts)
   - Barricades (wood, reinforced wood — block BFS pathfinding)
+  - Doors (wood, metal, reinforced — placed in room entrances/exits to secure a base, upgradeable health)
   - Melee weapons (baseball bat, bat with nails)
 - Navigation risk: opening map takes up entire screen, leaving player blind and vulnerable
 
@@ -291,6 +295,7 @@ All items from the design document, organized by category.
 | Hazmat Suit | Protects from negative infection and gases. | L1 |
 | Tripwire Flashbangs | Defensive traps. | L1 |
 | Barricades | Wood / reinforced wood. Blocks enemy BFS pathfinding. Upgradeable. | L1 (crafted) |
+| Doors | Wood / Metal / Reinforced. Placed in room exits to secure bases. Opened/closed by player. Upgradeable. | L1 (crafted) |
 
 ### Unique Gear & Companions
 | Item | Description | Level |
