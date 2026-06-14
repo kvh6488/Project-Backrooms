@@ -6,12 +6,6 @@ This document outlines the design and implementation steps for Phase 1 of Projec
 
 To achieve the non-Euclidean looping geometry and a mix of wide office rooms and narrow corridors characteristic of the Backrooms, we will implement a **Hybrid BSP + Prim's Algorithm**.
 
-### Live Visualizer (Debug Mode)
-To help us test, visualize, and learn the algorithms, the maze generation will not happen instantly behind the scenes. We will build a **Step-by-Step Visualizer** using the Dear ImGui overlay from Phase 0.
-- We will add UI buttons to trigger each step manually: "Step 1: BSP", "Step 2: Prim's", "Step 3: Loops".
-- The algorithms will be written to execute progressively (e.g., carving one Prim's wall per frame) so you can watch the maze organically grow and carve itself out live on the screen.
-- *Note: This visualizer GUI will be moved to a dedicated "Testing Mode" and hidden during normal gameplay in Phase 9.*
-
 ### The Algorithm Steps & Complexity
 
 1. **BSP (Binary Space Partitioning) for Rooms**
@@ -58,32 +52,19 @@ The maze graph will be represented implicitly on a 2D grid. We do not use explic
   - Second, we add the Y velocity and do the same check.
   - **Why?** Handling axes separately allows the player to smoothly "slide" along a wall if they press diagonally into it, rather than getting completely stuck.
 
-## 4. Game State and Camera
+## 4. Game State and Dynamic Camera
 
 #### [MODIFY] `src/main.cpp`
 - Instantiate `Maze` and `Player`.
-- Setup a `Camera2D` (Raylib struct) to track the player's position.
+- Setup a **`Camera2D`** (Raylib struct) to track the player's position.
+- **Massive Scale:** We will increase the maze size by 6-7x. The entire maze will no longer fit on a single screen. The camera must dynamically pan to keep the player centered, giving a true sense of scale and exploration.
 - Implement the basic game loop: input -> update -> begin drawing -> begin camera -> render maze -> render player -> end camera -> end drawing.
-- *Note: We will test the maze with standard hard boundaries at this stage to ensure generation and movement work perfectly before adding infinite wrapping.*
-
-## 5. Toroidal Wrapping (The "Infinite" Illusion)
-
-*To be implemented ONLY AFTER the standard maze, player movement, and camera are fully tested and working.*
-
-To create the illusion of an infinitely generating maze without consuming infinite memory, we will implement Toroidal Wrapping on our fixed-size grid. 
-
-- **Mathematical Implementation:** Position calculations will use the modulo operator (`%`), which returns the remainder of a division. 
-  - **How it works:** If our maze `width = 100`, valid X coordinates are 0 to 99. If the player moves right from `x = 99`, their new X becomes `100`. We calculate `100 % 100`, which equals `0`. The player instantly teleports to the left edge. 
-  - **Negative Wrapping:** If moving left from `x = 0`, X becomes `-1`. In C++, we use `(x % width + width) % width` to wrap negative numbers. `(-1 % 100 + 100) % 100 = 99`. The player teleports to the right edge!
-- **Graph Topology:** This transforms our flat grid into a continuous torus (donut). The graph has no boundary walls, and every cell has exactly 4 neighbors. This allows pathfinding algorithms (like BFS) to seamlessly wrap around the map.
 
 ---
 
 ## Verification Plan
 ### Manual Verification
 - Compile and run the game.
-- Use the ImGui Debugger to step-by-step execute BSP, Prim's, and Loop injection. Verify each stage draws correctly.
 - Verify the player can move smoothly using WASD.
 - Verify the player slides against walls instead of getting stuck on corners.
-- Verify the camera follows the player.
-- **Final Step:** Enable Toroidal mapping and verify walking past the map edge seamlessly wraps to the other side visually and physically.
+- Verify the camera follows the player correctly across the massive maze canvas.
