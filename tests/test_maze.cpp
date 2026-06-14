@@ -85,3 +85,39 @@ TEST(MazeTest, BSPGenerationCarvesRooms) {
     // We expect greater than 0 room tiles to exist
     EXPECT_GT(roomCountAfter, 0);
 }
+
+// 7. Test Corridor Generation (Prim's Algorithm)
+TEST(MazeTest, CorridorGenerationCarvesFloors) {
+    Maze maze(40, 22, 32, 12345);
+
+    // Generate rooms first (corridors need rooms to grow from)
+    maze.generateBSP();
+
+    // 1. Before corridors, there should be zero CELL_FLOOR tiles
+    //    (BSP only creates CELL_ROOM tiles, not CELL_FLOOR)
+    int floorCountBefore = 0;
+    for (int y = 0; y < 22; ++y) {
+        for (int x = 0; x < 40; ++x) {
+            if (maze.getCell(x, y) == Maze::CELL_FLOOR) {
+                ++floorCountBefore;
+            }
+        }
+    }
+    EXPECT_EQ(floorCountBefore, 0);
+
+    // 2. Execute Prim's corridor generation
+    maze.generateCorridors();
+
+    // 3. After corridors, we should have many CELL_FLOOR tiles
+    int floorCountAfter = 0;
+    for (int y = 0; y < 22; ++y) {
+        for (int x = 0; x < 40; ++x) {
+            if (maze.getCell(x, y) == Maze::CELL_FLOOR) {
+                ++floorCountAfter;
+            }
+        }
+    }
+
+    // The mold should have carved a significant number of corridor tiles
+    EXPECT_GT(floorCountAfter, 0);
+}

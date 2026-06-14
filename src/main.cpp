@@ -23,6 +23,9 @@ int main() {
     // Generate the rooms using Binary Space Partitioning!
     maze.generateBSP();
 
+    // Grow organic corridors between the rooms using Randomized Prim's Algorithm!
+    maze.generateCorridors();
+
     // 2. Main Game Loop
     while (!WindowShouldClose()) { // Detect window close button or ESC key
         
