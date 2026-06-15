@@ -47,9 +47,6 @@ public:
   // Set the cell type at grid position (x, y).
   void setCell(int x, int y, int cellType);
 
-  // Check if a grid coordinate is within the maze bounds.
-  bool isInBounds(int x, int y) const;
-
   // --- Rendering ---
 
   // Draw the maze as colored rectangles (placeholder tiles).
@@ -64,6 +61,8 @@ public:
   // --- Real-time Statistics ---
   // Returns the total number of cells that are NOT walls (O(1) time).
   int getNonWallCount() const { return m_nonWallCount; }
+  // Returns the total number of corridor floor cells (O(1) time).
+  int getCorridorCount() const { return m_corridorCount; }
 
   struct Room {
     int x, y, width, height;
@@ -79,6 +78,7 @@ private:
 
   // Real-time stat tracking
   int m_nonWallCount;
+  int m_corridorCount;
 
   // THE 1D FLAT ARRAY
   std::vector<int> m_grid;

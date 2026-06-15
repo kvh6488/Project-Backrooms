@@ -6,21 +6,27 @@
 // ============================================================================
 Maze::Maze(int width, int height, int cellSize, unsigned int seed)
     : m_width(width), m_height(height), m_cellSize(cellSize),
-      m_nonWallCount(0), m_grid(width * height, CELL_WALL)
+      m_nonWallCount(0), m_corridorCount(0), m_grid(width * height, CELL_WALL)
 {}
 
 // ============================================================================
 // getIndex — The heart of 1D-to-2D Mapping
 // ============================================================================
-int Maze::getIndex(int x, int y) const { return y * m_width + x; }
+int Maze::getIndex(int x, int y) const {
+  // --- TOROIDAL MATH (MODULO WRAPPING) ---
+  // In C++, the '%' operator is a remainder, not a true modulo for negative numbers.
+  // For example, -1 % 250 = -1. We want -1 to wrap to 249.
+  // Formula: (value % MAX + MAX) % MAX guarantees a positive wrapped index.
+  int wrappedX = (x % m_width + m_width) % m_width;
+  int wrappedY = (y % m_height + m_height) % m_height;
+  
+  return wrappedY * m_width + wrappedX;
+}
 
 // ============================================================================
 // getCell — Read a Cell
 // ============================================================================
 int Maze::getCell(int x, int y) const {
-  if (!isInBounds(x, y)) {
-    return CELL_WALL; // Out-of-bounds = treat as wall
-  }
   return m_grid[getIndex(x, y)];
 }
 
@@ -28,10 +34,6 @@ int Maze::getCell(int x, int y) const {
 // setCell — Write a Cell
 // ============================================================================
 void Maze::setCell(int x, int y, int cellType) {
-  if (!isInBounds(x, y)) {
-    return; // Silently ignore out-of-bounds writes
-  }
-  
   int index = getIndex(x, y);
   int oldType = m_grid[index];
   
@@ -41,14 +43,13 @@ void Maze::setCell(int x, int y, int cellType) {
     m_nonWallCount--;
   }
 
-  m_grid[index] = cellType;
-}
+  if (oldType == CELL_FLOOR && cellType != CELL_FLOOR) {
+    m_corridorCount--;
+  } else if (oldType != CELL_FLOOR && cellType == CELL_FLOOR) {
+    m_corridorCount++;
+  }
 
-// ============================================================================
-// isInBounds — Boundary Check
-// ============================================================================
-bool Maze::isInBounds(int x, int y) const {
-  return x >= 0 && x < m_width && y >= 0 && y < m_height;
+  m_grid[index] = cellType;
 }
 
 // ============================================================================

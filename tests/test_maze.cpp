@@ -23,17 +23,6 @@ TEST(MazeTest, GetIndexMath) {
   EXPECT_EQ(maze.getIndex(9, 9), 99);
 }
 
-// 3. Test isInBounds
-TEST(MazeTest, IsInBoundsChecks) {
-  Maze maze(10, 10, 32, 12345);
-  EXPECT_TRUE(maze.isInBounds(0, 0));
-  EXPECT_TRUE(maze.isInBounds(9, 9));
-  EXPECT_FALSE(maze.isInBounds(10, 9));
-  EXPECT_FALSE(maze.isInBounds(9, 10));
-  EXPECT_FALSE(maze.isInBounds(-1, 5));
-  EXPECT_FALSE(maze.isInBounds(5, -1));
-}
-
 // 4. Test setCell and getCell
 TEST(MazeTest, CellReadWrite) {
   Maze maze(10, 10, 32, 12345);
@@ -46,17 +35,20 @@ TEST(MazeTest, CellReadWrite) {
   EXPECT_EQ(maze.getCell(8, 8), Maze::CELL_ROOM);
 }
 
-// 5. Test Out-of-Bounds Safety
-TEST(MazeTest, OutOfBoundsSafety) {
+// 5. Test Toroidal Modulo Wrapping
+TEST(MazeTest, ToroidalWrapping) {
   Maze maze(10, 10, 32, 12345);
 
-  // Writing out of bounds should be silently ignored (not crash)
+  // Write to a coordinate physically outside the 10x10 grid.
+  // X = -5 should wrap to X = 5
+  // Y = 20 should wrap to Y = 0
   maze.setCell(-5, 20, Maze::CELL_FLOOR);
-  maze.setCell(100, 100, Maze::CELL_ROOM);
+  
+  // Verify that the mathematical wrap successfully mapped it to (5, 0)
+  EXPECT_EQ(maze.getCell(5, 0), Maze::CELL_FLOOR);
 
-  // Reading out of bounds should return CELL_WALL (0) safely
-  EXPECT_EQ(maze.getCell(-1, 0), Maze::CELL_WALL);
-  EXPECT_EQ(maze.getCell(0, 10), Maze::CELL_WALL);
+  // Verify that reading from (-5, 20) also fetches the wrapped cell (5, 0)
+  EXPECT_EQ(maze.getCell(-5, 20), Maze::CELL_FLOOR);
 }
 
 // 6. Test BSP Generation
@@ -200,13 +192,11 @@ TEST(MazeTest, FullConnectivityEnsured) {
       int nx = cx + dx[i];
       int ny = cy + dy[i];
 
-      if (maze.isInBounds(nx, ny)) {
-        int nIndex = maze.getIndex(nx, ny);
-        if (!visited[nIndex] && maze.getCell(nx, ny) != Maze::CELL_WALL) {
-          visited[nIndex] = true;
-          q.push({nx, ny});
-          reachableCells++;
-        }
+      int nIndex = maze.getIndex(nx, ny);
+      if (!visited[nIndex] && maze.getCell(nx, ny) != Maze::CELL_WALL) {
+        visited[nIndex] = true;
+        q.push({nx, ny});
+        reachableCells++;
       }
     }
   }

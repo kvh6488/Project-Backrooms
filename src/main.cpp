@@ -58,7 +58,9 @@ int main() {
   int totalRooms = maze.getRooms().size();
   int totalCells = maze.getWidth() * maze.getHeight();
   int nonWallCells = maze.getNonWallCount();
+  int corridorCells = maze.getCorridorCount();
   float coveragePercent = ((float)nonWallCells / totalCells) * 100.0f;
+  float corridorPercent = ((float)corridorCells / totalCells) * 100.0f;
 
   // --- Camera Initialization ---
   Camera2D camera = {0};
@@ -139,6 +141,7 @@ int main() {
     ImGui::Text("Random Seed: %u", seed);
     ImGui::Text("Number of Rooms: %d", totalRooms);
     ImGui::Text("Maze Coverage: %.1f%%", coveragePercent);
+    ImGui::Text("Corridor Coverage: %.1f%%", corridorPercent);
 
     // --- Minimap Rendering ---
     ImGui::Separator();

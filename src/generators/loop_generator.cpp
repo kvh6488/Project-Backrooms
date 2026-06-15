@@ -35,11 +35,9 @@ void LoopGenerator::generate(Maze& maze, std::mt19937& rng) {
       for (int d = 0; d < 4; ++d) {
         int nx = x + dx[d];
         int ny = y + dy[d];
-        if (maze.isInBounds(nx, ny)) {
-          int t = maze.getCell(nx, ny);
-          if (t == Maze::CELL_FLOOR || t == Maze::CELL_ROOM)
-            ++carvedCount;
-        }
+        int t = maze.getCell(nx, ny);
+        if (t == Maze::CELL_FLOOR || t == Maze::CELL_ROOM)
+          ++carvedCount;
       }
 
       // We need at least 2 carved neighbors to form an actual loop
@@ -55,15 +53,13 @@ void LoopGenerator::generate(Maze& maze, std::mt19937& rng) {
       for (int d = 0; d < 4; ++d) {
         int dnx = x + diagX[d];
         int dny = y + diagY[d];
-        if (maze.isInBounds(dnx, dny)) {
-          int diagType = maze.getCell(dnx, dny);
-          if (diagType == Maze::CELL_FLOOR || diagType == Maze::CELL_ROOM) {
-            int sharedA = maze.getCell(x + diagX[d], y);
-            int sharedB = maze.getCell(x, y + diagY[d]);
-            if (sharedA == Maze::CELL_WALL && sharedB == Maze::CELL_WALL) {
-              hasDiagonalLeak = true;
-              break;
-            }
+        int diagType = maze.getCell(dnx, dny);
+        if (diagType == Maze::CELL_FLOOR || diagType == Maze::CELL_ROOM) {
+          int sharedA = maze.getCell(x + diagX[d], y);
+          int sharedB = maze.getCell(x, y + diagY[d]);
+          if (sharedA == Maze::CELL_WALL && sharedB == Maze::CELL_WALL) {
+            hasDiagonalLeak = true;
+            break;
           }
         }
       }
