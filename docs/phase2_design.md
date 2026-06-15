@@ -32,6 +32,6 @@ Instead of mutating the maze when the player isn't looking, we will turn the ent
 ### Phase 2.4: Fog of War & Textures
 To enhance the horror, players should only see a limited distance.
 - **Concept:** Raycasting or Bresenham's Line Algorithm.
-- **Implementation:** Cast rays from the player's position. If a ray hits a wall, the cells behind it are drawn black (or very dark). We will finally swap our solid colored squares for actual textures (carpet, wallpaper) using Raylib's `Texture2D`.
+- **Implementation:** Cast rays from the player's position. If a ray hits a wall, the cells behind it are drawn black (or very dark). We will finally swap our solid colored squares for actual textures (carpet, wallpaper) using Raylib's `Texture2D` and add an updated player icon.
 
 ---

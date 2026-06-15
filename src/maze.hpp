@@ -1,6 +1,7 @@
 #pragma once // Tells the compiler: only include this file once, even if
              // multiple files #include it.
 
+#include <raylib.h>
 #include <vector> // For std::vector (our dynamic 1D array)
 
 // ============================================================================
@@ -50,8 +51,8 @@ public:
   // --- Rendering ---
 
   // Draw the maze as colored rectangles (placeholder tiles).
-  // Only draws cells visible within the camera viewport for performance.
-  void render() const;
+  // Uses Frustum Culling to only draw cells visible within the camera viewport.
+  void render(const Camera2D& camera) const;
 
   // --- Public Dimension Getters ---
   int getWidth() const { return m_width; }

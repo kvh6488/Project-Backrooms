@@ -120,7 +120,7 @@ int main() {
     BeginMode2D(camera);
 
     // Draw the maze first (so UI draws over it)
-    maze.render();
+    maze.render(camera);
 
     // Draw the player
     player.render();
@@ -168,12 +168,17 @@ int main() {
     // Draw the Player Dot
     // 1. Get player's world position
     Vector2 pPos = player.getPosition();
-    // 2. Convert world pixels to maze grid coordinates (0 to 250)
-    float gridX = pPos.x / maze.getCellSize();
-    float gridY = pPos.y / maze.getCellSize();
-    // 3. Convert grid coordinates to percentages (0.0 to 1.0)
-    float percentX = gridX / maze.getWidth();
-    float percentY = gridY / maze.getHeight();
+    // 2. Convert world pixels to maze grid coordinates
+    int gridX = (int)floor(pPos.x / maze.getCellSize());
+    int gridY = (int)floor(pPos.y / maze.getCellSize());
+    
+    // mathematically wrap the coordinates so the dot teleports!
+    int wrappedX = (gridX % maze.getWidth() + maze.getWidth()) % maze.getWidth();
+    int wrappedY = (gridY % maze.getHeight() + maze.getHeight()) % maze.getHeight();
+
+    // 3. Convert wrapped grid coordinates to percentages (0.0 to 1.0)
+    float percentX = (float)wrappedX / maze.getWidth();
+    float percentY = (float)wrappedY / maze.getHeight();
     // 4. Map those percentages to the actual screen space pixels of the ImGui
     // image
     ImVec2 playerScreenPos =
