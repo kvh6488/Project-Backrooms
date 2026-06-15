@@ -98,7 +98,7 @@ Get the project compiling, a window open, and the debug overlay working.
 - Dear ImGui debug overlay showing FPS + frame time
 - Git repo initialized with `.gitignore`, pushed to GitHub
 
-### Phase 1 — Procedural Maze & Player *(Days 4–12)*
+### Phase 1 (COMPLETE) — Procedural Maze & Player *(Days 4–12)*
 Generate a maze, render it, and let the player walk through it.
 - **Maze generation algorithm** — Hybrid BSP + Prim's Algorithm + Random Loops
 - Maze data structure (cell/wall representation in a flat array)

@@ -5,7 +5,6 @@
 #include "maze.hpp"
 #include <ctime>
 #include <gtest/gtest.h>
-#include <iostream>
 #include <queue>
 
 // 1. Initialize a small 10x10 maze
@@ -143,7 +142,7 @@ TEST(MazeTest, FullConnectivityEnsured) {
   // unsigned int seed = 7;
   // unsigned int seed = 1781431085;
   unsigned int seed = std::time(nullptr);
-  
+
   // Record the seed in the GTest XML results for CI/CD tracking
   testing::Test::RecordProperty("RandomSeed", std::to_string(seed));
 
@@ -173,7 +172,8 @@ TEST(MazeTest, FullConnectivityEnsured) {
         break; // Found it, stop searching!
       }
     }
-    if (startX != -1) break;
+    if (startX != -1)
+      break;
   }
 
   // Ensure we actually generated a maze!
@@ -214,7 +214,7 @@ TEST(MazeTest, FullConnectivityEnsured) {
   // 3. The true test of connectivity:
   // Are the cells we can walk to equal to the total number of walk-able cells?
   // If not, it means there are isolated islands we couldn't reach!
-  EXPECT_EQ(reachableCells, totalValidCells) 
+  EXPECT_EQ(reachableCells, totalValidCells)
       << "\n============================================\n"
       << "ISOLATED ROOMS DETECTED!\n"
       << "To reproduce this exact maze, hardcode this seed:\n"
