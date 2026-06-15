@@ -211,3 +211,167 @@ TEST(MazeTest, FullConnectivityEnsured) {
       << "unsigned int seed = " << seed << ";\n"
       << "============================================\n";
 }
+
+TEST(MazeTest, ZoneRegenerationConnectivity) {
+  unsigned int seed = 123456789;
+  std::mt19937 rng(seed);
+  Maze maze(250, 150, 32, seed);
+
+  // 1. Initial full generation
+  BSPGenerator bsp;
+  bsp.generate(maze, rng);
+  PrimsGenerator prims;
+  prims.generate(maze, rng, bsp.getMiddleRoomIndex());
+  LoopGenerator loops;
+  loops.generate(maze, rng);
+  TunnelBorer borer;
+  borer.ensureConnectivity(maze);
+
+  // 2. Erase and regenerate the Tic-Tac-Toe zones
+  std::vector<Maze::Room> zones = {
+      {55, 0, 14, 150},   // V-Left
+      {180, 0, 14, 150},  // V-Right
+      {0, 30, 55, 14},    // H-Top-Left
+      {69, 30, 111, 14},  // H-Top-Mid
+      {194, 30, 56, 14},  // H-Top-Right
+      {0, 105, 55, 14},   // H-Bot-Left
+      {69, 105, 111, 14}, // H-Bot-Mid
+      {194, 105, 56, 14}  // H-Bot-Right
+  };
+
+  for (const auto& z : zones) {
+    maze.eraseZone(z.x, z.y, z.width, z.height);
+  }
+  for (const auto& z : zones) {
+    bsp.generateZone(maze, rng, z.x, z.y, z.width, z.height);
+  }
+  for (const auto& z : zones) {
+    prims.generateZone(maze, rng, z.x, z.y, z.width, z.height);
+  }
+  for (const auto& z : zones) {
+    loops.generateZone(maze, rng, z.x, z.y, z.width, z.height);
+  }
+  borer.ensureConnectivity(maze);
+
+  // 4. Test connectivity
+  int totalValidCells = maze.getNonWallCount();
+  int startX = -1, startY = -1;
+
+  for (int y = 0; y < maze.getHeight(); ++y) {
+    for (int x = 0; x < maze.getWidth(); ++x) {
+      if (maze.getCell(x, y) != Maze::CELL_WALL) {
+        startX = x;
+        startY = y;
+        break;
+      }
+    }
+    if (startX != -1) break;
+  }
+
+  EXPECT_GT(totalValidCells, 0);
+  EXPECT_NE(startX, -1);
+
+  int reachableCells = 0;
+  std::vector<bool> visited(maze.getWidth() * maze.getHeight(), false);
+  std::queue<std::pair<int, int>> q;
+
+  q.push({startX, startY});
+  visited[maze.getIndex(startX, startY)] = true;
+  reachableCells++;
+
+  const int dx[] = {0, 1, 0, -1};
+  const int dy[] = {-1, 0, 1, 0};
+
+  while (!q.empty()) {
+    auto [cx, cy] = q.front();
+    q.pop();
+
+    for (int i = 0; i < 4; ++i) {
+      int nx = cx + dx[i];
+      int ny = cy + dy[i];
+
+      int nIndex = maze.getIndex(nx, ny);
+      if (!visited[nIndex] && maze.getCell(nx, ny) != Maze::CELL_WALL) {
+        visited[nIndex] = true;
+        q.push({nx, ny});
+        reachableCells++;
+      }
+    }
+  }
+
+  EXPECT_EQ(reachableCells, totalValidCells)
+      << "\n============================================\n"
+      << "ZONE REGENERATION BROKE CONNECTIVITY!\n"
+      << "Seed: " << seed << "\n"
+      << "============================================\n";
+}
+
+TEST(MazeTest, NoDiagonalLeaks) {
+  unsigned int seed = 987654321;
+  std::mt19937 rng(seed);
+  Maze maze(250, 150, 32, seed);
+
+  auto scanForLeaks = [&](const std::string& stepName) {
+    bool foundDiagonalLeak = false;
+    int leakX = -1, leakY = -1;
+
+    for (int y = 0; y < maze.getHeight(); ++y) {
+      for (int x = 0; x < maze.getWidth(); ++x) {
+        int tMain = maze.getCell(x, y);
+        if (tMain == Maze::CELL_FLOOR || tMain == Maze::CELL_ROOM) {
+          if (maze.hasDiagonalLeak(x, y)) {
+            foundDiagonalLeak = true;
+            leakX = x;
+            leakY = y;
+            break;
+          }
+        }
+      }
+      if (foundDiagonalLeak) break;
+    }
+
+    EXPECT_FALSE(foundDiagonalLeak) << "Diagonal leak found at (" << leakX << ", " << leakY << ") after " << stepName << "!";
+  };
+
+  // 1. Initial full generation
+  BSPGenerator bsp;
+  bsp.generate(maze, rng);
+  PrimsGenerator prims;
+  prims.generate(maze, rng, bsp.getMiddleRoomIndex());
+  LoopGenerator loops;
+  loops.generate(maze, rng);
+  TunnelBorer borer;
+  borer.ensureConnectivity(maze);
+
+  // 2. Scan after initial generation
+  scanForLeaks("Initial Generation");
+
+  // 3. Erase and regenerate the Tic-Tac-Toe zones to test sleep mutation
+  std::vector<Maze::Room> zones = {
+      {55, 0, 14, 150},   // V-Left
+      {180, 0, 14, 150},  // V-Right
+      {0, 30, 55, 14},    // H-Top-Left
+      {69, 30, 111, 14},  // H-Top-Mid
+      {194, 30, 56, 14},  // H-Top-Right
+      {0, 105, 55, 14},   // H-Bot-Left
+      {69, 105, 111, 14}, // H-Bot-Mid
+      {194, 105, 56, 14}  // H-Bot-Right
+  };
+
+  for (const auto& z : zones) {
+    maze.eraseZone(z.x, z.y, z.width, z.height);
+  }
+  for (const auto& z : zones) {
+    bsp.generateZone(maze, rng, z.x, z.y, z.width, z.height);
+  }
+  for (const auto& z : zones) {
+    prims.generateZone(maze, rng, z.x, z.y, z.width, z.height);
+  }
+  for (const auto& z : zones) {
+    loops.generateZone(maze, rng, z.x, z.y, z.width, z.height);
+  }
+  borer.ensureConnectivity(maze);
+
+  // 4. Final scan after regeneration
+  scanForLeaks("Zone Regeneration");
+}

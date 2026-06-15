@@ -6,23 +6,27 @@
 // ============================================================================
 bool BSPGenerator::BSPLeaf::split(std::mt19937 &rng) {
   // If we already split this leaf, we don't need to do it again.
-  if (leftChild || rightChild) return false;
+  if (leftChild || rightChild)
+    return false;
 
   // Randomly pick a direction to slice the rectangle: Horizontal or Vertical
   bool splitH = std::uniform_int_distribution<>(0, 1)(rng) == 0;
-  
+
   // Aspect Ratio Enforcement:
-  // If a room is significantly wider than it is tall, we FORCE a vertical split.
-  // If it's taller than it is wide, we FORCE a horizontal split.
-  // This prevents generating extremely long, skinny "hallway" leaves.
-  if (width > height && (float)width / height >= 1.25f) splitH = false;
-  else if (height > width && (float)height / width >= 1.25f) splitH = true;
+  // If a room is significantly wider than it is tall, we FORCE a vertical
+  // split. If it's taller than it is wide, we FORCE a horizontal split. This
+  // prevents generating extremely long, skinny "hallway" leaves.
+  if (width > height && (float)width / height >= 1.25f)
+    splitH = false;
+  else if (height > width && (float)height / width >= 1.25f)
+    splitH = true;
 
   // We don't want leaves getting smaller than a certain threshold, otherwise
   // rooms can't fit inside them.
   const int MIN_LEAF_SIZE = 6;
   int max = (splitH ? height : width) - MIN_LEAF_SIZE;
-  if (max <= MIN_LEAF_SIZE) return false;
+  if (max <= MIN_LEAF_SIZE)
+    return false;
 
   // Pick a random line to drop the slice across the rectangle
   int splitPoint = std::uniform_int_distribution<>(MIN_LEAF_SIZE, max)(rng);
@@ -30,10 +34,12 @@ bool BSPGenerator::BSPLeaf::split(std::mt19937 &rng) {
   // Actually create the two child rectangles based on the split point
   if (splitH) {
     leftChild = std::make_shared<BSPLeaf>(x, y, width, splitPoint);
-    rightChild = std::make_shared<BSPLeaf>(x, y + splitPoint, width, height - splitPoint);
+    rightChild = std::make_shared<BSPLeaf>(x, y + splitPoint, width,
+                                           height - splitPoint);
   } else {
     leftChild = std::make_shared<BSPLeaf>(x, y, splitPoint, height);
-    rightChild = std::make_shared<BSPLeaf>(x + splitPoint, y, width - splitPoint, height);
+    rightChild = std::make_shared<BSPLeaf>(x + splitPoint, y,
+                                           width - splitPoint, height);
   }
 
   return true;
@@ -43,11 +49,13 @@ bool BSPGenerator::BSPLeaf::split(std::mt19937 &rng) {
 // createRooms — Traverses the BSP tree to the smallest leaves and carves rooms.
 // ============================================================================
 void BSPGenerator::BSPLeaf::createRooms(Maze &maze, std::mt19937 &rng) {
-  // If this leaf has children, it's not a "bottom level" leaf. We must 
+  // If this leaf has children, it's not a "bottom level" leaf. We must
   // recursively go deeper until we hit the bottom.
   if (leftChild || rightChild) {
-    if (leftChild) leftChild->createRooms(maze, rng);
-    if (rightChild) rightChild->createRooms(maze, rng);
+    if (leftChild)
+      leftChild->createRooms(maze, rng);
+    if (rightChild)
+      rightChild->createRooms(maze, rng);
     return;
   }
 
@@ -70,9 +78,10 @@ void BSPGenerator::BSPLeaf::createRooms(Maze &maze, std::mt19937 &rng) {
 // ============================================================================
 // generate — Core BSP Generation logic.
 // ============================================================================
-void BSPGenerator::generate(Maze& maze, std::mt19937& rng) {
+void BSPGenerator::generate(Maze &maze, std::mt19937 &rng) {
   // 1. Start with one giant leaf covering the entire maze (minus a border).
-  m_rootLeaf = std::make_shared<BSPLeaf>(1, 1, maze.getWidth() - 2, maze.getHeight() - 2);
+  m_rootLeaf = std::make_shared<BSPLeaf>(1, 1, maze.getWidth() - 2,
+                                         maze.getHeight() - 2);
   m_leaves.push_back(m_rootLeaf);
 
   bool didSplit = true;
@@ -84,11 +93,12 @@ void BSPGenerator::generate(Maze& maze, std::mt19937& rng) {
       auto leaf = m_leaves[i];
       // Only attempt to split if it's currently a bottom-level leaf
       if (leaf->leftChild == nullptr && leaf->rightChild == nullptr) {
-        
+
         // If the leaf is very large (> 20), FORCE it to split.
-        // If it's small but valid, give it a 75% chance to split. 
+        // If it's small but valid, give it a 75% chance to split.
         // This creates variance in room density.
-        if (leaf->width > 20 || leaf->height > 20 || std::uniform_int_distribution<>(0, 99)(rng) > 25) {
+        if (leaf->width > 20 || leaf->height > 20 ||
+            std::uniform_int_distribution<>(0, 99)(rng) > 25) {
           if (leaf->split(rng)) {
             m_leaves.push_back(leaf->leftChild);
             m_leaves.push_back(leaf->rightChild);
@@ -99,53 +109,92 @@ void BSPGenerator::generate(Maze& maze, std::mt19937& rng) {
     }
   }
 
+  // 3. Convert leaves to rooms
   m_rootLeaf->createRooms(maze, rng);
+
+  // Calculate middle room index for spawning
+  float middleX = maze.getWidth() / 2.0f;
+  float middleY = maze.getHeight() / 2.0f;
+  float minDistance = 999999.0f;
+
+  const auto &rooms = maze.getRooms();
+  for (int i = 0; i < rooms.size(); ++i) {
+    float roomCenterX = rooms[i].x + rooms[i].width / 2.0f;
+    float roomCenterY = rooms[i].y + rooms[i].height / 2.0f;
+
+    // distance squared
+    float dx = roomCenterX - middleX;
+    float dy = roomCenterY - middleY;
+    float distSq = dx * dx + dy * dy;
+
+    if (distSq < minDistance) {
+      minDistance = distSq;
+      m_middleRoomIndex = i;
+    }
+  }
+
   mergeAdjacentRooms(maze, rng);
+}
 
-  // --- Find the Middle Room ---
-  // We calculate this once during generation so the rest of the game can easily access it.
-  const auto& rooms = maze.getRooms();
-  if (!rooms.empty()) {
-    float mazeCenterX = maze.getWidth() / 2.0f;
-    float mazeCenterY = maze.getHeight() / 2.0f;
-    
-    float minDistanceSq = -1.0f;
-    m_middleRoomIndex = 0;
+// ============================================================================
+// generateZone — Runs BSP Generation but only inside a specific 2D slice
+// ============================================================================
+void BSPGenerator::generateZone(Maze &maze, std::mt19937 &rng, int startX,
+                                int startY, int width, int height) {
+  // Clear any old generation state
+  m_leaves.clear();
+  m_rootLeaf = nullptr;
 
-    for (size_t i = 0; i < rooms.size(); ++i) {
-      float roomCenterX = rooms[i].x + rooms[i].width / 2.0f;
-      float roomCenterY = rooms[i].y + rooms[i].height / 2.0f;
-      
-      float dx = roomCenterX - mazeCenterX;
-      float dy = roomCenterY - mazeCenterY;
-      float distanceSq = dx * dx + dy * dy;
+  // 1. Start with one leaf covering ONLY the bounding box
+  m_rootLeaf = std::make_shared<BSPLeaf>(startX, startY, width, height);
+  m_leaves.push_back(m_rootLeaf);
 
-      if (minDistanceSq < 0.0f || distanceSq < minDistanceSq) {
-        minDistanceSq = distanceSq;
-        m_middleRoomIndex = i;
+  bool didSplit = true;
+  while (didSplit) {
+    didSplit = false;
+    int currentSize = m_leaves.size();
+    for (int i = 0; i < currentSize; i++) {
+      auto leaf = m_leaves[i];
+      if (leaf->leftChild == nullptr && leaf->rightChild == nullptr) {
+        if (leaf->width > 20 || leaf->height > 20 ||
+            std::uniform_int_distribution<>(0, 99)(rng) > 25) {
+          if (leaf->split(rng)) {
+            m_leaves.push_back(leaf->leftChild);
+            m_leaves.push_back(leaf->rightChild);
+            didSplit = true;
+          }
+        }
       }
     }
   }
+
+  // 3. Convert leaves to rooms
+  m_rootLeaf->createRooms(maze, rng);
 }
 
 // ============================================================================
 // mergeAdjacentRooms — Optionally connects rooms that ended up very close.
 // ============================================================================
-void BSPGenerator::mergeAdjacentRooms(Maze& maze, std::mt19937& rng) {
+void BSPGenerator::mergeAdjacentRooms(Maze &maze, std::mt19937 &rng) {
   // Compare every leaf against every other leaf.
   for (size_t i = 0; i < m_leaves.size(); ++i) {
     auto &a = m_leaves[i];
-    if (!a->hasRoom) continue;
+    if (!a->hasRoom)
+      continue;
 
     for (size_t j = i + 1; j < m_leaves.size(); ++j) {
       auto &b = m_leaves[j];
-      if (!b->hasRoom) continue;
+      if (!b->hasRoom)
+        continue;
 
-      // There's only a 25% chance to merge even if they are close. 
-      // We don't want to merge everything, just create occasional large composite rooms.
-      if (std::uniform_int_distribution<>(0, 99)(rng) >= 25) continue;
+      // There's only a 25% chance to merge even if they are close.
+      // We don't want to merge everything, just create occasional large
+      // composite rooms.
+      if (std::uniform_int_distribution<>(0, 99)(rng) >= 25)
+        continue;
 
-      // Check if room B is strictly to the right of room A, with a small gap of 1-3 cells
+      // Check if room B is strictly to the right of room A, with a small gap of
+      // 1-3 cells
       int gapAB = b->roomX - (a->roomX + a->roomWidth);
       if (gapAB >= 1 && gapAB <= 3) {
         // Calculate vertical overlap

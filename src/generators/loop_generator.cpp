@@ -44,29 +44,53 @@ void LoopGenerator::generate(Maze& maze, std::mt19937& rng) {
       if (carvedCount < 2)
         continue;
 
-      // --- Diagonal Leak Check (same logic as Prim's Step 4b) ---
-      // Even though we WANT loops here, we still don't want diagonal-only
-      // connections because they break wall rendering.
-      bool hasDiagonalLeak = false;
-      const int diagX[] = {1, 1, -1, -1};
-      const int diagY[] = {1, -1, 1, -1};
-      for (int d = 0; d < 4; ++d) {
-        int dnx = x + diagX[d];
-        int dny = y + diagY[d];
-        int diagType = maze.getCell(dnx, dny);
-        if (diagType == Maze::CELL_FLOOR || diagType == Maze::CELL_ROOM) {
-          int sharedA = maze.getCell(x + diagX[d], y);
-          int sharedB = maze.getCell(x, y + diagY[d]);
-          if (sharedA == Maze::CELL_WALL && sharedB == Maze::CELL_WALL) {
-            hasDiagonalLeak = true;
-            break;
-          }
-        }
-      }
-      if (hasDiagonalLeak)
+      if (maze.hasDiagonalLeak(x, y))
         continue;
 
       // All checks passed — smash the wall to create a loop!
+      maze.setCell(x, y, Maze::CELL_FLOOR);
+    }
+  }
+}
+
+// ============================================================================
+// LOOP GENERATION — Zone Restricted
+// ============================================================================
+void LoopGenerator::generateZone(Maze& maze, std::mt19937& rng, int startX, int startY, int width, int height) {
+  const int LOOP_CHANCE = 5;
+
+  int endX = startX + width - 1;
+  int endY = startY + height - 1;
+
+  for (int y = startY; y <= endY; ++y) {
+    if (y <= 0 || y >= maze.getHeight() - 1) continue;
+
+    for (int x = startX; x <= endX; ++x) {
+      if (x <= 0 || x >= maze.getWidth() - 1) continue;
+
+      if (maze.getCell(x, y) != Maze::CELL_WALL)
+        continue;
+
+      if (std::uniform_int_distribution<>(0, 99)(rng) >= LOOP_CHANCE)
+        continue;
+
+      const int dx[] = {1, -1, 0, 0};
+      const int dy[] = {0, 0, 1, -1};
+      int carvedCount = 0;
+      for (int d = 0; d < 4; ++d) {
+        int nx = x + dx[d];
+        int ny = y + dy[d];
+        int t = maze.getCell(nx, ny);
+        if (t == Maze::CELL_FLOOR || t == Maze::CELL_ROOM)
+          ++carvedCount;
+      }
+
+      if (carvedCount < 2)
+        continue;
+
+      if (maze.hasDiagonalLeak(x, y))
+        continue;
+
       maze.setCell(x, y, Maze::CELL_FLOOR);
     }
   }

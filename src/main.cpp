@@ -7,8 +7,8 @@
 #include "player.hpp"
 #include "raylib.h"
 #include "rlImGui.h"
-#include <iostream>
 #include <ctime>
+#include <iostream>
 int main() {
   // 1. Initialization
   const int screenWidth = 1280;
@@ -48,9 +48,11 @@ int main() {
   // Spawn player in the center of the middle room
   Vector2 playerStartPos = {0.0f, 0.0f};
   if (!maze.getRooms().empty() && midRoomIdx >= 0) {
-    const auto& closestRoom = maze.getRooms()[midRoomIdx];
-    playerStartPos.x = (closestRoom.x + closestRoom.width / 2.0f) * maze.getCellSize();
-    playerStartPos.y = (closestRoom.y + closestRoom.height / 2.0f) * maze.getCellSize();
+    const auto &closestRoom = maze.getRooms()[midRoomIdx];
+    playerStartPos.x =
+        (closestRoom.x + closestRoom.width / 2.0f) * maze.getCellSize();
+    playerStartPos.y =
+        (closestRoom.y + closestRoom.height / 2.0f) * maze.getCellSize();
   }
   Player player(playerStartPos);
 
@@ -79,31 +81,42 @@ int main() {
   RenderTexture2D minimapTexture =
       LoadRenderTexture(maze.getWidth(), maze.getHeight());
 
-  // Instruct the GPU to draw to our invisible texture instead of the screen
-  BeginTextureMode(minimapTexture);
-  ClearBackground(BLANK); // Transparent background
-
-  // Draw the entire maze once. This takes O(V) time but we only do it here at
-  // startup!
-  for (int y = 0; y < maze.getHeight(); ++y) {
-    for (int x = 0; x < maze.getWidth(); ++x) {
-      if (maze.getCell(x, y) == Maze::CELL_WALL) {
-        // Draw a single 1x1 pixel for the wall
-        DrawPixel(x, y, Color{100, 100, 100, 255});
-      } else {
-        DrawPixel(x, y, Color{30, 30, 35, 255});
+  // --- Minimap Generation Lambda ---
+  auto generateMinimap = [&maze, &minimapTexture]() {
+    BeginTextureMode(minimapTexture);
+    ClearBackground(BLANK);
+    for (int y = 0; y < maze.getHeight(); ++y) {
+      for (int x = 0; x < maze.getWidth(); ++x) {
+        if (maze.getCell(x, y) == Maze::CELL_WALL) {
+          DrawPixel(x, y, Color{100, 100, 100, 255});
+        } else {
+          // If it's the shifting zone, make the minimap red here!
+          if (maze.isShiftingZone(x, y)) {
+            DrawPixel(x, y, Color{255, 100, 100, 255});
+          } else {
+            DrawPixel(x, y, Color{30, 30, 35, 255});
+          }
+        }
       }
     }
-  }
-  // Tell the GPU we are done drawing to the texture, go back to normal screen
-  // drawing
-  EndTextureMode();
+    EndTextureMode();
+  };
+
+  // Generate initial minimap
+  generateMinimap();
+
+  bool minimapDirty = false;
 
   // 2. Main Game Loop
   while (!WindowShouldClose()) { // Detect window close button or ESC key
 
     // --- Update Logic ---
     player.update(maze);
+
+    if (minimapDirty) {
+      generateMinimap();
+      minimapDirty = false;
+    }
 
     // Update the camera to perfectly track the player's world position
     camera.target = player.getPosition();
@@ -143,6 +156,46 @@ int main() {
     ImGui::Text("Maze Coverage: %.1f%%", coveragePercent);
     ImGui::Text("Corridor Coverage: %.1f%%", corridorPercent);
 
+    ImGui::Separator();
+    if (ImGui::Button("Regenerate Tic-Tac-Toe Zones")) {
+      std::vector<Maze::Room> zones = {
+          {55, 0, 14, 150},   // V-Left
+          {180, 0, 14, 150},  // V-Right
+          {0, 30, 55, 14},    // H-Top-Left
+          {69, 30, 111, 14},  // H-Top-Mid
+          {194, 30, 56, 14},  // H-Top-Right
+          {0, 105, 55, 14},   // H-Bot-Left
+          {69, 105, 111, 14}, // H-Bot-Mid
+          {194, 105, 56, 14}  // H-Bot-Right
+      };
+
+      maze.clearShiftingZones();
+      for (const auto &z : zones) {
+        maze.addShiftingZone(z.x, z.y, z.width, z.height);
+        maze.eraseZone(z.x, z.y, z.width, z.height);
+      }
+
+      std::mt19937 rng(time(0));
+      BSPGenerator bsp;
+      PrimsGenerator prims;
+      LoopGenerator loops;
+
+      for (const auto &z : zones) {
+        bsp.generateZone(maze, rng, z.x, z.y, z.width, z.height);
+      }
+      for (const auto &z : zones) {
+        prims.generateZone(maze, rng, z.x, z.y, z.width, z.height);
+      }
+      for (const auto &z : zones) {
+        loops.generateZone(maze, rng, z.x, z.y, z.width, z.height);
+      }
+
+      TunnelBorer borer;
+      borer.ensureConnectivity(maze);
+
+      minimapDirty = true;
+    }
+
     // --- Minimap Rendering ---
     ImGui::Separator();
     ImGui::Text("Minimap");
@@ -171,10 +224,12 @@ int main() {
     // 2. Convert world pixels to maze grid coordinates
     int gridX = (int)floor(pPos.x / maze.getCellSize());
     int gridY = (int)floor(pPos.y / maze.getCellSize());
-    
+
     // mathematically wrap the coordinates so the dot teleports!
-    int wrappedX = (gridX % maze.getWidth() + maze.getWidth()) % maze.getWidth();
-    int wrappedY = (gridY % maze.getHeight() + maze.getHeight()) % maze.getHeight();
+    int wrappedX =
+        (gridX % maze.getWidth() + maze.getWidth()) % maze.getWidth();
+    int wrappedY =
+        (gridY % maze.getHeight() + maze.getHeight()) % maze.getHeight();
 
     // 3. Convert wrapped grid coordinates to percentages (0.0 to 1.0)
     float percentX = (float)wrappedX / maze.getWidth();

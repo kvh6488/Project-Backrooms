@@ -24,10 +24,15 @@ To render this infinite Toroidal space, we cannot simply draw the whole maze 9 t
 - **Result:** $O(W \times H)$ time complexity per frame, scaling perfectly while creating a flawless infinite loop!
 
 ### Phase 2.3: The Rubik's Torus (Sleep Mutation)
-Instead of mutating the maze when the player isn't looking, we will turn the entire Backrooms into a giant Toroidal Rubik's Cube!
-- **Concept:** Circular Array Shifting.
-- **Implementation:** We will add a blue "Bed" object taking up two tiles in the center of the map. When the player presses a button to sleep, the screen fades to black. While asleep, entire columns (slices of the X-axis) will be circularly shifted up or down the Y-axis. Later, we will expand this so entire rows (slices of the Y-axis) can shift along the X-axis. Because the grid wraps natively (Toroidal), shifting an entire column doesn't break the data structure—it just dramatically rearranges the maze layout!
-- **Minimap Representation:** The `RenderTexture2D` used for the minimap must be flagged as "dirty" whenever the player sleeps. When the player wakes up, the game will do a single-frame redraw of the Minimap texture to reflect the newly shifted Rubik's chunks.
+Instead of mutating the maze when the player isn't looking, we turn the Backrooms into a giant, shifting puzzle!
+- **Concept:** Localized Procedural Regeneration (Tic-Tac-Toe Slices).
+- **Implementation:** When the player sleeps (or regenerates a zone), we calculate a "Tic-Tac-Toe" pattern composed of intersecting vertical and horizontal slices (currently 14 cells wide). To avoid the algorithms overwriting and corrupting each other at the intersections, we mathematically divide this pattern into 8 independent rectangular bounding boxes. We erase the contents of these zones, and strictly run our BSP, Prim's, and Loop algorithms inside each box. Finally, we run the Tunnel Borer (Breadth-First Search) to perfectly stitch these 8 new disconnected islands back into the main Torus graph seamlessly without producing illegal diagonal connections.
+- **Time Complexity:** 
+  - **Erasing & Carving:** $O(A \log A)$, where $A$ is the total combined area of the bounding boxes. Prim's algorithm dictates this upper bound due to its priority queue/frontier expansion.
+  - **Stitching (Tunnel Borer):** $O(N)$ worst-case, where $N = W \times H$. The BFS must traverse the maze to verify connectivity and blast tunnels, which scales with the total area of the global maze.
+  - **Overall:** The precise time complexity of a single mutation shift is **$O(N + A \log A)$**. Because we do not enforce how the regeneration area ($A$) scales relative to the total maze size ($N$), neither term strictly dominates. If the shifting zones cover a large percentage of the map, the $O(A \log A)$ carving dominates. If the shifting zones are kept small while the maze expands to infinity, the $O(N)$ BFS stitching dominates. In practice on a $250 \times 150$ grid, both execute nearly instantaneously.
+- **Gameplay Integration:** The size and aggression of these shifting zones will be linked to the player's infection level. If the virus dominates, the shifting zones will expand; if the cure dominates, they will shrink.
+- **Minimap Representation:** The `RenderTexture2D` used for the minimap is flagged as "dirty" whenever a zone regenerates. The game does a single-frame redraw of the Minimap texture to reflect the newly shifted chunks, painting the active regeneration zones red for visual clarity.
 
 ### Phase 2.4: Fog of War & Textures
 To enhance the horror, players should only see a limited distance.

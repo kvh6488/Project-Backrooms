@@ -130,7 +130,7 @@ The mathematical heart — competing virus systems spreading across the grid.
   - Cure acts like expanding BFS gas radar
   - Slightly reduces dangers, stops maze from merging
   - Permanently fixes cured region on the map
-- Maze mutation rate linked to infection level
+- Maze mutation rate linked to infection level, (shifting zone size starts at 14 starts at can increase and decrease every night, depending on the domination of the cure or virsus, if cure is dominating more shifting zone decreases, if virsus is dominating more shifting zone increases)
 
 ### Phase 4 — Death, Escape & Progression *(Days 35–42)*
 Test the full cure → escape loop early, so we can verify the core game mechanic works.
@@ -171,7 +171,8 @@ like farming, chemical lab etc, where as larger rooms often have a great amount 
 - Bed + sleep mechanic:
   - Allows sleeping, temporarily pauses game (time limit)
   - Sleeping is mandatory — failing to sleep causes sluggishness, increased hallucinations, can lead to passing out (lost/respawned)
-  - Sleeping accelerates maze shuffling in outer regions (distant map scrambled when you wake up)
+  - Sleeping accelerates maze shuffling in outer regions (distant map scrambled when you wake up), if you go to build you maze in a room in that is in the shifting sections of the maze you get a pop saying "there's something off about this room", and you get very confused about your location when you wake up as you spawn somewhere in shifing zone and your base is gone.
+  - Maze reshufulling noise players in your sleep (on first night sleeping your player goes what was all that noise in the night)
 - Crafting system: inventory → recipe → item
 - Barricade & Door placement (modify BFS cost map / block enemy BFS pathfinding)
   - Doors can be placed in room exits. They can be opened/closed by the player but must be broken down by mobs.

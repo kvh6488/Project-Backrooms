@@ -14,4 +14,5 @@
 class LoopGenerator {
 public:
     void generate(Maze& maze, std::mt19937& rng);
+    void generateZone(Maze& maze, std::mt19937& rng, int startX, int startY, int width, int height);
 };

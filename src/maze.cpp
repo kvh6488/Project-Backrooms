@@ -1,6 +1,7 @@
 #include "maze.hpp"
 #include "raylib.h"
 #include <cmath>
+#include <algorithm>
 
 // ============================================================================
 // Constructor
@@ -78,10 +79,18 @@ void Maze::render(const Camera2D& camera) const {
 
       Color drawColor;
       switch (cell) {
-        case CELL_WALL:  drawColor = Color{40, 40, 45, 255}; break;      // Dark grey rock
-        case CELL_FLOOR: drawColor = Color{180, 170, 140, 255}; break;   // Slightly darker floor
-        case CELL_ROOM:  drawColor = Color{220, 210, 180, 255}; break;   // Creamy office carpet
-        default:         drawColor = MAGENTA; break; // Error color
+        case CELL_WALL:  
+          drawColor = Color{40, 40, 45, 255}; 
+          break;      
+        case CELL_FLOOR: 
+          drawColor = isShiftingZone(x, y) ? Color{255, 100, 100, 255} : Color{180, 170, 140, 255}; 
+          break;   
+        case CELL_ROOM:  
+          drawColor = isShiftingZone(x, y) ? Color{200, 50, 50, 255} : Color{220, 210, 180, 255}; 
+          break;   
+        default:         
+          drawColor = MAGENTA; 
+          break; 
       }
 
       // We draw the tile visually at the absolute world coordinate (x * m_cellSize),
@@ -89,4 +98,63 @@ void Maze::render(const Camera2D& camera) const {
       DrawRectangle(x * m_cellSize, y * m_cellSize, m_cellSize, m_cellSize, drawColor);
     }
   }
+}
+
+// ============================================================================
+// PHASE 2.3: RUBIK'S TORUS
+// ============================================================================
+
+void Maze::clearShiftingZones() {
+  m_shiftingZones.clear();
+}
+
+void Maze::addShiftingZone(int x, int y, int w, int h) {
+  m_shiftingZones.push_back({x, y, w, h});
+}
+
+bool Maze::isShiftingZone(int x, int y) const {
+  int wrappedX = (x % m_width + m_width) % m_width;
+  int wrappedY = (y % m_height + m_height) % m_height;
+  for (const auto& zone : m_shiftingZones) {
+    if (wrappedX >= zone.x && wrappedX < zone.x + zone.width &&
+        wrappedY >= zone.y && wrappedY < zone.y + zone.height) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void Maze::eraseZone(int startX, int startY, int width, int height) {
+  // Overwrite cells with solid rock
+  for (int y = startY; y < startY + height; ++y) {
+    for (int x = startX; x < startX + width; ++x) {
+      setCell(x, y, CELL_WALL);
+    }
+  }
+
+  // Remove any rooms that intersect this 2D zone
+  auto it = std::remove_if(m_rooms.begin(), m_rooms.end(), [startX, startY, width, height](const Room& r) {
+    bool outsideX = (r.x + r.width <= startX) || (r.x >= startX + width);
+    bool outsideY = (r.y + r.height <= startY) || (r.y >= startY + height);
+    return !(outsideX || outsideY); // It intersects if it is NOT completely outside
+  });
+  m_rooms.erase(it, m_rooms.end());
+}
+
+bool Maze::hasDiagonalLeak(int x, int y) const {
+  const int ddx[] = {-1, 1, -1, 1};
+  const int ddy[] = {-1, -1, 1, 1};
+  for (int i = 0; i < 4; ++i) {
+    int nx = x + ddx[i];
+    int ny = y + ddy[i];
+    int tDiag = getCell(nx, ny);
+    if (tDiag == Maze::CELL_FLOOR || tDiag == Maze::CELL_ROOM) {
+      int t1 = getCell(nx, y);
+      int t2 = getCell(x, ny);
+      if (t1 == Maze::CELL_WALL && t2 == Maze::CELL_WALL) {
+        return true;
+      }
+    }
+  }
+  return false;
 }

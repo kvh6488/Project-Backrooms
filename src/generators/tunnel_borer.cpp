@@ -2,6 +2,24 @@
 #include <queue>
 #include <vector>
 
+void fixDiagonalLeaksRecursive(Maze& maze, int cx, int cy) {
+  const int ddx[] = {-1, 1, -1, 1};
+  const int ddy[] = {-1, -1, 1, 1};
+  for (int i = 0; i < 4; ++i) {
+    int nx = cx + ddx[i];
+    int ny = cy + ddy[i];
+    int tDiag = maze.getCell(nx, ny);
+    if (tDiag == Maze::CELL_FLOOR || tDiag == Maze::CELL_ROOM) {
+      int t1 = maze.getCell(nx, cy);
+      int t2 = maze.getCell(cx, ny);
+      if (t1 == Maze::CELL_WALL && t2 == Maze::CELL_WALL) {
+        maze.setCell(nx, cy, Maze::CELL_FLOOR);
+        fixDiagonalLeaksRecursive(maze, nx, cy);
+      }
+    }
+  }
+}
+
 void TunnelBorer::ensureConnectivity(Maze& maze) {
   int m_width = maze.getWidth();
   int m_height = maze.getHeight();
@@ -48,12 +66,10 @@ void TunnelBorer::ensureConnectivity(Maze& maze) {
       }
     }
 
-    // 2. Detect Isolation
-    // Scan the maze. Is there a room cell that mainNetwork didn't reach?
     int isolatedX = -1, isolatedY = -1;
     for (int y = 0; y < m_height; ++y) {
       for (int x = 0; x < m_width; ++x) {
-        if (maze.getCell(x, y) == Maze::CELL_ROOM && !mainNetwork[maze.getIndex(x, y)]) {
+        if (maze.getCell(x, y) != Maze::CELL_WALL && !mainNetwork[maze.getIndex(x, y)]) {
           isolatedX = x;
           isolatedY = y;
           goto FOUND_ISOLATED;
@@ -93,14 +109,12 @@ void TunnelBorer::ensureConnectivity(Maze& maze) {
         int nx = cx + dx[i];
         int ny = cy + dy[i];
 
-        // Skip the outer border so we don't bore tunnels outside the map
-        if (nx > 0 && nx < m_width - 1 && ny > 0 && ny < m_height - 1) {
-          int nIndex = maze.getIndex(nx, ny);
-          if (!visited[nIndex]) {
-            visited[nIndex] = true;
-            parent[nIndex] = maze.getIndex(cx, cy); // Remember where we came from
-            borerQ.push({nx, ny});
-          }
+        // We rely on getIndex to wrap coordinates naturally across the Torus!
+        int nIndex = maze.getIndex(nx, ny);
+        if (!visited[nIndex]) {
+          visited[nIndex] = true;
+          parent[nIndex] = maze.getIndex(cx, cy); // Remember where we came from
+          borerQ.push({nx, ny});
         }
       }
     }
@@ -117,6 +131,7 @@ void TunnelBorer::ensureConnectivity(Maze& maze) {
       // Smash the wall!
       if (maze.getCell(cx, cy) == Maze::CELL_WALL) {
         maze.setCell(cx, cy, Maze::CELL_FLOOR);
+        fixDiagonalLeaksRecursive(maze, cx, cy);
       }
 
       currIdx = parent[currIdx]; // Move backwards one step

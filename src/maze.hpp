@@ -54,6 +54,15 @@ public:
   // Uses Frustum Culling to only draw cells visible within the camera viewport.
   void render(const Camera2D& camera) const;
 
+  // --- Phase 2.3: Rubik's Torus ---
+  // Check if a coordinate is within the designated shifting slice
+  bool isShiftingZone(int x, int y) const;
+  
+  // Phase 2.3: Zone Regeneration
+  void clearShiftingZones();
+  void addShiftingZone(int x, int y, int w, int h);
+  void eraseZone(int startX, int startY, int width, int height);
+
   // --- Public Dimension Getters ---
   int getWidth() const { return m_width; }
   int getHeight() const { return m_height; }
@@ -64,6 +73,8 @@ public:
   int getNonWallCount() const { return m_nonWallCount; }
   // Returns the total number of corridor floor cells (O(1) time).
   int getCorridorCount() const { return m_corridorCount; }
+
+  bool hasDiagonalLeak(int x, int y) const;
 
   struct Room {
     int x, y, width, height;
@@ -87,5 +98,6 @@ private:
   // List of all carved rooms
   std::vector<Room> m_rooms;
 
-
+  // List of shifting zones for Minimap rendering
+  std::vector<Room> m_shiftingZones;
 };
