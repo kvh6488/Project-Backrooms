@@ -61,6 +61,10 @@ public:
   int getHeight() const { return m_height; }
   int getCellSize() const { return m_cellSize; }
 
+  // --- Real-time Statistics ---
+  // Returns the total number of cells that are NOT walls (O(1) time).
+  int getNonWallCount() const { return m_nonWallCount; }
+
   struct Room {
     int x, y, width, height;
   };
@@ -72,6 +76,9 @@ private:
   int m_width;    // Number of cells horizontally
   int m_height;   // Number of cells vertically
   int m_cellSize; // Size of each cell in pixels (default 32x32)
+
+  // Real-time stat tracking
+  int m_nonWallCount;
 
   // THE 1D FLAT ARRAY
   std::vector<int> m_grid;

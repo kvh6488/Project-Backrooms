@@ -101,6 +101,31 @@ void BSPGenerator::generate(Maze& maze, std::mt19937& rng) {
 
   m_rootLeaf->createRooms(maze, rng);
   mergeAdjacentRooms(maze, rng);
+
+  // --- Find the Middle Room ---
+  // We calculate this once during generation so the rest of the game can easily access it.
+  const auto& rooms = maze.getRooms();
+  if (!rooms.empty()) {
+    float mazeCenterX = maze.getWidth() / 2.0f;
+    float mazeCenterY = maze.getHeight() / 2.0f;
+    
+    float minDistanceSq = -1.0f;
+    m_middleRoomIndex = 0;
+
+    for (size_t i = 0; i < rooms.size(); ++i) {
+      float roomCenterX = rooms[i].x + rooms[i].width / 2.0f;
+      float roomCenterY = rooms[i].y + rooms[i].height / 2.0f;
+      
+      float dx = roomCenterX - mazeCenterX;
+      float dy = roomCenterY - mazeCenterY;
+      float distanceSq = dx * dx + dy * dy;
+
+      if (minDistanceSq < 0.0f || distanceSq < minDistanceSq) {
+        minDistanceSq = distanceSq;
+        m_middleRoomIndex = i;
+      }
+    }
+  }
 }
 
 // ============================================================================

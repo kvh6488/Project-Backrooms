@@ -8,12 +8,18 @@
 // Implements Binary Space Partitioning. It recursively slices the maze into
 // smaller rectangles (leaves), and then carves random "office rooms" inside
 // those leaves. This ensures rooms are well-distributed and non-overlapping.
+// 
+// Time Complexity: O(R^2) where R is the number of rooms, because the final 
+// adjacent room merging step compares every leaf to every other leaf. The 
+// recursive splitting itself is O(R log R).
 // ============================================================================
 class BSPGenerator {
 public:
     void generate(Maze& maze, std::mt19937& rng);
+    int getMiddleRoomIndex() const { return m_middleRoomIndex; }
 
 private:
+    int m_middleRoomIndex = -1;
     struct BSPLeaf {
         int x, y, width, height;
         std::shared_ptr<BSPLeaf> leftChild;

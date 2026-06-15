@@ -7,6 +7,7 @@
 #include "player.hpp"
 #include "raylib.h"
 #include "rlImGui.h"
+#include <iostream>
 #include <ctime>
 int main() {
   // 1. Initialization
@@ -22,6 +23,8 @@ int main() {
   rlImGuiSetup(true);
 
   unsigned int seed = std::time(nullptr);
+  std::cout << "[INFO] Initializing Maze with seed: " << seed << std::endl;
+
   // Phase 1: Massive Scale.
   // We're increasing the maze from (40, 22) to (250, 150) so it doesn't fit on
   // one screen anymore!
@@ -31,8 +34,10 @@ int main() {
   BSPGenerator bsp;
   bsp.generate(maze, rng);
 
+  int midRoomIdx = bsp.getMiddleRoomIndex();
+
   PrimsGenerator prims;
-  prims.generate(maze, rng);
+  prims.generate(maze, rng, midRoomIdx);
 
   LoopGenerator loops;
   loops.generate(maze, rng);
@@ -40,16 +45,20 @@ int main() {
   TunnelBorer borer;
   borer.ensureConnectivity(maze);
 
-  // Spawn player in the center of the first generated room
+  // Spawn player in the center of the middle room
   Vector2 playerStartPos = {0.0f, 0.0f};
-  if (!maze.getRooms().empty()) {
-    const auto &firstRoom = maze.getRooms()[0];
-    playerStartPos.x =
-        (firstRoom.x + firstRoom.width / 2.0f) * maze.getCellSize();
-    playerStartPos.y =
-        (firstRoom.y + firstRoom.height / 2.0f) * maze.getCellSize();
+  if (!maze.getRooms().empty() && midRoomIdx >= 0) {
+    const auto& closestRoom = maze.getRooms()[midRoomIdx];
+    playerStartPos.x = (closestRoom.x + closestRoom.width / 2.0f) * maze.getCellSize();
+    playerStartPos.y = (closestRoom.y + closestRoom.height / 2.0f) * maze.getCellSize();
   }
   Player player(playerStartPos);
+
+  // --- Calculate Maze Statistics ---
+  int totalRooms = maze.getRooms().size();
+  int totalCells = maze.getWidth() * maze.getHeight();
+  int nonWallCells = maze.getNonWallCount();
+  float coveragePercent = ((float)nonWallCells / totalCells) * 100.0f;
 
   // --- Camera Initialization ---
   Camera2D camera = {0};
@@ -125,6 +134,11 @@ int main() {
     // Create a simple debug window
     ImGui::Begin("Debug Engine");
     ImGui::Text("FPS: %d", GetFPS());
+    ImGui::Separator();
+    ImGui::Text("Maze Statistics");
+    ImGui::Text("Random Seed: %u", seed);
+    ImGui::Text("Number of Rooms: %d", totalRooms);
+    ImGui::Text("Maze Coverage: %.1f%%", coveragePercent);
 
     // --- Minimap Rendering ---
     ImGui::Separator();

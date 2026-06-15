@@ -2,10 +2,7 @@
 #include "generators/loop_generator.hpp"
 #include "generators/prims_generator.hpp"
 #include "generators/tunnel_borer.hpp"
-#include "imgui.h"
 #include "maze.hpp"
-#include "raylib.h"
-#include "rlImGui.h"
 #include <ctime>
 #include <gtest/gtest.h>
 #include <iostream>
@@ -122,7 +119,7 @@ TEST(MazeTest, CorridorGenerationCarvesFloors) {
 
   // 2. Execute Prim's corridor generation
   PrimsGenerator prims;
-  prims.generate(maze, rng);
+  prims.generate(maze, rng, bsp.getMiddleRoomIndex());
 
   // 3. After corridors, we should have many CELL_FLOOR tiles
   int floorCountAfter = 0;
@@ -146,38 +143,37 @@ TEST(MazeTest, FullConnectivityEnsured) {
   // unsigned int seed = 7;
   // unsigned int seed = 1781431085;
   unsigned int seed = std::time(nullptr);
+  
+  // Record the seed in the GTest XML results for CI/CD tracking
+  testing::Test::RecordProperty("RandomSeed", std::to_string(seed));
 
-  std::cout << "\n[   INFO   ] Generating maze with random seed: " << seed
-            << "\n\n";
-
-  Maze maze(40, 22, 32, seed);
+  Maze maze(250, 150, 32, seed);
 
   // Run the full generation pipeline
   std::mt19937 rng(seed);
   BSPGenerator bsp;
   bsp.generate(maze, rng);
   PrimsGenerator prims;
-  prims.generate(maze, rng);
+  prims.generate(maze, rng, bsp.getMiddleRoomIndex());
   LoopGenerator loops;
   loops.generate(maze, rng);
   TunnelBorer borer;
   borer.ensureConnectivity(maze);
 
-  // 1. Count total valid cells (Rooms + Floors)
-  int totalValidCells = 0;
+  // 1. Get total valid cells (O(1) lookup!)
+  int totalValidCells = maze.getNonWallCount();
   int startX = -1, startY = -1;
 
+  // Find the first valid cell to use as our BFS starting point
   for (int y = 0; y < maze.getHeight(); ++y) {
     for (int x = 0; x < maze.getWidth(); ++x) {
       if (maze.getCell(x, y) != Maze::CELL_WALL) {
-        totalValidCells++;
-        // Save the first valid cell we find as our BFS starting point
-        if (startX == -1) {
-          startX = x;
-          startY = y;
-        }
+        startX = x;
+        startY = y;
+        break; // Found it, stop searching!
       }
     }
+    if (startX != -1) break;
   }
 
   // Ensure we actually generated a maze!
@@ -218,53 +214,10 @@ TEST(MazeTest, FullConnectivityEnsured) {
   // 3. The true test of connectivity:
   // Are the cells we can walk to equal to the total number of walk-able cells?
   // If not, it means there are isolated islands we couldn't reach!
-  EXPECT_EQ(reachableCells, totalValidCells);
-
-  // 4. GUI Visualization
-  // Pop open the Raylib window to visually inspect the final, perfectly
-  // connected maze!
-  const int screenWidth = 1280;
-  const int screenHeight = 720;
-
-  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-  InitWindow(screenWidth, screenHeight,
-             "Project Backrooms - TEST MAZE VISUALIZER");
-  SetTargetFPS(60);
-
-  // Setup ImGui bridge
-  rlImGuiSetup(true);
-
-  while (!WindowShouldClose()) {
-    BeginDrawing();
-    ClearBackground(Color{20, 20, 25, 255}); // Dark moody background
-
-    // Render the maze
-    maze.render();
-
-    // Render the UI
-    rlImGuiBegin();
-    ImGui::Begin("Test Engine Diagnostics");
-    ImGui::Text("Test: FullConnectivityEnsured");
-    ImGui::Separator();
-    ImGui::Text("Random Seed: %u", seed);
-    ImGui::Text("Valid Walkable Cells: %d", totalValidCells);
-    ImGui::Text("Cells Reachable by BFS: %d", reachableCells);
-
-    if (reachableCells == totalValidCells) {
-      ImGui::TextColored(ImVec4(0, 1, 0, 1), "STATUS: 100%% CONNECTED");
-    } else {
-      ImGui::TextColored(ImVec4(1, 0, 0, 1),
-                         "STATUS: ISOLATED ROOMS DETECTED!");
-    }
-
-    ImGui::Text("\nClose this window to finish the test suite.");
-    ImGui::End();
-    rlImGuiEnd();
-
-    EndDrawing();
-  }
-
-  // Cleanup
-  rlImGuiShutdown();
-  CloseWindow();
+  EXPECT_EQ(reachableCells, totalValidCells) 
+      << "\n============================================\n"
+      << "ISOLATED ROOMS DETECTED!\n"
+      << "To reproduce this exact maze, hardcode this seed:\n"
+      << "unsigned int seed = " << seed << ";\n"
+      << "============================================\n";
 }

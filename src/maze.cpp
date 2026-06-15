@@ -6,7 +6,7 @@
 // ============================================================================
 Maze::Maze(int width, int height, int cellSize, unsigned int seed)
     : m_width(width), m_height(height), m_cellSize(cellSize),
-      m_grid(width * height, CELL_WALL)
+      m_nonWallCount(0), m_grid(width * height, CELL_WALL)
 {}
 
 // ============================================================================
@@ -31,7 +31,17 @@ void Maze::setCell(int x, int y, int cellType) {
   if (!isInBounds(x, y)) {
     return; // Silently ignore out-of-bounds writes
   }
-  m_grid[getIndex(x, y)] = cellType;
+  
+  int index = getIndex(x, y);
+  int oldType = m_grid[index];
+  
+  if (oldType == CELL_WALL && cellType != CELL_WALL) {
+    m_nonWallCount++;
+  } else if (oldType != CELL_WALL && cellType == CELL_WALL) {
+    m_nonWallCount--;
+  }
+
+  m_grid[index] = cellType;
 }
 
 // ============================================================================
