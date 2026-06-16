@@ -5,8 +5,9 @@
 // ============================================================================
 // Constructor
 // ============================================================================
-Player::Player(Vector2 startPosition)
-    : m_position(startPosition), m_speed(130.0f), m_radius(10.0f) {}
+Player::Player(Vector2 startPosition, AreaState startState)
+    : m_position(startPosition), m_speed(130.0f), m_radius(10.0f),
+      m_areaState(startState) {}
 
 // ============================================================================
 // Update - Kinematics and Input
@@ -31,6 +32,40 @@ void Player::update(const Maze &maze) {
     velocity.x -= m_speed;
   if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT))
     velocity.x += m_speed;
+
+  // 1.5 DOOR TRANSITIONS (KEY_K)
+  if (IsKeyPressed(KEY_K)) {
+    int gridX = static_cast<int>(std::floor(m_position.x / maze.getCellSize()));
+    int gridY = static_cast<int>(std::floor(m_position.y / maze.getCellSize()));
+
+    int dx[] = {0, 0, -1, 1};
+    int dy[] = {-1, 1, 0, 0};
+
+    for (int i = 0; i < 4; ++i) {
+      int nx = gridX + dx[i];
+      int ny = gridY + dy[i];
+      int cell = maze.getCell(nx, ny);
+
+      if (m_areaState == AreaState::CORRIDOR && cell == Maze::CELL_ROOM) {
+        // We are trying to enter a room.
+        // Since rendering is completely decoupled from the room array, we no
+        // longer need to verify which exact room rectangle this tile belongs to
+        // (which fixes bugs with bridged rooms).
+        m_areaState = AreaState::ROOM;
+        // Snap player over the threshold into the room
+        m_position.x = nx * maze.getCellSize() + maze.getCellSize() / 2.0f;
+        m_position.y = ny * maze.getCellSize() + maze.getCellSize() / 2.0f;
+        break; // Only enter one door per frame
+      } else if (m_areaState == AreaState::ROOM && cell == Maze::CELL_FLOOR) {
+        // We are trying to exit a room into a corridor.
+        m_areaState = AreaState::CORRIDOR;
+        // Snap player over the threshold into the corridor
+        m_position.x = nx * maze.getCellSize() + maze.getCellSize() / 2.0f;
+        m_position.y = ny * maze.getCellSize() + maze.getCellSize() / 2.0f;
+        break;
+      }
+    }
+  }
 
   // 2. THE "SLIDE" COLLISION METHOD
   // Instead of updating X and Y simultaneously and getting stuck on corners,
@@ -72,8 +107,20 @@ void Player::resolveCollision(const Maze &maze) {
   for (int y = startGridY; y <= endGridY; ++y) {
     for (int x = startGridX; x <= endGridX; ++x) {
 
-      // If the cell is not a floor/room, it's a solid wall.
-      if (maze.getCell(x, y) == Maze::CELL_WALL) {
+      // Check contextual solidity
+      int cell = maze.getCell(x, y);
+      bool isSolid = false;
+
+      if (cell == Maze::CELL_WALL) {
+        isSolid = true;
+      } else if (m_areaState == AreaState::CORRIDOR &&
+                 cell == Maze::CELL_ROOM) {
+        isSolid = true; // Rooms are solid walls from the outside
+      } else if (m_areaState == AreaState::ROOM && cell == Maze::CELL_FLOOR) {
+        isSolid = true; // Corridors are solid walls from the inside
+      }
+
+      if (isSolid) {
 
         // Define the AABB (Axis-Aligned Bounding Box) for this specific wall
         // cell
@@ -121,4 +168,27 @@ void Player::resolveCollision(const Maze &maze) {
 void Player::render() const {
   // Draw the player as a simple red circle
   DrawCircleV(m_position, m_radius, RED);
+}
+
+// ============================================================================
+// Door Interaction Check
+// ============================================================================
+bool Player::canUseDoor(const Maze &maze) const {
+  int gridX = static_cast<int>(std::floor(m_position.x / maze.getCellSize()));
+  int gridY = static_cast<int>(std::floor(m_position.y / maze.getCellSize()));
+
+  int dx[] = {0, 0, -1, 1};
+  int dy[] = {-1, 1, 0, 0};
+
+  for (int i = 0; i < 4; ++i) {
+    int nx = gridX + dx[i];
+    int ny = gridY + dy[i];
+    int cell = maze.getCell(nx, ny);
+
+    if (m_areaState == AreaState::CORRIDOR && cell == Maze::CELL_ROOM)
+      return true;
+    if (m_areaState == AreaState::ROOM && cell == Maze::CELL_FLOOR)
+      return true;
+  }
+  return false;
 }

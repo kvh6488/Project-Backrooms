@@ -54,7 +54,7 @@ int main() {
     playerStartPos.y =
         (closestRoom.y + closestRoom.height / 2.0f) * maze.getCellSize();
   }
-  Player player(playerStartPos);
+  Player player(playerStartPos, AreaState::ROOM);
 
   // --- Calculate Maze Statistics ---
   int totalRooms = maze.getRooms().size();
@@ -112,6 +112,7 @@ int main() {
 
     // --- Update Logic ---
     player.update(maze);
+    maze.updateFOV(player.getPosition(), player.getAreaState());
 
     if (minimapDirty) {
       generateMinimap();
@@ -132,16 +133,23 @@ int main() {
     // transformation matrix!
     BeginMode2D(camera);
 
-    // Draw the maze first (so UI draws over it)
-    maze.render(camera);
-
-    // Draw the player
+    // Draw the maze based on context
+    maze.render(camera, player.getAreaState());
+    
+    // Draw the player ON TOP
     player.render();
 
     // --- END 2D CAMERA MATRIX ---
     // Stop applying the matrix so our UI can be drawn in standard Screen Space
     // (locked to the window)
     EndMode2D();
+
+    // Draw interaction prompt
+    if (player.canUseDoor(maze)) {
+        const char* msg = "Press 'K' to use door";
+        int textWidth = MeasureText(msg, 30);
+        DrawText(msg, (screenWidth - textWidth) / 2, screenHeight - 100, 30, WHITE);
+    }
 
     // Start drawing the ImGui user interface
     rlImGuiBegin();

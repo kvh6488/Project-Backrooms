@@ -1,5 +1,6 @@
 #include "maze.hpp"
 #include "raylib.h"
+#include "player.hpp"
 #include <cmath>
 #include <algorithm>
 
@@ -7,9 +8,17 @@
 // Constructor
 // ============================================================================
 Maze::Maze(int width, int height, int cellSize, unsigned int seed)
-    : m_width(width), m_height(height), m_cellSize(cellSize),
-      m_nonWallCount(0), m_corridorCount(0), m_grid(width * height, CELL_WALL)
-{}
+    : m_width(width), m_height(height), m_cellSize(cellSize), m_nonWallCount(0),
+      m_corridorCount(0), m_grid(width * height, CELL_WALL), m_visible(width * height, false) {
+  // Load the tileset (needs to be done AFTER InitWindow in main.cpp)
+  m_floorTileset = LoadTexture("assets/BCKRMlv1_Floor_set.png");
+  m_wallTileset = LoadTexture("assets/BCKRMlv1_Wall_set.png");
+}
+
+Maze::~Maze() {
+  UnloadTexture(m_floorTileset);
+  UnloadTexture(m_wallTileset);
+}
 
 // ============================================================================
 // getIndex — The heart of 1D-to-2D Mapping
@@ -55,47 +64,133 @@ void Maze::setCell(int x, int y, int cellType) {
 }
 
 // ============================================================================
-// RENDERING
+// FIELD OF VIEW (Flood Fill)
 // ============================================================================
-void Maze::render(const Camera2D& camera) const {
+void Maze::updateFOV(Vector2 playerPos, AreaState state) {
+  // Clear the visibility map every frame
+  std::fill(m_visible.begin(), m_visible.end(), false);
+
+  int playerGridX = (int)floor(playerPos.x / m_cellSize);
+  int playerGridY = (int)floor(playerPos.y / m_cellSize);
+
+  std::queue<std::pair<int, int>> q;
+  q.push({playerGridX, playerGridY});
+  m_visible[getIndex(playerGridX, playerGridY)] = true;
+
+  // Max distance prevents flood fill from lighting up the whole map if corridors connect
+  int maxDistance = 25;
+
+  // 8-way Flood Fill
+  int dx[] = {0, 0, -1, 1, -1, 1, -1, 1};
+  int dy[] = {-1, 1, 0, 0, -1, -1, 1, 1};
+
+  while (!q.empty()) {
+    auto [x, y] = q.front();
+    q.pop();
+
+    // Manhattan distance approx to stop unbounded filling
+    if (std::abs(x - playerGridX) + std::abs(y - playerGridY) > maxDistance) continue;
+
+    for (int i = 0; i < 8; ++i) {
+      int nx = x + dx[i];
+      int ny = y + dy[i];
+      int nIndex = getIndex(nx, ny);
+
+      if (!m_visible[nIndex]) {
+        m_visible[nIndex] = true;
+        
+        // If it is a floor matching our current context, keep expanding!
+        int cell = getCell(nx, ny);
+        if (state == AreaState::CORRIDOR && cell == CELL_FLOOR) {
+          q.push({nx, ny});
+        } else if (state == AreaState::ROOM && cell == CELL_ROOM) {
+          q.push({nx, ny});
+        }
+      }
+    }
+  }
+}
+
+void Maze::render(const Camera2D& camera, AreaState state) const {
   // --- FRUSTUM CULLING ---
-  // 1. Calculate the screen bounds in world space
   Vector2 topLeft = GetScreenToWorld2D({0.0f, 0.0f}, camera);
   Vector2 bottomRight = GetScreenToWorld2D({(float)GetScreenWidth(), (float)GetScreenHeight()}, camera);
 
-  // 2. Convert world coordinates to grid tiles
-  // We subtract/add 1 tile to the edges to act as a buffer so we don't see tiles popping in
+  // We are back to purely 1x1 scaling!
+  // We subtract 3 from startY to ensure walls projecting upwards are drawn even if their base is off-screen.
   int startX = (int)floor(topLeft.x / m_cellSize) - 1;
   int endX   = (int)ceil(bottomRight.x / m_cellSize) + 1;
-  
-  int startY = (int)floor(topLeft.y / m_cellSize) - 1;
+  int startY = (int)floor(topLeft.y / m_cellSize) - 3;
   int endY   = (int)ceil(bottomRight.y / m_cellSize) + 1;
 
-  // 3. Render ONLY the tiles inside the camera frustum!
   for (int y = startY; y <= endY; ++y) {
     for (int x = startX; x <= endX; ++x) {
-      // Modulo Wrapping perfectly fetches the right data even if x or y is negative or > width
-      int cell = getCell(x, y);
-
-      Color drawColor;
-      switch (cell) {
-        case CELL_WALL:  
-          drawColor = Color{40, 40, 45, 255}; 
-          break;      
-        case CELL_FLOOR: 
-          drawColor = isShiftingZone(x, y) ? Color{255, 100, 100, 255} : Color{180, 170, 140, 255}; 
-          break;   
-        case CELL_ROOM:  
-          drawColor = isShiftingZone(x, y) ? Color{200, 50, 50, 255} : Color{220, 210, 180, 255}; 
-          break;   
-        default:         
-          drawColor = MAGENTA; 
-          break; 
+      if (!m_visible[getIndex(x, y)]) {
+          // Unexplored/unseen area, draw pure black void
+          DrawRectangle(x * m_cellSize, y * m_cellSize, m_cellSize, m_cellSize, BLACK);
+          continue;
       }
 
-      // We draw the tile visually at the absolute world coordinate (x * m_cellSize),
-      // even if x is 50000. It seamlessly creates an infinite plane!
-      DrawRectangle(x * m_cellSize, y * m_cellSize, m_cellSize, m_cellSize, drawColor);
+      int cell = getCell(x, y);
+
+      // Contextual voids
+      if (state == AreaState::CORRIDOR && cell == CELL_ROOM) {
+          DrawRectangle(x * m_cellSize, y * m_cellSize, m_cellSize, m_cellSize, BLACK);
+          continue;
+      }
+      if (state == AreaState::ROOM && cell == CELL_FLOOR) {
+          DrawRectangle(x * m_cellSize, y * m_cellSize, m_cellSize, m_cellSize, BLACK);
+          continue;
+      }
+
+      if (cell == CELL_WALL) {
+          int belowCell = getCell(x, y + 1);
+          // Zelda Top Walls ONLY apply in Rooms!
+          bool belowIsVisibleFloor = false;
+          if (state == AreaState::ROOM) {
+              belowIsVisibleFloor = m_visible[getIndex(x, y + 1)] && (belowCell == CELL_ROOM);
+          }
+
+          if (belowIsVisibleFloor) {
+              // Zelda Top Wall: Project UPWARDS into the void!
+              // Draw roof at y-1
+              Rectangle sourceRectTop = { 5.0f * 16.0f, 4.0f * 16.0f, 16.0f, 16.0f };
+              Rectangle destRectTop = { (float)(x * m_cellSize), (float)((y - 1) * m_cellSize), (float)m_cellSize, (float)m_cellSize };
+              DrawTexturePro(m_wallTileset, sourceRectTop, destRectTop, {0,0}, 0.0f, WHITE);
+
+              // Draw base at y
+              Rectangle sourceRectBot = { 5.0f * 16.0f, 6.0f * 16.0f, 16.0f, 16.0f };
+              Rectangle destRectBot = { (float)(x * m_cellSize), (float)(y * m_cellSize), (float)m_cellSize, (float)m_cellSize };
+              DrawTexturePro(m_wallTileset, sourceRectBot, destRectBot, {0,0}, 0.0f, WHITE);
+          } else {
+              // Bottom Wall / Inner Mass: Just draw the flat roof tile at y, it won't obscure the player at y-1
+              Rectangle sourceRectTop = { 5.0f * 16.0f, 4.0f * 16.0f, 16.0f, 16.0f };
+              Rectangle destRectTop = { (float)(x * m_cellSize), (float)(y * m_cellSize), (float)m_cellSize, (float)m_cellSize };
+              DrawTexturePro(m_wallTileset, sourceRectTop, destRectTop, {0,0}, 0.0f, WHITE);
+          }
+      } else {
+          // Floor or Room
+          Color drawColor;
+          bool isTexture = false;
+          Rectangle sourceRect = {0};
+
+          if (cell == CELL_FLOOR) {
+              drawColor = isShiftingZone(x, y) ? Color{255, 100, 100, 255} : Color{180, 170, 140, 255};
+          } else if (cell == CELL_ROOM) {
+              drawColor = isShiftingZone(x, y) ? Color{255, 100, 100, 255} : WHITE;
+              isTexture = true;
+              sourceRect = { 9.0f * 16.0f, 0.0f * 16.0f, 16.0f, 16.0f };
+          } else {
+              drawColor = MAGENTA;
+          }
+
+          if (isTexture) {
+              Rectangle destRect = { (float)(x * m_cellSize), (float)(y * m_cellSize), (float)m_cellSize, (float)m_cellSize };
+              DrawTexturePro(m_floorTileset, sourceRect, destRect, {0,0}, 0.0f, drawColor);
+          } else {
+              DrawRectangle(x * m_cellSize, y * m_cellSize, m_cellSize, m_cellSize, drawColor);
+          }
+      }
     }
   }
 }

@@ -3,6 +3,14 @@
 
 #include <raylib.h>
 #include <vector> // For std::vector (our dynamic 1D array)
+#include <queue>  // For BFS
+
+enum class AreaState {
+    CORRIDOR,
+    ROOM
+};
+
+class Player;
 
 // ============================================================================
 // Maze Class
@@ -31,8 +39,7 @@ public:
   // Creates a maze of the given dimensions.
   // seed determines the random layout. Same seed = same maze.
   Maze(int width, int height, int cellSize = 32, unsigned int seed = 12345);
-
-
+  ~Maze();
 
   // --- Core Accessors ---
 
@@ -52,7 +59,10 @@ public:
 
   // Draw the maze as colored rectangles (placeholder tiles).
   // Uses Frustum Culling to only draw cells visible within the camera viewport.
-  void render(const Camera2D& camera) const;
+  void render(const Camera2D& camera, AreaState state) const;
+
+  // Calculate Field of View (Flood Fill)
+  void updateFOV(Vector2 playerPos, AreaState state);
 
   // --- Phase 2.3: Rubik's Torus ---
   // Check if a coordinate is within the designated shifting slice
@@ -92,8 +102,13 @@ private:
   int m_nonWallCount;
   int m_corridorCount;
 
+  // Tilesets
+  Texture2D m_floorTileset;
+  Texture2D m_wallTileset;
+
   // THE 1D FLAT ARRAY
   std::vector<int> m_grid;
+  std::vector<bool> m_visible;
 
   // List of all carved rooms
   std::vector<Room> m_rooms;
