@@ -11,13 +11,21 @@ Maze::Maze(int width, int height, int cellSize, unsigned int seed)
     : m_width(width), m_height(height), m_cellSize(cellSize), m_nonWallCount(0),
       m_corridorCount(0), m_grid(width * height, CELL_WALL), m_visible(width * height, false) {
   // Load the tileset (needs to be done AFTER InitWindow in main.cpp)
-  m_floorTileset = LoadTexture("assets/BCKRMlv1_Floor_set.png");
-  m_wallTileset = LoadTexture("assets/BCKRMlv1_Wall_set.png");
+  // We check IsWindowReady() so that headless Unit Tests don't crash!
+  if (IsWindowReady()) {
+      m_floorTileset = LoadTexture("assets/BCKRMlv1_Floor_set.png");
+      m_wallTileset = LoadTexture("assets/BCKRMlv1_Wall_set.png");
+  } else {
+      m_floorTileset = {0};
+      m_wallTileset = {0};
+  }
 }
 
 Maze::~Maze() {
-  UnloadTexture(m_floorTileset);
-  UnloadTexture(m_wallTileset);
+  if (IsWindowReady()) {
+      UnloadTexture(m_floorTileset);
+      UnloadTexture(m_wallTileset);
+  }
 }
 
 // ============================================================================
