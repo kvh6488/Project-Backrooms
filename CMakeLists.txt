@@ -48,11 +48,14 @@ endif()
 # 4. Define our executable and include the external source files directly
 add_executable(Backrooms 
     src/main.cpp 
+    src/application.cpp
     src/maze.cpp
+    src/maze_renderer.cpp
     src/generators/bsp_generator.cpp
     src/generators/loop_generator.cpp
     src/generators/prims_generator.cpp
     src/generators/tunnel_borer.cpp
+    src/generators/generator_utils.cpp
     src/player.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
@@ -94,10 +97,12 @@ enable_testing()
 add_executable(BackroomsTests
     tests/test_maze.cpp
     src/maze.cpp
+    src/maze_renderer.cpp
     src/generators/bsp_generator.cpp
     src/generators/loop_generator.cpp
     src/generators/prims_generator.cpp
     src/generators/tunnel_borer.cpp
+    src/generators/generator_utils.cpp
     src/player.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp

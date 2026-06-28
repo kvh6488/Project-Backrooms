@@ -1,13 +1,12 @@
 #include "tunnel_borer.hpp"
+#include "generator_utils.hpp"
 #include <queue>
 #include <vector>
 
 void fixDiagonalLeaksRecursive(Maze& maze, int cx, int cy) {
-  const int ddx[] = {-1, 1, -1, 1};
-  const int ddy[] = {-1, -1, 1, 1};
   for (int i = 0; i < 4; ++i) {
-    int nx = cx + ddx[i];
-    int ny = cy + ddy[i];
+    int nx = cx + GeneratorUtils::DIAG_DX[i];
+    int ny = cy + GeneratorUtils::DIAG_DY[i];
     int tDiag = maze.getCell(nx, ny);
     if (tDiag == Maze::CELL_CORRIDOR || tDiag == Maze::CELL_ROOM) {
       int t1 = maze.getCell(nx, cy);
@@ -46,6 +45,9 @@ void TunnelBorer::ensureConnectivity(Maze& maze) {
   START_FLOOD:
 
     // Standard BFS: pop a cell, check its 4 neighbors
+    // NOTE: We do NOT use GeneratorUtils::DX/DY here! The specific order
+    // (Up, Right, Down, Left) dictates the BFS pathfinding tie-breaking.
+    // Changing this order changes the tunnel shape, which can violate the door constraint.
     const int dx[] = {0, 1, 0, -1};
     const int dy[] = {-1, 0, 1, 0};
 

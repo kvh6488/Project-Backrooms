@@ -1,0 +1,235 @@
+#include "application.hpp"
+#include "generators/bsp_generator.hpp"
+#include "generators/loop_generator.hpp"
+#include "generators/prims_generator.hpp"
+#include "generators/tunnel_borer.hpp"
+#include "imgui.h"
+#include "rlImGui.h"
+#include <ctime>
+#include <iostream>
+#include <cmath>
+
+Application::Application()
+    : m_seed(std::time(nullptr)),
+      m_maze(250, 150, 32, m_seed),
+      m_player(Vector2{0, 0}, AreaState::ROOM),
+      m_minimapDirty(false) {
+
+  // 1. Initialize Raylib System
+  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+  InitWindow(m_screenWidth, m_screenHeight, "Project Backrooms");
+  SetTargetFPS(60);
+
+  // 2. Initialize ImGui and Textures
+  rlImGuiSetup(true);
+  m_renderer.loadTextures();
+
+  // 3. Generate Initial Maze
+  std::cout << "[INFO] Initializing Maze with seed: " << m_seed << std::endl;
+  std::mt19937 rng(m_seed);
+
+  BSPGenerator bsp;
+  bsp.generate(m_maze, rng);
+
+  int midRoomIdx = bsp.getMiddleRoomIndex();
+
+  PrimsGenerator prims;
+  prims.generate(m_maze, rng, midRoomIdx);
+
+  LoopGenerator loops;
+  loops.generate(m_maze, rng);
+
+  TunnelBorer borer;
+  borer.ensureConnectivity(m_maze);
+
+  // Post-Prims cleanup
+  prims.pruneSmallAlcoves(m_maze, 5);
+
+  // 4. Initialize Player Position
+  Vector2 playerStartPos = {0.0f, 0.0f};
+  if (!m_maze.getRooms().empty() && midRoomIdx >= 0) {
+    const auto &closestRoom = m_maze.getRooms()[midRoomIdx];
+    playerStartPos.x =
+        (closestRoom.x + closestRoom.width / 2.0f) * m_maze.getCellSize();
+    playerStartPos.y =
+        (closestRoom.y + closestRoom.height / 2.0f) * m_maze.getCellSize();
+  }
+  
+  // Reconstruct player with correct position
+  m_player = Player(playerStartPos, AreaState::ROOM);
+
+  // 5. Initialize Camera
+  m_camera = {0};
+  m_camera.target = m_player.getPosition();
+  m_camera.offset = Vector2{m_screenWidth / 2.0f, m_screenHeight / 2.0f};
+  m_camera.rotation = 0.0f;
+  m_camera.zoom = 1.0f;
+
+  // 6. Initialize Minimap
+  m_minimapTexture = LoadRenderTexture(m_maze.getWidth(), m_maze.getHeight());
+  generateMinimap();
+}
+
+Application::~Application() {
+  UnloadRenderTexture(m_minimapTexture);
+  rlImGuiShutdown();
+  CloseWindow();
+}
+
+void Application::run() {
+  while (!WindowShouldClose()) {
+    update();
+    render();
+  }
+}
+
+void Application::update() {
+  m_player.update(m_maze);
+  m_maze.updateFOV(m_player.getPosition(), m_player.getAreaState());
+
+  if (m_minimapDirty) {
+    generateMinimap();
+    m_minimapDirty = false;
+  }
+
+  // Camera tracking
+  m_camera.target = m_player.getPosition();
+}
+
+void Application::render() {
+  BeginDrawing();
+  ClearBackground(Color{20, 20, 25, 255});
+
+  // --- World Space ---
+  BeginMode2D(m_camera);
+  m_renderer.render(m_maze, m_camera, m_player.getAreaState());
+  m_player.render();
+  EndMode2D();
+
+  // --- Screen Space (UI) ---
+  if (m_player.canUseDoor(m_maze)) {
+    const char *msg = "Press 'K' to use door";
+    int textWidth = MeasureText(msg, 30);
+    DrawText(msg, (m_screenWidth - textWidth) / 2, m_screenHeight - 100, 30, WHITE);
+  }
+
+  renderUI();
+
+  EndDrawing();
+}
+
+// TODO: Extract to a separate UIManager class later
+void Application::renderUI() {
+  rlImGuiBegin();
+
+  ImGui::Begin("Debug Engine");
+  ImGui::Text("FPS: %d", GetFPS());
+  ImGui::Separator();
+  ImGui::Text("Maze Statistics");
+  ImGui::Text("Random Seed: %u", m_seed);
+  ImGui::Text("Number of Rooms: %zu", m_maze.getRooms().size());
+  
+  int totalCells = m_maze.getWidth() * m_maze.getHeight();
+  float coveragePercent = ((float)m_maze.getNonWallCount() / totalCells) * 100.0f;
+  float corridorPercent = ((float)m_maze.getCorridorCount() / totalCells) * 100.0f;
+  
+  ImGui::Text("Maze Coverage: %.1f%%", coveragePercent);
+  ImGui::Text("Corridor Coverage: %.1f%%", corridorPercent);
+
+  ImGui::Separator();
+  if (ImGui::Button("Regenerate Tic-Tac-Toe Zones")) {
+    regenerateTicTacToeZones();
+  }
+
+  ImGui::Separator();
+  ImGui::Text("Minimap");
+
+  float availWidth = ImGui::GetContentRegionAvail().x;
+  float mapRatio = (float)m_maze.getHeight() / (float)m_maze.getWidth();
+  Vector2 mapDisplaySize = {availWidth, availWidth * mapRatio};
+
+  ImVec2 mapScreenPos = ImGui::GetCursorScreenPos();
+
+  rlImGuiImageRect(&m_minimapTexture.texture, (int)mapDisplaySize.x,
+                   (int)mapDisplaySize.y,
+                   Rectangle{0, 0, (float)m_minimapTexture.texture.width,
+                             -(float)m_minimapTexture.texture.height});
+
+  // Draw Player Dot on Minimap
+  Vector2 pPos = m_player.getPosition();
+  int gridX = (int)std::floor(pPos.x / m_maze.getCellSize());
+  int gridY = (int)std::floor(pPos.y / m_maze.getCellSize());
+
+  int wrappedX = (gridX % m_maze.getWidth() + m_maze.getWidth()) % m_maze.getWidth();
+  int wrappedY = (gridY % m_maze.getHeight() + m_maze.getHeight()) % m_maze.getHeight();
+
+  float percentX = (float)wrappedX / m_maze.getWidth();
+  float percentY = (float)wrappedY / m_maze.getHeight();
+
+  ImVec2 playerScreenPos = ImVec2(mapScreenPos.x + (percentX * mapDisplaySize.x),
+                                  mapScreenPos.y + (percentY * mapDisplaySize.y));
+
+  ImGui::GetWindowDrawList()->AddCircleFilled(playerScreenPos, 3.0f, IM_COL32(255, 0, 0, 255));
+  ImGui::End();
+
+  rlImGuiEnd();
+}
+
+void Application::generateMinimap() {
+  BeginTextureMode(m_minimapTexture);
+  ClearBackground(BLANK);
+  for (int y = 0; y < m_maze.getHeight(); ++y) {
+    for (int x = 0; x < m_maze.getWidth(); ++x) {
+      if (m_maze.getCell(x, y) == Maze::CELL_WALL) {
+        DrawPixel(x, y, Color{100, 100, 100, 255});
+      } else {
+        if (m_maze.isShiftingZone(x, y)) {
+          DrawPixel(x, y, Color{255, 100, 100, 255});
+        } else {
+          DrawPixel(x, y, Color{30, 30, 35, 255});
+        }
+      }
+    }
+  }
+  EndTextureMode();
+}
+
+void Application::regenerateTicTacToeZones() {
+  std::vector<Maze::Room> zones = {
+      {55, 0, 14, 150},   // V-Left
+      {180, 0, 14, 150},  // V-Right
+      {0, 30, 55, 14},    // H-Top-Left
+      {69, 30, 111, 14},  // H-Top-Mid
+      {194, 30, 56, 14},  // H-Top-Right
+      {0, 105, 55, 14},   // H-Bot-Left
+      {69, 105, 111, 14}, // H-Bot-Mid
+      {194, 105, 56, 14}  // H-Bot-Right
+  };
+
+  m_maze.clearShiftingZones();
+  for (const auto &z : zones) {
+    m_maze.addShiftingZone(z.x, z.y, z.width, z.height);
+    m_maze.eraseZone(z.x, z.y, z.width, z.height);
+  }
+
+  std::mt19937 rng(time(0));
+  BSPGenerator bsp;
+  PrimsGenerator prims;
+  LoopGenerator loops;
+
+  for (const auto &z : zones) {
+    bsp.generateZone(m_maze, rng, z.x, z.y, z.width, z.height);
+  }
+  for (const auto &z : zones) {
+    prims.generateZone(m_maze, rng, z.x, z.y, z.width, z.height);
+  }
+  for (const auto &z : zones) {
+    loops.generateZone(m_maze, rng, z.x, z.y, z.width, z.height);
+  }
+
+  TunnelBorer borer;
+  borer.ensureConnectivity(m_maze);
+  prims.pruneSmallAlcoves(m_maze, 5);
+
+  m_minimapDirty = true;
+}

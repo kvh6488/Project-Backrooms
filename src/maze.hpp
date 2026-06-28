@@ -51,14 +51,11 @@ public:
   // Set the cell type at grid position (x, y).
   void setCell(int x, int y, int cellType);
 
-  // --- Rendering ---
-
-  // Draw the maze as colored rectangles (placeholder tiles).
-  // Uses Frustum Culling to only draw cells visible within the camera viewport.
-  void render(const Camera2D &camera, AreaState state) const;
-
   // Calculate Field of View (Flood Fill)
   void updateFOV(Vector2 playerPos, AreaState state);
+
+  // Check if cell is visible (used by MazeRenderer)
+  bool isVisible(int x, int y) const;
 
   // --- Phase 2.3: Rubik's Torus ---
   // Check if a coordinate is within the designated shifting slice
@@ -100,10 +97,6 @@ private:
   // Real-time stat tracking
   int m_nonWallCount;
   int m_corridorCount;
-
-  // Tilesets
-  Texture2D m_floorTileset;
-  Texture2D m_wallTileset;
 
   // THE 1D FLAT ARRAY
   std::vector<int> m_grid;
