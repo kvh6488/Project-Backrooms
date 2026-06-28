@@ -136,62 +136,84 @@ void Maze::render(const Camera2D &camera, AreaState state) const {
 
   for (int y = startY; y <= endY; ++y) {
     for (int x = startX; x <= endX; ++x) {
-      if (!m_visible[getIndex(x, y)]) {
-        // Unexplored/unseen area, draw pure black void
-        DrawRectangle(x * m_cellSize, y * m_cellSize, m_cellSize, m_cellSize,
-                      BLACK);
-        continue;
-      }
-
       int cell = getCell(x, y);
 
-      // Contextual voids
-      if (state == AreaState::CORRIDOR && cell == CELL_ROOM) {
-        DrawRectangle(x * m_cellSize, y * m_cellSize, m_cellSize, m_cellSize,
-                      BLACK);
-        continue;
+      // Determine if this cell should be drawn as a "void" (unseen or out of context)
+      bool isVoid = false;
+      if (!m_visible[getIndex(x, y)]) {
+        isVoid = true;
+      } else if (state == AreaState::CORRIDOR && cell == CELL_ROOM) {
+        isVoid = true;
+      } else if (state == AreaState::ROOM && cell == CELL_CORRIDOR) {
+        isVoid = true;
       }
-      if (state == AreaState::ROOM && cell == CELL_CORRIDOR) {
-        DrawRectangle(x * m_cellSize, y * m_cellSize, m_cellSize, m_cellSize,
-                      BLACK);
+
+      if (isVoid) {
+        // Draw the isolated wall tile {2, 1} to fill the void!
+        Rectangle sourceRect = {2.0f * 16.0f, 1.0f * 16.0f, 16.0f, 16.0f};
+        Rectangle destRect = {(float)(x * m_cellSize), (float)(y * m_cellSize),
+                              (float)m_cellSize, (float)m_cellSize};
+        DrawTexturePro(m_wallTileset, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
         continue;
       }
 
       if (cell == CELL_WALL) {
-        int belowCell = getCell(x, y + 1);
-        // Zelda Top Walls ONLY apply in Rooms!
-        bool belowIsVisibleFloor = false;
-        if (state == AreaState::ROOM) {
-          belowIsVisibleFloor =
-              m_visible[getIndex(x, y + 1)] && (belowCell == CELL_ROOM);
-        }
+        if (state == AreaState::CORRIDOR) {
+          // --- BITMASKING / AUTOTILING PATTERN ---
+          // Determine the context by checking 4 orthogonal neighbors
+          int mask = 0;
+          if (getCell(x, y - 1) == CELL_CORRIDOR) mask += 1; // Top
+          if (getCell(x + 1, y) == CELL_CORRIDOR) mask += 2; // Right
+          if (getCell(x, y + 1) == CELL_CORRIDOR) mask += 4; // Bottom
+          if (getCell(x - 1, y) == CELL_CORRIDOR) mask += 8; // Left
 
-        if (belowIsVisibleFloor) {
-          // Zelda Top Wall: Project UPWARDS into the void!
-          // Draw roof at y-1
-          Rectangle sourceRectTop = {5.0f * 16.0f, 4.0f * 16.0f, 16.0f, 16.0f};
-          Rectangle destRectTop = {(float)(x * m_cellSize),
-                                   (float)((y - 1) * m_cellSize),
-                                   (float)m_cellSize, (float)m_cellSize};
-          DrawTexturePro(m_wallTileset, sourceRectTop, destRectTop, {0, 0},
-                         0.0f, WHITE);
+          // Map the mask (0-15) to spritesheet coordinates (x, y)
+          static const Vector2 tileMap[16] = {
+              {2.0f, 1.0f}, {2.0f, 0.0f}, {3.0f, 1.0f}, {3.0f, 0.0f},
+              {2.0f, 2.0f}, {2.0f, 3.0f}, {3.0f, 2.0f}, {3.0f, 3.0f},
+              {1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f},
+              {1.0f, 2.0f}, {1.0f, 3.0f}, {0.0f, 2.0f}, {0.0f, 3.0f}
+          };
 
-          // Draw base at y
-          Rectangle sourceRectBot = {5.0f * 16.0f, 6.0f * 16.0f, 16.0f, 16.0f};
-          Rectangle destRectBot = {(float)(x * m_cellSize),
-                                   (float)(y * m_cellSize), (float)m_cellSize,
-                                   (float)m_cellSize};
-          DrawTexturePro(m_wallTileset, sourceRectBot, destRectBot, {0, 0},
-                         0.0f, WHITE);
+          Vector2 tilePos = tileMap[mask];
+          Rectangle sourceRect = {tilePos.x * 16.0f, tilePos.y * 16.0f, 16.0f, 16.0f};
+          Rectangle destRect = {(float)(x * m_cellSize),
+                                (float)(y * m_cellSize), (float)m_cellSize,
+                                (float)m_cellSize};
+          DrawTexturePro(m_wallTileset, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
         } else {
-          // Bottom Wall / Inner Mass: Just draw the flat roof tile at y, it
-          // won't obscure the player at y-1
-          Rectangle sourceRectTop = {5.0f * 16.0f, 4.0f * 16.0f, 16.0f, 16.0f};
-          Rectangle destRectTop = {(float)(x * m_cellSize),
-                                   (float)(y * m_cellSize), (float)m_cellSize,
-                                   (float)m_cellSize};
-          DrawTexturePro(m_wallTileset, sourceRectTop, destRectTop, {0, 0},
-                         0.0f, WHITE);
+          int belowCell = getCell(x, y + 1);
+          // Zelda Top Walls ONLY apply in Rooms!
+          bool belowIsVisibleFloor =
+              m_visible[getIndex(x, y + 1)] && (belowCell == CELL_ROOM);
+
+          if (belowIsVisibleFloor) {
+            // Zelda Top Wall: Project UPWARDS into the void!
+            // Draw roof at y-1
+            Rectangle sourceRectTop = {5.0f * 16.0f, 4.0f * 16.0f, 16.0f, 16.0f};
+            Rectangle destRectTop = {(float)(x * m_cellSize),
+                                     (float)((y - 1) * m_cellSize),
+                                     (float)m_cellSize, (float)m_cellSize};
+            DrawTexturePro(m_wallTileset, sourceRectTop, destRectTop, {0, 0},
+                           0.0f, WHITE);
+
+            // Draw base at y
+            Rectangle sourceRectBot = {5.0f * 16.0f, 6.0f * 16.0f, 16.0f, 16.0f};
+            Rectangle destRectBot = {(float)(x * m_cellSize),
+                                     (float)(y * m_cellSize), (float)m_cellSize,
+                                     (float)m_cellSize};
+            DrawTexturePro(m_wallTileset, sourceRectBot, destRectBot, {0, 0},
+                           0.0f, WHITE);
+          } else {
+            // Bottom Wall / Inner Mass: Just draw the flat roof tile at y, it
+            // won't obscure the player at y-1
+            Rectangle sourceRectTop = {5.0f * 16.0f, 4.0f * 16.0f, 16.0f, 16.0f};
+            Rectangle destRectTop = {(float)(x * m_cellSize),
+                                     (float)(y * m_cellSize), (float)m_cellSize,
+                                     (float)m_cellSize};
+            DrawTexturePro(m_wallTileset, sourceRectTop, destRectTop, {0, 0},
+                           0.0f, WHITE);
+          }
         }
       } else {
         // Floor or Room
