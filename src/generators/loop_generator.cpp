@@ -36,7 +36,7 @@ void LoopGenerator::generate(Maze& maze, std::mt19937& rng) {
         int nx = x + dx[d];
         int ny = y + dy[d];
         int t = maze.getCell(nx, ny);
-        if (t == Maze::CELL_FLOOR || t == Maze::CELL_ROOM)
+        if (t == Maze::CELL_CORRIDOR || t == Maze::CELL_ROOM)
           ++carvedCount;
       }
 
@@ -48,7 +48,7 @@ void LoopGenerator::generate(Maze& maze, std::mt19937& rng) {
         continue;
 
       // All checks passed — smash the wall to create a loop!
-      maze.setCell(x, y, Maze::CELL_FLOOR);
+      maze.setCell(x, y, Maze::CELL_CORRIDOR);
     }
   }
 }
@@ -81,7 +81,7 @@ void LoopGenerator::generateZone(Maze& maze, std::mt19937& rng, int startX, int 
         int nx = x + dx[d];
         int ny = y + dy[d];
         int t = maze.getCell(nx, ny);
-        if (t == Maze::CELL_FLOOR || t == Maze::CELL_ROOM)
+        if (t == Maze::CELL_CORRIDOR || t == Maze::CELL_ROOM)
           ++carvedCount;
       }
 
@@ -91,7 +91,7 @@ void LoopGenerator::generateZone(Maze& maze, std::mt19937& rng, int startX, int 
       if (maze.hasDiagonalLeak(x, y))
         continue;
 
-      maze.setCell(x, y, Maze::CELL_FLOOR);
+      maze.setCell(x, y, Maze::CELL_CORRIDOR);
     }
   }
 }

@@ -9,11 +9,11 @@ void fixDiagonalLeaksRecursive(Maze& maze, int cx, int cy) {
     int nx = cx + ddx[i];
     int ny = cy + ddy[i];
     int tDiag = maze.getCell(nx, ny);
-    if (tDiag == Maze::CELL_FLOOR || tDiag == Maze::CELL_ROOM) {
+    if (tDiag == Maze::CELL_CORRIDOR || tDiag == Maze::CELL_ROOM) {
       int t1 = maze.getCell(nx, cy);
       int t2 = maze.getCell(cx, ny);
       if (t1 == Maze::CELL_WALL && t2 == Maze::CELL_WALL) {
-        maze.setCell(nx, cy, Maze::CELL_FLOOR);
+        maze.setCell(nx, cy, Maze::CELL_CORRIDOR);
         fixDiagonalLeaksRecursive(maze, nx, cy);
       }
     }
@@ -130,7 +130,7 @@ void TunnelBorer::ensureConnectivity(Maze& maze) {
 
       // Smash the wall!
       if (maze.getCell(cx, cy) == Maze::CELL_WALL) {
-        maze.setCell(cx, cy, Maze::CELL_FLOOR);
+        maze.setCell(cx, cy, Maze::CELL_CORRIDOR);
         fixDiagonalLeaksRecursive(maze, cx, cy);
       }
 

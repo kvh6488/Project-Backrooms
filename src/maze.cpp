@@ -61,9 +61,9 @@ void Maze::setCell(int x, int y, int cellType) {
     m_nonWallCount--;
   }
 
-  if (oldType == CELL_FLOOR && cellType != CELL_FLOOR) {
+  if (oldType == CELL_CORRIDOR && cellType != CELL_CORRIDOR) {
     m_corridorCount--;
-  } else if (oldType != CELL_FLOOR && cellType == CELL_FLOOR) {
+  } else if (oldType != CELL_CORRIDOR && cellType == CELL_CORRIDOR) {
     m_corridorCount++;
   }
 
@@ -110,7 +110,7 @@ void Maze::updateFOV(Vector2 playerPos, AreaState state) {
 
         // If it is a floor matching our current context, keep expanding!
         int cell = getCell(nx, ny);
-        if (state == AreaState::CORRIDOR && cell == CELL_FLOOR) {
+        if (state == AreaState::CORRIDOR && cell == CELL_CORRIDOR) {
           q.push({nx, ny});
         } else if (state == AreaState::ROOM && cell == CELL_ROOM) {
           q.push({nx, ny});
@@ -151,7 +151,7 @@ void Maze::render(const Camera2D &camera, AreaState state) const {
                       BLACK);
         continue;
       }
-      if (state == AreaState::ROOM && cell == CELL_FLOOR) {
+      if (state == AreaState::ROOM && cell == CELL_CORRIDOR) {
         DrawRectangle(x * m_cellSize, y * m_cellSize, m_cellSize, m_cellSize,
                       BLACK);
         continue;
@@ -199,7 +199,7 @@ void Maze::render(const Camera2D &camera, AreaState state) const {
         bool isTexture = false;
         Rectangle sourceRect = {0};
 
-        if (cell == CELL_FLOOR || cell == CELL_ROOM) {
+        if (cell == CELL_CORRIDOR || cell == CELL_ROOM) {
           drawColor = isShiftingZone(x, y) ? Color{255, 100, 100, 255} : WHITE;
           isTexture = true;
           sourceRect = {9.0f * 16.0f, 0.0f * 16.0f, 16.0f, 16.0f};
@@ -271,7 +271,7 @@ bool Maze::hasDiagonalLeak(int x, int y) const {
     int nx = x + ddx[i];
     int ny = y + ddy[i];
     int tDiag = getCell(nx, ny);
-    if (tDiag == Maze::CELL_FLOOR || tDiag == Maze::CELL_ROOM) {
+    if (tDiag == Maze::CELL_CORRIDOR || tDiag == Maze::CELL_ROOM) {
       int t1 = getCell(nx, y);
       int t2 = getCell(x, ny);
       if (t1 == Maze::CELL_WALL && t2 == Maze::CELL_WALL) {

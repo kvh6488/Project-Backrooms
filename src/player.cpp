@@ -56,7 +56,7 @@ void Player::update(const Maze &maze) {
         m_position.x = nx * maze.getCellSize() + maze.getCellSize() / 2.0f;
         m_position.y = ny * maze.getCellSize() + maze.getCellSize() / 2.0f;
         break; // Only enter one door per frame
-      } else if (m_areaState == AreaState::ROOM && cell == Maze::CELL_FLOOR) {
+      } else if (m_areaState == AreaState::ROOM && cell == Maze::CELL_CORRIDOR) {
         // We are trying to exit a room into a corridor.
         m_areaState = AreaState::CORRIDOR;
         // Snap player over the threshold into the corridor
@@ -116,7 +116,7 @@ void Player::resolveCollision(const Maze &maze) {
       } else if (m_areaState == AreaState::CORRIDOR &&
                  cell == Maze::CELL_ROOM) {
         isSolid = true; // Rooms are solid walls from the outside
-      } else if (m_areaState == AreaState::ROOM && cell == Maze::CELL_FLOOR) {
+      } else if (m_areaState == AreaState::ROOM && cell == Maze::CELL_CORRIDOR) {
         isSolid = true; // Corridors are solid walls from the inside
       }
 
@@ -187,7 +187,7 @@ bool Player::canUseDoor(const Maze &maze) const {
 
     if (m_areaState == AreaState::CORRIDOR && cell == Maze::CELL_ROOM)
       return true;
-    if (m_areaState == AreaState::ROOM && cell == Maze::CELL_FLOOR)
+    if (m_areaState == AreaState::ROOM && cell == Maze::CELL_CORRIDOR)
       return true;
   }
   return false;

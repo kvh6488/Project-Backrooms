@@ -27,7 +27,7 @@ public:
   // These are the integer values stored in our 1D grid array.
   // Each cell in the maze is one of these types.
   static constexpr int CELL_WALL = 0; // Solid wall — player cannot pass through
-  static constexpr int CELL_FLOOR = 1; // Open floor — player can walk here
+  static constexpr int CELL_CORRIDOR = 1; // Open floor — player can walk here
   static constexpr int CELL_ROOM =
       2; // Room floor — part of a BSP-carved office room
 
@@ -45,7 +45,7 @@ public:
   int getIndex(int x, int y) const;
 
   // Get the cell type at grid position (x, y).
-  // Returns CELL_WALL, CELL_FLOOR, or CELL_ROOM.
+  // Returns CELL_WALL, CELL_CORRIDOR, or CELL_ROOM.
   int getCell(int x, int y) const;
 
   // Set the cell type at grid position (x, y).
@@ -77,7 +77,7 @@ public:
   // --- Real-time Statistics ---
   // Returns the total number of cells that are NOT walls (O(1) time).
   int getNonWallCount() const { return m_nonWallCount; }
-  // Returns the total number of corridor floor cells (O(1) time).
+  // Returns the total number of corridor cells (O(1) time).
   int getCorridorCount() const { return m_corridorCount; }
 
   bool hasDiagonalLeak(int x, int y) const;

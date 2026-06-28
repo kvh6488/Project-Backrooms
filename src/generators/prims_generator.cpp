@@ -40,13 +40,13 @@ void PrimsGenerator::generate(Maze& maze, std::mt19937& rng, int startRoomIndex)
     for (int ix = room.x; ix < room.x + room.width; ++ix) {
       int wy = room.y - 1;
       if (maze.getCell(ix, wy) == Maze::CELL_WALL) {
-        if (maze.getCell(ix, wy - 1) == Maze::CELL_FLOOR) {
+        if (maze.getCell(ix, wy - 1) == Maze::CELL_CORRIDOR) {
           if (!maze.hasDiagonalLeak(ix, wy)) doorCandidates.push_back({ix, wy});
         }
       }
       wy = room.y + room.height;
       if (maze.getCell(ix, wy) == Maze::CELL_WALL) {
-        if (maze.getCell(ix, wy + 1) == Maze::CELL_FLOOR) {
+        if (maze.getCell(ix, wy + 1) == Maze::CELL_CORRIDOR) {
           if (!maze.hasDiagonalLeak(ix, wy)) doorCandidates.push_back({ix, wy});
         }
       }
@@ -54,13 +54,13 @@ void PrimsGenerator::generate(Maze& maze, std::mt19937& rng, int startRoomIndex)
     for (int iy = room.y; iy < room.y + room.height; ++iy) {
       int wx = room.x - 1;
       if (maze.getCell(wx, iy) == Maze::CELL_WALL) {
-        if (maze.getCell(wx - 1, iy) == Maze::CELL_FLOOR) {
+        if (maze.getCell(wx - 1, iy) == Maze::CELL_CORRIDOR) {
           if (!maze.hasDiagonalLeak(wx, iy)) doorCandidates.push_back({wx, iy});
         }
       }
       wx = room.x + room.width;
       if (maze.getCell(wx, iy) == Maze::CELL_WALL) {
-        if (maze.getCell(wx + 1, iy) == Maze::CELL_FLOOR) {
+        if (maze.getCell(wx + 1, iy) == Maze::CELL_CORRIDOR) {
           if (!maze.hasDiagonalLeak(wx, iy)) doorCandidates.push_back({wx, iy});
         }
       }
@@ -68,7 +68,7 @@ void PrimsGenerator::generate(Maze& maze, std::mt19937& rng, int startRoomIndex)
 
     if (!doorCandidates.empty()) {
       int pick = std::uniform_int_distribution<>(0, (int)doorCandidates.size() - 1)(rng);
-      maze.setCell(doorCandidates[pick].first, doorCandidates[pick].second, Maze::CELL_FLOOR);
+      maze.setCell(doorCandidates[pick].first, doorCandidates[pick].second, Maze::CELL_CORRIDOR);
     }
   }
 }
@@ -111,7 +111,7 @@ int PrimsGenerator::carveFromRoom(Maze& maze, std::mt19937& rng, int startRoomIn
   if (seedX == -1 || seedY == -1) return 0;
 
   // Carve the seed cell to start the maze
-  maze.setCell(seedX, seedY, Maze::CELL_FLOOR);
+  maze.setCell(seedX, seedY, Maze::CELL_CORRIDOR);
   carvedCount++;
 
   // Cardinal directions: Right, Left, Down, Up
@@ -161,7 +161,7 @@ int PrimsGenerator::runPrims(Maze& maze, std::mt19937& rng, std::vector<int>& fr
       int nx = wx + dx[d];
       int ny = wy + dy[d];
       int neighborType = maze.getCell(nx, ny);
-      if (neighborType == Maze::CELL_FLOOR || neighborType == Maze::CELL_ROOM) {
+      if (neighborType == Maze::CELL_CORRIDOR || neighborType == Maze::CELL_ROOM) {
         ++carvedNeighborCount;
       }
     }
@@ -176,7 +176,7 @@ int PrimsGenerator::runPrims(Maze& maze, std::mt19937& rng, std::vector<int>& fr
     if (maze.hasDiagonalLeak(wx, wy)) continue;
 
     // All checks passed! Smash the wall and turn it into a floor.
-    maze.setCell(wx, wy, Maze::CELL_FLOOR);
+    maze.setCell(wx, wy, Maze::CELL_CORRIDOR);
     carvedCount++;
 
     // Add all of the newly exposed rock/wall neighbors to the frontier.
@@ -237,7 +237,7 @@ void PrimsGenerator::generateZone(Maze& maze, std::mt19937& rng, int startX, int
     ZONE_SEED_FOUND:;
     
     if (seedX != -1 && seedY != -1) {
-      maze.setCell(seedX, seedY, Maze::CELL_FLOOR);
+      maze.setCell(seedX, seedY, Maze::CELL_CORRIDOR);
       
       const int dx[] = {1, -1, 0, 0};
       const int dy[] = {0, 0, 1, -1};
@@ -257,13 +257,13 @@ void PrimsGenerator::generateZone(Maze& maze, std::mt19937& rng, int startX, int
   // Vertical Boundaries (Left and Right)
   for (int y = startY; y <= endY; ++y) {
     // Left Boundary
-    if (maze.getCell(startX - 1, y) == Maze::CELL_FLOOR || maze.getCell(startX - 1, y) == Maze::CELL_ROOM) {
+    if (maze.getCell(startX - 1, y) == Maze::CELL_CORRIDOR || maze.getCell(startX - 1, y) == Maze::CELL_ROOM) {
       if (maze.getCell(startX, y) == Maze::CELL_WALL && !maze.hasDiagonalLeak(startX, y)) {
         frontier.push_back(maze.getIndex(startX, y));
       }
     }
     // Right Boundary
-    if (maze.getCell(endX + 1, y) == Maze::CELL_FLOOR || maze.getCell(endX + 1, y) == Maze::CELL_ROOM) {
+    if (maze.getCell(endX + 1, y) == Maze::CELL_CORRIDOR || maze.getCell(endX + 1, y) == Maze::CELL_ROOM) {
       if (maze.getCell(endX, y) == Maze::CELL_WALL && !maze.hasDiagonalLeak(endX, y)) {
         frontier.push_back(maze.getIndex(endX, y));
       }
@@ -273,13 +273,13 @@ void PrimsGenerator::generateZone(Maze& maze, std::mt19937& rng, int startX, int
   // Horizontal Boundaries (Top and Bottom)
   for (int x = startX; x <= endX; ++x) {
     // Top Boundary
-    if (maze.getCell(x, startY - 1) == Maze::CELL_FLOOR || maze.getCell(x, startY - 1) == Maze::CELL_ROOM) {
+    if (maze.getCell(x, startY - 1) == Maze::CELL_CORRIDOR || maze.getCell(x, startY - 1) == Maze::CELL_ROOM) {
       if (maze.getCell(x, startY) == Maze::CELL_WALL && !maze.hasDiagonalLeak(x, startY)) {
         frontier.push_back(maze.getIndex(x, startY));
       }
     }
     // Bottom Boundary
-    if (maze.getCell(x, endY + 1) == Maze::CELL_FLOOR || maze.getCell(x, endY + 1) == Maze::CELL_ROOM) {
+    if (maze.getCell(x, endY + 1) == Maze::CELL_CORRIDOR || maze.getCell(x, endY + 1) == Maze::CELL_ROOM) {
       if (maze.getCell(x, endY) == Maze::CELL_WALL && !maze.hasDiagonalLeak(x, endY)) {
         frontier.push_back(maze.getIndex(x, endY));
       }
@@ -296,28 +296,28 @@ void PrimsGenerator::generateZone(Maze& maze, std::mt19937& rng, int startX, int
 
     for (int ix = room.x; ix < room.x + room.width; ++ix) {
       int wy = room.y - 1;
-      if (maze.getCell(ix, wy) == Maze::CELL_WALL && maze.getCell(ix, wy - 1) == Maze::CELL_FLOOR) {
+      if (maze.getCell(ix, wy) == Maze::CELL_WALL && maze.getCell(ix, wy - 1) == Maze::CELL_CORRIDOR) {
         if (!maze.hasDiagonalLeak(ix, wy)) doorCandidates.push_back({ix, wy});
       }
       wy = room.y + room.height;
-      if (maze.getCell(ix, wy) == Maze::CELL_WALL && maze.getCell(ix, wy + 1) == Maze::CELL_FLOOR) {
+      if (maze.getCell(ix, wy) == Maze::CELL_WALL && maze.getCell(ix, wy + 1) == Maze::CELL_CORRIDOR) {
         if (!maze.hasDiagonalLeak(ix, wy)) doorCandidates.push_back({ix, wy});
       }
     }
     for (int iy = room.y; iy < room.y + room.height; ++iy) {
       int wx = room.x - 1;
-      if (maze.getCell(wx, iy) == Maze::CELL_WALL && maze.getCell(wx - 1, iy) == Maze::CELL_FLOOR) {
+      if (maze.getCell(wx, iy) == Maze::CELL_WALL && maze.getCell(wx - 1, iy) == Maze::CELL_CORRIDOR) {
         if (!maze.hasDiagonalLeak(wx, iy)) doorCandidates.push_back({wx, iy});
       }
       wx = room.x + room.width;
-      if (maze.getCell(wx, iy) == Maze::CELL_WALL && maze.getCell(wx + 1, iy) == Maze::CELL_FLOOR) {
+      if (maze.getCell(wx, iy) == Maze::CELL_WALL && maze.getCell(wx + 1, iy) == Maze::CELL_CORRIDOR) {
         if (!maze.hasDiagonalLeak(wx, iy)) doorCandidates.push_back({wx, iy});
       }
     }
 
     if (!doorCandidates.empty()) {
       int pick = std::uniform_int_distribution<>(0, (int)doorCandidates.size() - 1)(rng);
-      maze.setCell(doorCandidates[pick].first, doorCandidates[pick].second, Maze::CELL_FLOOR);
+      maze.setCell(doorCandidates[pick].first, doorCandidates[pick].second, Maze::CELL_CORRIDOR);
     }
   }
 }
@@ -325,13 +325,13 @@ void PrimsGenerator::generateZone(Maze& maze, std::mt19937& rng, int startX, int
 // ============================================================================
 // ALCOVE PRUNING — Connected Component Analysis
 // ============================================================================
-// After Prim's generates corridors, some tiny clusters of CELL_FLOOR tiles
+// After Prim's generates corridors, some tiny clusters of CELL_CORRIDOR tiles
 // exist that only connect to a single room. These are useless alcoves that
 // clutter the maze. We identify them via BFS and erase them.
 //
 // Algorithm:
-//   1. Scan every cell in the grid for unvisited CELL_FLOOR tiles.
-//   2. For each one found, BFS flood-fill through CELL_FLOOR tiles only.
+//   1. Scan every cell in the grid for unvisited CELL_CORRIDOR tiles.
+//   2. For each one found, BFS flood-fill through CELL_CORRIDOR tiles only.
 //      - Track every tile index in the component.
 //      - For each tile, check its 4 cardinal neighbors for CELL_ROOM.
 //        If found, determine which Room it belongs to and add that room
@@ -377,11 +377,11 @@ void PrimsGenerator::pruneSmallAlcoves(Maze& maze, int minSize) {
       int idx = maze.getIndex(x, y);
 
       // Skip if already visited or not a corridor floor tile
-      if (visited[idx] || maze.getCell(x, y) != Maze::CELL_FLOOR)
+      if (visited[idx] || maze.getCell(x, y) != Maze::CELL_CORRIDOR)
         continue;
 
       // --- BFS Flood Fill for this connected component ---
-      // componentTiles: stores the 1D index of every CELL_FLOOR in this cluster
+      // componentTiles: stores the 1D index of every CELL_CORRIDOR in this cluster
       std::vector<int> componentTiles;
       // adjacentRooms: tracks which unique rooms this cluster touches
       std::set<int> adjacentRooms;
@@ -409,7 +409,7 @@ void PrimsGenerator::pruneSmallAlcoves(Maze& maze, int minSize) {
           int nIdx = maze.getIndex(nx, ny);
           int neighborType = maze.getCell(nx, ny);
 
-          if (neighborType == Maze::CELL_FLOOR && !visited[nIdx]) {
+          if (neighborType == Maze::CELL_CORRIDOR && !visited[nIdx]) {
             // Neighbor is a corridor tile we haven't seen — add to BFS queue
             visited[nIdx] = true;
             q.push({nx, ny});

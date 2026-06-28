@@ -28,8 +28,8 @@ TEST(MazeTest, CellReadWrite) {
   Maze maze(10, 10, 32, 12345);
   EXPECT_EQ(maze.getCell(3, 3), Maze::CELL_WALL);
 
-  maze.setCell(3, 3, Maze::CELL_FLOOR);
-  EXPECT_EQ(maze.getCell(3, 3), Maze::CELL_FLOOR);
+  maze.setCell(3, 3, Maze::CELL_CORRIDOR);
+  EXPECT_EQ(maze.getCell(3, 3), Maze::CELL_CORRIDOR);
 
   maze.setCell(8, 8, Maze::CELL_ROOM);
   EXPECT_EQ(maze.getCell(8, 8), Maze::CELL_ROOM);
@@ -42,13 +42,13 @@ TEST(MazeTest, ToroidalWrapping) {
   // Write to a coordinate physically outside the 10x10 grid.
   // X = -5 should wrap to X = 5
   // Y = 20 should wrap to Y = 0
-  maze.setCell(-5, 20, Maze::CELL_FLOOR);
+  maze.setCell(-5, 20, Maze::CELL_CORRIDOR);
   
   // Verify that the mathematical wrap successfully mapped it to (5, 0)
-  EXPECT_EQ(maze.getCell(5, 0), Maze::CELL_FLOOR);
+  EXPECT_EQ(maze.getCell(5, 0), Maze::CELL_CORRIDOR);
 
   // Verify that reading from (-5, 20) also fetches the wrapped cell (5, 0)
-  EXPECT_EQ(maze.getCell(-5, 20), Maze::CELL_FLOOR);
+  EXPECT_EQ(maze.getCell(-5, 20), Maze::CELL_CORRIDOR);
 }
 
 // 6. Test BSP Generation
@@ -96,12 +96,12 @@ TEST(MazeTest, CorridorGenerationCarvesFloors) {
   BSPGenerator bsp;
   bsp.generate(maze, rng);
 
-  // 1. Before corridors, there should be zero CELL_FLOOR tiles
-  //    (BSP only creates CELL_ROOM tiles, not CELL_FLOOR)
+  // 1. Before corridors, there should be zero CELL_CORRIDOR tiles
+  //    (BSP only creates CELL_ROOM tiles, not CELL_CORRIDOR)
   int floorCountBefore = 0;
   for (int y = 0; y < 22; ++y) {
     for (int x = 0; x < 40; ++x) {
-      if (maze.getCell(x, y) == Maze::CELL_FLOOR) {
+      if (maze.getCell(x, y) == Maze::CELL_CORRIDOR) {
         ++floorCountBefore;
       }
     }
@@ -112,11 +112,11 @@ TEST(MazeTest, CorridorGenerationCarvesFloors) {
   PrimsGenerator prims;
   prims.generate(maze, rng, bsp.getMiddleRoomIndex());
 
-  // 3. After corridors, we should have many CELL_FLOOR tiles
+  // 3. After corridors, we should have many CELL_CORRIDOR tiles
   int floorCountAfter = 0;
   for (int y = 0; y < 22; ++y) {
     for (int x = 0; x < 40; ++x) {
-      if (maze.getCell(x, y) == Maze::CELL_FLOOR) {
+      if (maze.getCell(x, y) == Maze::CELL_CORRIDOR) {
         ++floorCountAfter;
       }
     }
@@ -318,7 +318,7 @@ TEST(MazeTest, NoDiagonalLeaks) {
     for (int y = 0; y < maze.getHeight(); ++y) {
       for (int x = 0; x < maze.getWidth(); ++x) {
         int tMain = maze.getCell(x, y);
-        if (tMain == Maze::CELL_FLOOR || tMain == Maze::CELL_ROOM) {
+        if (tMain == Maze::CELL_CORRIDOR || tMain == Maze::CELL_ROOM) {
           if (maze.hasDiagonalLeak(x, y)) {
             foundDiagonalLeak = true;
             leakX = x;
