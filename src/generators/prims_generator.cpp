@@ -1,4 +1,6 @@
 #include "prims_generator.hpp"
+#include <queue>
+#include <set>
 
 // ============================================================================
 // PRIM'S ALGORITHM IMPLEMENTATION (Corridor Generation)
@@ -316,6 +318,120 @@ void PrimsGenerator::generateZone(Maze& maze, std::mt19937& rng, int startX, int
     if (!doorCandidates.empty()) {
       int pick = std::uniform_int_distribution<>(0, (int)doorCandidates.size() - 1)(rng);
       maze.setCell(doorCandidates[pick].first, doorCandidates[pick].second, Maze::CELL_FLOOR);
+    }
+  }
+}
+
+// ============================================================================
+// ALCOVE PRUNING — Connected Component Analysis
+// ============================================================================
+// After Prim's generates corridors, some tiny clusters of CELL_FLOOR tiles
+// exist that only connect to a single room. These are useless alcoves that
+// clutter the maze. We identify them via BFS and erase them.
+//
+// Algorithm:
+//   1. Scan every cell in the grid for unvisited CELL_FLOOR tiles.
+//   2. For each one found, BFS flood-fill through CELL_FLOOR tiles only.
+//      - Track every tile index in the component.
+//      - For each tile, check its 4 cardinal neighbors for CELL_ROOM.
+//        If found, determine which Room it belongs to and add that room
+//        index to a set of "adjacent rooms."
+//   3. After BFS: if component size < minSize AND adjacentRooms <= 1,
+//      erase the entire component (set all tiles back to CELL_WALL).
+//
+// Time Complexity:  O(V) — every cell visited at most once across all BFS runs.
+// Space Complexity: O(V) — for the visited array.
+// ============================================================================
+void PrimsGenerator::pruneSmallAlcoves(Maze& maze, int minSize) {
+  int width = maze.getWidth();
+  int height = maze.getHeight();
+  int totalCells = width * height;
+
+  // Visited array — marks cells we've already assigned to a component.
+  // This prevents us from re-scanning the same cell in multiple BFS runs.
+  std::vector<bool> visited(totalCells, false);
+
+  // Cardinal directions: Right, Left, Down, Up
+  const int dx[] = {1, -1, 0, 0};
+  const int dy[] = {0, 0, 1, -1};
+
+  // Reference to the rooms list for adjacency lookups
+  const auto& rooms = maze.getRooms();
+
+  // Lambda helper: Given a grid coordinate (cx, cy), check if it falls
+  // inside any Room and return that room's index. Returns -1 if not in a room.
+  // This is O(R) per call where R is the number of rooms.
+  auto findRoomIndex = [&](int cx, int cy) -> int {
+    for (int i = 0; i < (int)rooms.size(); ++i) {
+      if (cx >= rooms[i].x && cx < rooms[i].x + rooms[i].width &&
+          cy >= rooms[i].y && cy < rooms[i].y + rooms[i].height) {
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  // Main scan: iterate over every cell in the grid
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      int idx = maze.getIndex(x, y);
+
+      // Skip if already visited or not a corridor floor tile
+      if (visited[idx] || maze.getCell(x, y) != Maze::CELL_FLOOR)
+        continue;
+
+      // --- BFS Flood Fill for this connected component ---
+      // componentTiles: stores the 1D index of every CELL_FLOOR in this cluster
+      std::vector<int> componentTiles;
+      // adjacentRooms: tracks which unique rooms this cluster touches
+      std::set<int> adjacentRooms;
+
+      std::queue<std::pair<int, int>> q;
+      q.push({x, y});
+      visited[idx] = true;
+
+      while (!q.empty()) {
+        auto [cx, cy] = q.front();
+        q.pop();
+
+        // Record this tile as part of the component
+        componentTiles.push_back(maze.getIndex(cx, cy));
+
+        // Check all 4 cardinal neighbors
+        for (int d = 0; d < 4; ++d) {
+          int nx = cx + dx[d];
+          int ny = cy + dy[d];
+
+          // Bounds check (don't wrap for pruning — only prune within bounds)
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height)
+            continue;
+
+          int nIdx = maze.getIndex(nx, ny);
+          int neighborType = maze.getCell(nx, ny);
+
+          if (neighborType == Maze::CELL_FLOOR && !visited[nIdx]) {
+            // Neighbor is a corridor tile we haven't seen — add to BFS queue
+            visited[nIdx] = true;
+            q.push({nx, ny});
+          } else if (neighborType == Maze::CELL_ROOM) {
+            // Neighbor is a room tile — figure out which room it belongs to
+            int roomIdx = findRoomIndex(nx, ny);
+            if (roomIdx != -1) {
+              adjacentRooms.insert(roomIdx);
+            }
+          }
+        }
+      }
+      // --- BFS complete for this component ---
+
+      // Decision: erase if the component is too small AND doesn't bridge rooms
+      if ((int)componentTiles.size() < minSize && adjacentRooms.size() <= 1) {
+        for (int tileIdx : componentTiles) {
+          int tx = tileIdx % width;
+          int ty = tileIdx / width;
+          maze.setCell(tx, ty, Maze::CELL_WALL);
+        }
+      }
     }
   }
 }

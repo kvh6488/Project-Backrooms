@@ -29,28 +29,7 @@ A **2D top-down psychological horror maze game** (visual style similar to *The E
 
 ---
 
-## 2. Design Decisions
-
-These are locked in based on our discussions. Changes require explicit discussion.
-
-| Decision | Choice | Notes |
-|---|---|---|
-| **Perspective** | 2D top-down | Pixelated style similar to *The Escapists* |
-| **Cell size** | 32×32 pixels (starting point) | Will adjust after first visual |
-| **Input** | Keyboard only | Controller support is a future feature |
-| **Audio** | Raylib built-in audio | Sufficient for project needs |
-| **Target platform** | Windows only (initially) | Other OS support is a future feature |
-| **Pause behaviour** | No pause menu while exploring | Game loop runs continuously during exploration |
-| **Tile aesthetics (Phase 1)** | Placeholder solid colors | Proper textures loaded at end of Phase 1 |
-| **Algorithms** | Hybrid BSP + Prim's + Loops | Evaluated DFS vs Prim's. Selected Prim's for highly branching corridors, BSP for office rooms. |
-| **Maze Data Structure** | 1D Flat Array (Implicit Grid) | Maximizes CPU cache locality. Maps 2D via index = y * width + x. |
-| **Maze "infinity"** | Fixed-size grid with Toroidal Wrapping | Uses modulo arithmetic `(x % width + width) % width` to wrap coordinates. |
-| **Escape trigger** | When cure conquers enough of the maze + a certain generation threshold, guide the player to exit | Detailed mechanics TBD in Phases 3–4 |
-| **Permadeath** | On completing a round, difficulty increases and player re-enters the same maze | Full reset only on Level 3 death (future phase) |
-
----
-
-## 3. Tech Stack
+## 2. Tech Stack
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -82,7 +61,7 @@ These are locked in based on our discussions. Changes require explicit discussio
 
 ---
 
-## 4. Full Phased Roadmap
+## 3. Full Phased Roadmap
 
 **Target:** All core phases (0–9) complete within **~85 days**.
 **Full game (including optional phases 10–12):** 4–6 months.
@@ -268,7 +247,7 @@ Presentation layer.
 
 ---
 
-## 5. Full Items Reference
+## 4. Full Items Reference
 
 All items from the design document, organized by category.
 
@@ -323,23 +302,7 @@ All items from the design document, organized by category.
 
 ---
 
-## 6. Open Decisions Tracker
-
-Items still needing discussion or research before we can proceed.
-
-| # | Topic | Status | Notes |
-|---|---|---|---|
-| 1 | **Maze generation algorithm** | 🟢 Decided | Hybrid BSP + Prim's algorithm with loop injection |
-| 2 | **Grid size for Level 1** | 🔴 Not decided | Needs to feel "infinite" but fit within a memory cap. 64×64? 128×128? Chunk-based? |
-| 3 | **Cell size in pixels** | 🟢 Decided (32×32) | Starting point, will adjust after first visual |
-| 4 | **Maze data structure** | 🟢 Decided | Implicit 2D grid graph stored as a contiguous 1D array for cache locality |
-| 5 | **Camera system details** | 🟡 Basic plan | Follow-player with viewport clipping. Fog-of-war / view cone specifics TBD |
-| 6 | **"Look-away" detection** | 🔴 Not decided | How do we determine which cells the player "isn't looking at" in 2D top-down? |
-| 7 | **Escape / memory cap threshold** | 🔴 Not decided | What % of maze cured triggers the escape? What's the fixed size? |
-
----
-
-## 7. Algorithmic Ideas & Theoretical Showcase
+## 6. Algorithmic Ideas & Theoretical Showcase
 
 All algorithms and theoretical approaches from the original design document. These are **starting points, not final decisions** — each will be researched and evaluated before implementation. Algorithms are grouped by the system they serve.
 
@@ -387,7 +350,7 @@ The engine is driven by the intersection of **discrete mathematics**, **applied 
 
 ---
 
-## 8. Future Features
+## 7. Future Features
 
 Features planned for after the core game is complete (post-Phase 12). Not in the current scope.
 
@@ -403,7 +366,7 @@ Features planned for after the core game is complete (post-Phase 12). Not in the
 
 ---
 
-## 9. Working Agreements
+## 8. Working Agreements
 
 - **No code changes without explicit user approval.**
 - **All algorithm choices are explored together** — I present options, we discuss, you decide.

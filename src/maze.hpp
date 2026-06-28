@@ -3,12 +3,8 @@
 
 #include <raylib.h>
 #include <vector> // For std::vector (our dynamic 1D array)
-#include <queue>  // For BFS
 
-enum class AreaState {
-    CORRIDOR,
-    ROOM
-};
+enum class AreaState { CORRIDOR, ROOM };
 
 class Player;
 
@@ -59,7 +55,7 @@ public:
 
   // Draw the maze as colored rectangles (placeholder tiles).
   // Uses Frustum Culling to only draw cells visible within the camera viewport.
-  void render(const Camera2D& camera, AreaState state) const;
+  void render(const Camera2D &camera, AreaState state) const;
 
   // Calculate Field of View (Flood Fill)
   void updateFOV(Vector2 playerPos, AreaState state);
@@ -67,7 +63,7 @@ public:
   // --- Phase 2.3: Rubik's Torus ---
   // Check if a coordinate is within the designated shifting slice
   bool isShiftingZone(int x, int y) const;
-  
+
   // Phase 2.3: Zone Regeneration
   void clearShiftingZones();
   void addShiftingZone(int x, int y, int w, int h);
@@ -90,8 +86,8 @@ public:
     int x, y, width, height;
   };
 
-  void addRoom(const Room& room) { m_rooms.push_back(room); }
-  const std::vector<Room>& getRooms() const { return m_rooms; }
+  void addRoom(const Room &room) { m_rooms.push_back(room); }
+  const std::vector<Room> &getRooms() const { return m_rooms; }
 
 private:
   int m_width;    // Number of cells horizontally

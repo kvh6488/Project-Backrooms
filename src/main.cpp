@@ -39,6 +39,10 @@ int main() {
   PrimsGenerator prims;
   prims.generate(maze, rng, midRoomIdx);
 
+  // Post-Prims cleanup: remove tiny corridor clusters (< 5 tiles)
+  // that only connect to a single room (useless alcoves).
+  prims.pruneSmallAlcoves(maze, 5);
+
   LoopGenerator loops;
   loops.generate(maze, rng);
 
@@ -135,7 +139,7 @@ int main() {
 
     // Draw the maze based on context
     maze.render(camera, player.getAreaState());
-    
+
     // Draw the player ON TOP
     player.render();
 
@@ -146,9 +150,10 @@ int main() {
 
     // Draw interaction prompt
     if (player.canUseDoor(maze)) {
-        const char* msg = "Press 'K' to use door";
-        int textWidth = MeasureText(msg, 30);
-        DrawText(msg, (screenWidth - textWidth) / 2, screenHeight - 100, 30, WHITE);
+      const char *msg = "Press 'K' to use door";
+      int textWidth = MeasureText(msg, 30);
+      DrawText(msg, (screenWidth - textWidth) / 2, screenHeight - 100, 30,
+               WHITE);
     }
 
     // Start drawing the ImGui user interface
@@ -194,6 +199,10 @@ int main() {
       for (const auto &z : zones) {
         prims.generateZone(maze, rng, z.x, z.y, z.width, z.height);
       }
+
+      // Post-Prims cleanup for the regenerated maze
+      prims.pruneSmallAlcoves(maze, 5);
+
       for (const auto &z : zones) {
         loops.generateZone(maze, rng, z.x, z.y, z.width, z.height);
       }
