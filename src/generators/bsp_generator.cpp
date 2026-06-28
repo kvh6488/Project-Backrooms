@@ -137,6 +137,7 @@ void BSPGenerator::generate(Maze &maze, std::mt19937 &rng) {
 
   mergeAdjacentRooms(maze, rng);
   removeIsolatedWallPillars(maze);
+  absorbThinPeninsulas(maze);
 }
 
 // ============================================================================
@@ -271,7 +272,8 @@ void BSPGenerator::removeIsolatedWallPillars(Maze &maze) {
   for (int y = 0; y < height; ++y) {
     for (int x = 0; x < width; ++x) {
       int idx = maze.getIndex(x, y);
-      if (visited[idx] || maze.getCell(x, y) != Maze::CELL_WALL) continue;
+      if (visited[idx] || maze.getCell(x, y) != Maze::CELL_WALL)
+        continue;
 
       std::vector<int> wallComponent;
       std::queue<std::pair<int, int>> q;
@@ -286,7 +288,8 @@ void BSPGenerator::removeIsolatedWallPillars(Maze &maze) {
         for (int d = 0; d < 4; ++d) {
           int nx = cx + dx[d];
           int ny = cy + dy[d];
-          if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height)
+            continue;
 
           int nIdx = maze.getIndex(nx, ny);
           if (maze.getCell(nx, ny) == Maze::CELL_WALL && !visited[nIdx]) {
@@ -296,12 +299,102 @@ void BSPGenerator::removeIsolatedWallPillars(Maze &maze) {
         }
       }
 
-      // If the contiguous wall block is very small (e.g. < 50), it is an isolated pillar inside a room
+      // If the contiguous wall block is very small (e.g. < 50), it is an
+      // isolated pillar inside a room
       if (wallComponent.size() < 50) {
         for (int tileIdx : wallComponent) {
           int tx = tileIdx % width;
           int ty = tileIdx / width;
           maze.setCell(tx, ty, Maze::CELL_ROOM);
+        }
+      }
+    }
+  }
+}
+
+// ============================================================================
+// absorbThinPeninsulas — Finds C-shaped cuts (horizontal peninsulas) inside
+// rooms and absorbs them into the room ONLY IF their height is < 3 cells.
+// This preserves thick structures while perfectly fixing Zelda wall projection.
+// ============================================================================
+void BSPGenerator::absorbThinPeninsulas(Maze &maze) {
+  int width = maze.getWidth();
+  int height = maze.getHeight();
+  std::vector<bool> visited(width * height, false);
+
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      int idx = maze.getIndex(x, y);
+      if (visited[idx] || maze.getCell(x, y) != Maze::CELL_ROOM) continue;
+
+      // Find the bounding box of this distinct room component
+      std::vector<int> component;
+      std::queue<std::pair<int, int>> q;
+      q.push({x, y});
+      visited[idx] = true;
+
+      int minX = x, maxX = x;
+      int minY = y, maxY = y;
+
+      while (!q.empty()) {
+        auto [cx, cy] = q.front();
+        q.pop();
+        
+        component.push_back(maze.getIndex(cx, cy));
+        if (cx < minX) minX = cx;
+        if (cx > maxX) maxX = cx;
+        if (cy < minY) minY = cy;
+        if (cy > maxY) maxY = cy;
+
+        const int dx[] = {1, -1, 0, 0};
+        const int dy[] = {0, 0, 1, -1};
+        for (int d = 0; d < 4; ++d) {
+          int nx = cx + dx[d];
+          int ny = cy + dy[d];
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+          
+          int nIdx = maze.getIndex(nx, ny);
+          if (maze.getCell(nx, ny) == Maze::CELL_ROOM && !visited[nIdx]) {
+            visited[nIdx] = true;
+            q.push({nx, ny});
+          }
+        }
+      }
+
+      int compW = maxX - minX + 1;
+      int compH = maxY - minY + 1;
+      std::vector<bool> inComp(compW * compH, false);
+      for (int cIdx : component) {
+         int cx = cIdx % width;
+         int cy = cIdx / width;
+         inComp[(cy - minY) * compW + (cx - minX)] = true;
+      }
+
+      // Evaluate the Vertical Convexity of the room
+      for (int cx = 0; cx < compW; ++cx) {
+        bool seenRoom = false;
+        int runStart = -1;
+
+        for (int cy = 0; cy < compH; ++cy) {
+          if (inComp[cy * compW + cx]) {
+            // Re-entered room! Check if the gap we just jumped was small enough to absorb
+            if (seenRoom && runStart != -1) {
+              int runLength = cy - runStart;
+              // Only absorb if the gap is less than 3 cells high
+              if (runLength < 3) {
+                for (int wy = runStart; wy < cy; ++wy) {
+                  maze.setCell(minX + cx, minY + wy, Maze::CELL_ROOM);
+                }
+              }
+            }
+            seenRoom = true;
+            runStart = -1; // Reset gap tracking
+          } else {
+            // Wall gap started
+            if (seenRoom && runStart == -1) {
+              runStart = cy;
+            }
+          }
         }
       }
     }

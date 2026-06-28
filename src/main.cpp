@@ -22,8 +22,7 @@ int main() {
   // Initialize the ImGui bridge
   rlImGuiSetup(true);
 
-  // unsigned int seed = std::time(nullptr);
-  unsigned int seed = 1782631554;
+  unsigned int seed = std::time(nullptr);
   std::cout << "[INFO] Initializing Maze with seed: " << seed << std::endl;
 
   // Phase 1: Massive Scale.

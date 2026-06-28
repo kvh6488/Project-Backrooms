@@ -112,6 +112,11 @@ void TunnelBorer::ensureConnectivity(Maze& maze) {
         // We rely on getIndex to wrap coordinates naturally across the Torus!
         int nIndex = maze.getIndex(nx, ny);
         if (!visited[nIndex]) {
+          // If this neighbor is a solid wall, ensure boring through it wouldn't create an invalid door!
+          if (maze.getCell(nx, ny) == Maze::CELL_WALL) {
+            if (!maze.isValidDoorPlacement(nx, ny)) continue;
+          }
+
           visited[nIndex] = true;
           parent[nIndex] = maze.getIndex(cx, cy); // Remember where we came from
           borerQ.push({nx, ny});

@@ -42,4 +42,5 @@ private:
 
   void mergeAdjacentRooms(Maze &maze, std::mt19937 &rng);
   void removeIsolatedWallPillars(Maze &maze);
+  void absorbThinPeninsulas(Maze &maze);
 };

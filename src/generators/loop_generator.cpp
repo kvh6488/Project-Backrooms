@@ -47,6 +47,10 @@ void LoopGenerator::generate(Maze& maze, std::mt19937& rng) {
       if (maze.hasDiagonalLeak(x, y))
         continue;
 
+      // Ensure this loop doesn't create an invalid door (e.g. into an inner corner of a room)
+      if (!maze.isValidDoorPlacement(x, y))
+        continue;
+
       // All checks passed — smash the wall to create a loop!
       maze.setCell(x, y, Maze::CELL_CORRIDOR);
     }
@@ -89,6 +93,9 @@ void LoopGenerator::generateZone(Maze& maze, std::mt19937& rng, int startX, int 
         continue;
 
       if (maze.hasDiagonalLeak(x, y))
+        continue;
+
+      if (!maze.isValidDoorPlacement(x, y))
         continue;
 
       maze.setCell(x, y, Maze::CELL_CORRIDOR);

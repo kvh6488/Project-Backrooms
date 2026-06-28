@@ -325,3 +325,46 @@ bool Maze::hasDiagonalLeak(int x, int y) const {
   }
   return false;
 }
+
+// ============================================================================
+// isValidDoorPlacement - 1-to-1 Door Isolation
+// ============================================================================
+bool Maze::isValidDoorPlacement(int x, int y) const {
+  int roomNeighbors = 0;
+  const int dx[] = {1, -1, 0, 0};
+  const int dy[] = {0, 0, 1, -1};
+  
+  for (int d = 0; d < 4; ++d) {
+    int nx = x + dx[d];
+    int ny = y + dy[d];
+    if (nx >= 0 && nx < m_width && ny >= 0 && ny < m_height) {
+      if (getCell(nx, ny) == CELL_ROOM) {
+        roomNeighbors++;
+      }
+    }
+  }
+  // Rule 1: A corridor cannot border > 1 room cell (prevents inner corner doors)
+  if (roomNeighbors > 1) return false;
+
+  // Rule 2: A room cell cannot border > 1 corridor cell (prevents adjacent doors)
+  for (int d = 0; d < 4; ++d) {
+    int nx = x + dx[d];
+    int ny = y + dy[d];
+    if (nx >= 0 && nx < m_width && ny >= 0 && ny < m_height) {
+      if (getCell(nx, ny) == CELL_ROOM) {
+        int currentCorridorNeighbors = 0;
+        for (int dd = 0; dd < 4; ++dd) {
+          int nnx = nx + dx[dd];
+          int nny = ny + dy[dd];
+          if (nnx >= 0 && nnx < m_width && nny >= 0 && nny < m_height) {
+            if (getCell(nnx, nny) == CELL_CORRIDOR) {
+              currentCorridorNeighbors++;
+            }
+          }
+        }
+        if (currentCorridorNeighbors >= 1) return false;
+      }
+    }
+  }
+  return true;
+}

@@ -81,6 +81,9 @@ public:
   int getCorridorCount() const { return m_corridorCount; }
 
   bool hasDiagonalLeak(int x, int y) const;
+  
+  // Enforces 1-to-1 Door Isolation Constraint
+  bool isValidDoorPlacement(int x, int y) const;
 
   struct Room {
     int x, y, width, height;
