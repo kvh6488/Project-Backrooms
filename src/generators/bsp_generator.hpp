@@ -41,4 +41,5 @@ private:
   std::vector<std::shared_ptr<BSPLeaf>> m_leaves;
 
   void mergeAdjacentRooms(Maze &maze, std::mt19937 &rng);
+  void removeIsolatedWallPillars(Maze &maze);
 };

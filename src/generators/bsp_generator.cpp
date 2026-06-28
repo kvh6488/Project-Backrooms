@@ -1,5 +1,7 @@
 #include "bsp_generator.hpp"
 #include <algorithm>
+#include <queue>
+#include <vector>
 
 // ============================================================================
 // split — Recursively divides the maze space into smaller rectangles (leaves).
@@ -134,6 +136,7 @@ void BSPGenerator::generate(Maze &maze, std::mt19937 &rng) {
   }
 
   mergeAdjacentRooms(maze, rng);
+  removeIsolatedWallPillars(maze);
 }
 
 // ============================================================================
@@ -249,6 +252,56 @@ void BSPGenerator::mergeAdjacentRooms(Maze &maze, std::mt19937 &rng) {
             }
           }
           continue;
+        }
+      }
+    }
+  }
+}
+
+// ============================================================================
+// removeIsolatedWallPillars — Removes small artifacts of walls inside rooms.
+// ============================================================================
+void BSPGenerator::removeIsolatedWallPillars(Maze &maze) {
+  int width = maze.getWidth();
+  int height = maze.getHeight();
+  std::vector<bool> visited(width * height, false);
+  const int dx[] = {1, -1, 0, 0};
+  const int dy[] = {0, 0, 1, -1};
+
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      int idx = maze.getIndex(x, y);
+      if (visited[idx] || maze.getCell(x, y) != Maze::CELL_WALL) continue;
+
+      std::vector<int> wallComponent;
+      std::queue<std::pair<int, int>> q;
+      q.push({x, y});
+      visited[idx] = true;
+
+      while (!q.empty()) {
+        auto [cx, cy] = q.front();
+        q.pop();
+        wallComponent.push_back(maze.getIndex(cx, cy));
+
+        for (int d = 0; d < 4; ++d) {
+          int nx = cx + dx[d];
+          int ny = cy + dy[d];
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+
+          int nIdx = maze.getIndex(nx, ny);
+          if (maze.getCell(nx, ny) == Maze::CELL_WALL && !visited[nIdx]) {
+            visited[nIdx] = true;
+            q.push({nx, ny});
+          }
+        }
+      }
+
+      // If the contiguous wall block is very small (e.g. < 50), it is an isolated pillar inside a room
+      if (wallComponent.size() < 50) {
+        for (int tileIdx : wallComponent) {
+          int tx = tileIdx % width;
+          int ty = tileIdx / width;
+          maze.setCell(tx, ty, Maze::CELL_ROOM);
         }
       }
     }

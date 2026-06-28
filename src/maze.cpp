@@ -158,22 +158,25 @@ void Maze::render(const Camera2D &camera, AreaState state) const {
       }
 
       if (cell == CELL_WALL) {
-        if (state == AreaState::CORRIDOR) {
-          // --- BITMASKING / AUTOTILING PATTERN ---
-          // Determine the context by checking 4 orthogonal neighbors
-          int mask = 0;
-          if (getCell(x, y - 1) == CELL_CORRIDOR) mask += 1; // Top
-          if (getCell(x + 1, y) == CELL_CORRIDOR) mask += 2; // Right
-          if (getCell(x, y + 1) == CELL_CORRIDOR) mask += 4; // Bottom
-          if (getCell(x - 1, y) == CELL_CORRIDOR) mask += 8; // Left
+        // --- BITMASKING / AUTOTILING PATTERN ---
+        // Map the mask (0-15) to spritesheet coordinates (x, y)
+        static const Vector2 tileMap[16] = {
+            {2.0f, 1.0f}, {2.0f, 0.0f}, {3.0f, 1.0f}, {3.0f, 0.0f}, // Index 0 uses {2,1} for isolated walls
+            {2.0f, 2.0f}, {2.0f, 3.0f}, {3.0f, 2.0f}, {3.0f, 3.0f},
+            {1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f},
+            {1.0f, 2.0f}, {1.0f, 3.0f}, {0.0f, 2.0f}, {0.0f, 3.0f}
+        };
 
-          // Map the mask (0-15) to spritesheet coordinates (x, y)
-          static const Vector2 tileMap[16] = {
-              {2.0f, 1.0f}, {2.0f, 0.0f}, {3.0f, 1.0f}, {3.0f, 0.0f},
-              {2.0f, 2.0f}, {2.0f, 3.0f}, {3.0f, 2.0f}, {3.0f, 3.0f},
-              {1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f},
-              {1.0f, 2.0f}, {1.0f, 3.0f}, {0.0f, 2.0f}, {0.0f, 3.0f}
+        if (state == AreaState::CORRIDOR) {
+          auto isVisibleCorridor = [&](int cx, int cy) {
+            return (getCell(cx, cy) == CELL_CORRIDOR) && m_visible[getIndex(cx, cy)];
           };
+          
+          int mask = 0;
+          if (isVisibleCorridor(x, y - 1)) mask += 1; // Top
+          if (isVisibleCorridor(x + 1, y)) mask += 2; // Right
+          if (isVisibleCorridor(x, y + 1)) mask += 4; // Bottom
+          if (isVisibleCorridor(x - 1, y)) mask += 8; // Left
 
           Vector2 tilePos = tileMap[mask];
           Rectangle sourceRect = {tilePos.x * 16.0f, tilePos.y * 16.0f, 16.0f, 16.0f};
@@ -182,14 +185,35 @@ void Maze::render(const Camera2D &camera, AreaState state) const {
                                 (float)m_cellSize};
           DrawTexturePro(m_wallTileset, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
         } else {
+          // state == AreaState::ROOM
+          auto isVisibleRoom = [&](int cx, int cy) {
+            return (getCell(cx, cy) == CELL_ROOM) && m_visible[getIndex(cx, cy)];
+          };
+
+          int mask = 0;
+          if (isVisibleRoom(x, y - 1)) mask += 1; // Top
+          if (isVisibleRoom(x + 1, y)) mask += 2; // Right
+          if (isVisibleRoom(x, y + 1)) mask += 4; // Bottom
+          if (isVisibleRoom(x - 1, y)) mask += 8; // Left
+
+          Vector2 tilePos = tileMap[mask];
+          Rectangle sourceRectMask = {tilePos.x * 16.0f, tilePos.y * 16.0f, 16.0f, 16.0f};
+
           int belowCell = getCell(x, y + 1);
-          // Zelda Top Walls ONLY apply in Rooms!
+          // Zelda Top Walls ONLY apply in Rooms when the floor below is visible!
           bool belowIsVisibleFloor =
               m_visible[getIndex(x, y + 1)] && (belowCell == CELL_ROOM);
 
           if (belowIsVisibleFloor) {
             // Zelda Top Wall: Project UPWARDS into the void!
-            // Draw roof at y-1
+            // Draw bitmasked roof edge at y-2 (which happens to be {2,2} for mask 4)
+            Rectangle destRectRoof = {(float)(x * m_cellSize),
+                                      (float)((y - 2) * m_cellSize),
+                                      (float)m_cellSize, (float)m_cellSize};
+            DrawTexturePro(m_wallTileset, sourceRectMask, destRectRoof, {0, 0},
+                           0.0f, WHITE);
+
+            // Draw upper wallpaper at y-1
             Rectangle sourceRectTop = {5.0f * 16.0f, 4.0f * 16.0f, 16.0f, 16.0f};
             Rectangle destRectTop = {(float)(x * m_cellSize),
                                      (float)((y - 1) * m_cellSize),
@@ -197,7 +221,7 @@ void Maze::render(const Camera2D &camera, AreaState state) const {
             DrawTexturePro(m_wallTileset, sourceRectTop, destRectTop, {0, 0},
                            0.0f, WHITE);
 
-            // Draw base at y
+            // Draw base wallpaper at y
             Rectangle sourceRectBot = {5.0f * 16.0f, 6.0f * 16.0f, 16.0f, 16.0f};
             Rectangle destRectBot = {(float)(x * m_cellSize),
                                      (float)(y * m_cellSize), (float)m_cellSize,
@@ -205,13 +229,11 @@ void Maze::render(const Camera2D &camera, AreaState state) const {
             DrawTexturePro(m_wallTileset, sourceRectBot, destRectBot, {0, 0},
                            0.0f, WHITE);
           } else {
-            // Bottom Wall / Inner Mass: Just draw the flat roof tile at y, it
-            // won't obscure the player at y-1
-            Rectangle sourceRectTop = {5.0f * 16.0f, 4.0f * 16.0f, 16.0f, 16.0f};
+            // Bottom Wall / Inner Mass: Just draw the bitmasked roof tile at y
             Rectangle destRectTop = {(float)(x * m_cellSize),
                                      (float)(y * m_cellSize), (float)m_cellSize,
                                      (float)m_cellSize};
-            DrawTexturePro(m_wallTileset, sourceRectTop, destRectTop, {0, 0},
+            DrawTexturePro(m_wallTileset, sourceRectMask, destRectTop, {0, 0},
                            0.0f, WHITE);
           }
         }

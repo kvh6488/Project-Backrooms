@@ -22,7 +22,8 @@ int main() {
   // Initialize the ImGui bridge
   rlImGuiSetup(true);
 
-  unsigned int seed = std::time(nullptr);
+  // unsigned int seed = std::time(nullptr);
+  unsigned int seed = 1782631554;
   std::cout << "[INFO] Initializing Maze with seed: " << seed << std::endl;
 
   // Phase 1: Massive Scale.
@@ -39,15 +40,17 @@ int main() {
   PrimsGenerator prims;
   prims.generate(maze, rng, midRoomIdx);
 
-  // Post-Prims cleanup: remove tiny corridor clusters (< 5 tiles)
-  // that only connect to a single room (useless alcoves).
-  prims.pruneSmallAlcoves(maze, 5);
-
   LoopGenerator loops;
   loops.generate(maze, rng);
 
   TunnelBorer borer;
   borer.ensureConnectivity(maze);
+
+  // Post-Prims cleanup: remove tiny corridor clusters (< 5 tiles)
+  // that only connect to a single room (useless alcoves).
+  // Moved to the very end to catch artifacts from LoopGenerator and
+  // TunnelBorer!
+  prims.pruneSmallAlcoves(maze, 5);
 
   // Spawn player in the center of the middle room
   Vector2 playerStartPos = {0.0f, 0.0f};
@@ -200,15 +203,17 @@ int main() {
         prims.generateZone(maze, rng, z.x, z.y, z.width, z.height);
       }
 
-      // Post-Prims cleanup for the regenerated maze
-      prims.pruneSmallAlcoves(maze, 5);
-
       for (const auto &z : zones) {
         loops.generateZone(maze, rng, z.x, z.y, z.width, z.height);
       }
 
       TunnelBorer borer;
       borer.ensureConnectivity(maze);
+
+      // Post-Prims cleanup for the regenerated maze
+      // Moved to the very end to catch artifacts from LoopGenerator and
+      // TunnelBorer!
+      prims.pruneSmallAlcoves(maze, 5);
 
       minimapDirty = true;
     }
