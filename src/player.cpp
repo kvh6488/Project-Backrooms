@@ -33,36 +33,45 @@ void Player::update(const Maze &maze) {
   if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT))
     velocity.x += m_speed;
 
-  // 1.5 DOOR TRANSITIONS (KEY_K)
-  if (IsKeyPressed(KEY_K)) {
+  // 1.5 DOOR TRANSITIONS (KEY_K and KEY_L)
+  int doorIndexToEnter = -1;
+  if (IsKeyPressed(KEY_K)) doorIndexToEnter = 0;
+  if (IsKeyPressed(KEY_L)) doorIndexToEnter = 1;
+
+  if (doorIndexToEnter != -1) {
     int gridX = static_cast<int>(std::floor(m_position.x / maze.getCellSize()));
     int gridY = static_cast<int>(std::floor(m_position.y / maze.getCellSize()));
 
     int dx[] = {0, 0, -1, 1};
     int dy[] = {-1, 1, 0, 0};
 
+    int validDoorCount = 0;
+
     for (int i = 0; i < 4; ++i) {
       int nx = gridX + dx[i];
       int ny = gridY + dy[i];
       int cell = maze.getCell(nx, ny);
 
+      bool isDoor = false;
       if (m_areaState == AreaState::CORRIDOR && cell == Maze::CELL_ROOM) {
-        // We are trying to enter a room.
-        // Since rendering is completely decoupled from the room array, we no
-        // longer need to verify which exact room rectangle this tile belongs to
-        // (which fixes bugs with bridged rooms).
-        m_areaState = AreaState::ROOM;
-        // Snap player over the threshold into the room
-        m_position.x = nx * maze.getCellSize() + maze.getCellSize() / 2.0f;
-        m_position.y = ny * maze.getCellSize() + maze.getCellSize() / 2.0f;
-        break; // Only enter one door per frame
+        isDoor = true;
       } else if (m_areaState == AreaState::ROOM && cell == Maze::CELL_CORRIDOR) {
-        // We are trying to exit a room into a corridor.
-        m_areaState = AreaState::CORRIDOR;
-        // Snap player over the threshold into the corridor
-        m_position.x = nx * maze.getCellSize() + maze.getCellSize() / 2.0f;
-        m_position.y = ny * maze.getCellSize() + maze.getCellSize() / 2.0f;
-        break;
+        isDoor = true;
+      }
+
+      if (isDoor) {
+        if (validDoorCount == doorIndexToEnter) {
+          if (m_areaState == AreaState::CORRIDOR) {
+            m_areaState = AreaState::ROOM;
+          } else {
+            m_areaState = AreaState::CORRIDOR;
+          }
+          // Snap player over the threshold
+          m_position.x = nx * maze.getCellSize() + maze.getCellSize() / 2.0f;
+          m_position.y = ny * maze.getCellSize() + maze.getCellSize() / 2.0f;
+          break; // Only enter one door per frame
+        }
+        validDoorCount++;
       }
     }
   }
@@ -173,22 +182,23 @@ void Player::render() const {
 // ============================================================================
 // Door Interaction Check
 // ============================================================================
-bool Player::canUseDoor(const Maze &maze) const {
+int Player::getAvailableDoors(const Maze &maze) const {
   int gridX = static_cast<int>(std::floor(m_position.x / maze.getCellSize()));
   int gridY = static_cast<int>(std::floor(m_position.y / maze.getCellSize()));
 
   int dx[] = {0, 0, -1, 1};
   int dy[] = {-1, 1, 0, 0};
 
+  int count = 0;
   for (int i = 0; i < 4; ++i) {
     int nx = gridX + dx[i];
     int ny = gridY + dy[i];
     int cell = maze.getCell(nx, ny);
 
     if (m_areaState == AreaState::CORRIDOR && cell == Maze::CELL_ROOM)
-      return true;
-    if (m_areaState == AreaState::ROOM && cell == Maze::CELL_CORRIDOR)
-      return true;
+      count++;
+    else if (m_areaState == AreaState::ROOM && cell == Maze::CELL_CORRIDOR)
+      count++;
   }
-  return false;
+  return count;
 }

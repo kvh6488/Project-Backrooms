@@ -29,8 +29,8 @@ public:
   Vector2 getPosition() const { return m_position; }
   AreaState getAreaState() const { return m_areaState; }
 
-  // Check if player is near a valid door
-  bool canUseDoor(const Maze& maze) const;
+  // Get the number of available doors near the player
+  int getAvailableDoors(const Maze& maze) const;
 
 private:
   Vector2 m_position; // Center of the player in world space (pixels)

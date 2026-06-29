@@ -107,8 +107,13 @@ void Application::render() {
   EndMode2D();
 
   // --- Screen Space (UI) ---
-  if (m_player.canUseDoor(m_maze)) {
+  int doorCount = m_player.getAvailableDoors(m_maze);
+  if (doorCount == 1) {
     const char *msg = "Press 'K' to use door";
+    int textWidth = MeasureText(msg, 30);
+    DrawText(msg, (m_screenWidth - textWidth) / 2, m_screenHeight - 100, 30, WHITE);
+  } else if (doorCount >= 2) {
+    const char *msg = "Press 'K' for door 1, press 'L' for door 2";
     int textWidth = MeasureText(msg, 30);
     DrawText(msg, (m_screenWidth - textWidth) / 2, m_screenHeight - 100, 30, WHITE);
   }
