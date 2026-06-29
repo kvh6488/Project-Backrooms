@@ -5,12 +5,14 @@
 MazeRenderer::MazeRenderer() {
   m_floorTileset = {0};
   m_wallTileset = {0};
+  m_propTileset = {0};
 }
 
 void MazeRenderer::loadTextures() {
   if (IsWindowReady()) {
     m_floorTileset = LoadTexture("assets/BCKRMlv1_Floor_set.png");
     m_wallTileset = LoadTexture("assets/BCKRMlv1_Wall_set.png");
+    m_propTileset = LoadTexture("assets/BCKRMlv1_Prop_set.png");
   } else {
     std::cerr << "[ERROR] Window not ready. Cannot load textures!" << std::endl;
   }
@@ -20,6 +22,7 @@ MazeRenderer::~MazeRenderer() {
   if (IsWindowReady()) {
     UnloadTexture(m_floorTileset);
     UnloadTexture(m_wallTileset);
+    UnloadTexture(m_propTileset);
   }
 }
 
@@ -44,13 +47,35 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera, AreaState st
       int cell = maze.getCell(x, y);
 
       // Determine if this cell should be drawn as a "void" (unseen or out of context)
+      bool isDoorInRoom = (state == AreaState::ROOM && cell == Maze::CELL_CORRIDOR);
+      
+      bool isDoorWithRoomBelow = false;
+      if (isDoorInRoom) {
+        if (maze.getCell(x, y + 1) == Maze::CELL_ROOM && maze.isVisible(x, y + 1)) {
+          isDoorWithRoomBelow = true;
+        }
+      }
+
+      bool isRoomTouchingCorridor = false;
+      if (state == AreaState::CORRIDOR && cell == Maze::CELL_ROOM) {
+        if (maze.getCell(x + 1, y) == Maze::CELL_CORRIDOR ||
+            maze.getCell(x - 1, y) == Maze::CELL_CORRIDOR ||
+            maze.getCell(x, y + 1) == Maze::CELL_CORRIDOR ||
+            maze.getCell(x, y - 1) == Maze::CELL_CORRIDOR) {
+          isRoomTouchingCorridor = true;
+        }
+      }
+
       bool isVoid = false;
       if (!maze.isVisible(x, y)) {
         isVoid = true;
       } else if (state == AreaState::CORRIDOR && cell == Maze::CELL_ROOM) {
-        isVoid = true;
+        if (!isRoomTouchingCorridor) {
+          isVoid = true;
+        }
       } else if (state == AreaState::ROOM && cell == Maze::CELL_CORRIDOR) {
-        isVoid = true;
+        // Doors in rooms are rendered as walls, so they are not void!
+        isVoid = false;
       }
 
       if (isVoid) {
@@ -62,7 +87,7 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera, AreaState st
         continue;
       }
 
-      if (cell == Maze::CELL_WALL) {
+      if (cell == Maze::CELL_WALL || isRoomTouchingCorridor || isDoorInRoom) {
         // --- BITMASKING / AUTOTILING PATTERN ---
         // Map the mask (0-15) to spritesheet coordinates (x, y)
         static const Vector2 tileMap[16] = {
@@ -84,6 +109,10 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera, AreaState st
           if (isVisibleCorridor(x - 1, y)) mask += 8; // Left
 
           Vector2 tilePos = tileMap[mask];
+          if (isRoomTouchingCorridor) {
+            tilePos.x += 8.0f;
+          }
+          
           Rectangle sourceRect = {tilePos.x * 16.0f, tilePos.y * 16.0f, 16.0f, 16.0f};
           Rectangle destRect = {(float)(x * cellSize),
                                 (float)(y * cellSize), (float)cellSize,
@@ -102,6 +131,10 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera, AreaState st
           if (isVisibleRoom(x - 1, y)) mask += 8; // Left
 
           Vector2 tilePos = tileMap[mask];
+          if (isDoorInRoom && !isDoorWithRoomBelow) {
+            tilePos.x += 8.0f;
+          }
+          
           Rectangle sourceRectMask = {tilePos.x * 16.0f, tilePos.y * 16.0f, 16.0f, 16.0f};
 
           int belowCell = maze.getCell(x, y + 1);
@@ -118,8 +151,13 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera, AreaState st
             DrawTexturePro(m_wallTileset, sourceRectMask, destRectRoof, {0, 0},
                            0.0f, WHITE);
 
+            float wallX = 5.0f;
+            if (isDoorInRoom && !isDoorWithRoomBelow) {
+              wallX += 8.0f;
+            }
+            
             // Draw upper wallpaper at y-1
-            Rectangle sourceRectTop = {5.0f * 16.0f, 4.0f * 16.0f, 16.0f, 16.0f};
+            Rectangle sourceRectTop = {wallX * 16.0f, 4.0f * 16.0f, 16.0f, 16.0f};
             Rectangle destRectTop = {(float)(x * cellSize),
                                      (float)((y - 1) * cellSize),
                                      (float)cellSize, (float)cellSize};
@@ -127,12 +165,30 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera, AreaState st
                            0.0f, WHITE);
 
             // Draw base wallpaper at y
-            Rectangle sourceRectBot = {5.0f * 16.0f, 6.0f * 16.0f, 16.0f, 16.0f};
+            Rectangle sourceRectBot = {wallX * 16.0f, 6.0f * 16.0f, 16.0f, 16.0f};
             Rectangle destRectBot = {(float)(x * cellSize),
                                      (float)(y * cellSize), (float)cellSize,
                                      (float)cellSize};
             DrawTexturePro(m_wallTileset, sourceRectBot, destRectBot, {0, 0},
                            0.0f, WHITE);
+
+            if (isDoorWithRoomBelow) {
+              float scale = cellSize / 16.0f;
+              Rectangle sourceRectDoor = {16.0f, 2.0f, 16.0f, 29.0f};
+              
+              // If there is another door directly to the left on this same wall, use the "right door" texture
+              if (maze.getCell(x - 1, y) == Maze::CELL_CORRIDOR && maze.getCell(x - 1, y + 1) == Maze::CELL_ROOM) {
+                sourceRectDoor = {80.0f, 19.0f, 16.0f, 29.0f};
+              }
+
+              Rectangle destRectDoor = {
+                  (float)(x * cellSize),
+                  (float)((y * cellSize) + cellSize - (29.0f * scale)),
+                  (float)cellSize,
+                  29.0f * scale
+              };
+              DrawTexturePro(m_propTileset, sourceRectDoor, destRectDoor, {0, 0}, 0.0f, WHITE);
+            }
           } else {
             // Bottom Wall / Inner Mass: Just draw the bitmasked roof tile at y
             Rectangle destRectTop = {(float)(x * cellSize),

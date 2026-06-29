@@ -5,15 +5,14 @@
 #include "generators/tunnel_borer.hpp"
 #include "imgui.h"
 #include "rlImGui.h"
+#include <cmath>
 #include <ctime>
 #include <iostream>
-#include <cmath>
 
 Application::Application()
-    : m_seed(std::time(nullptr)),
-      m_maze(250, 150, 32, m_seed),
-      m_player(Vector2{0, 0}, AreaState::ROOM),
-      m_minimapDirty(false) {
+    //    : m_seed(std::time(nullptr)),
+    : m_seed(1782699959), m_maze(250, 150, 32, m_seed),
+      m_player(Vector2{0, 0}, AreaState::ROOM), m_minimapDirty(false) {
 
   // 1. Initialize Raylib System
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -54,7 +53,7 @@ Application::Application()
     playerStartPos.y =
         (closestRoom.y + closestRoom.height / 2.0f) * m_maze.getCellSize();
   }
-  
+
   // Reconstruct player with correct position
   m_player = Player(playerStartPos, AreaState::ROOM);
 
@@ -92,8 +91,8 @@ void Application::update() {
     m_minimapDirty = false;
   }
 
-  // Camera tracking
-  m_camera.target = m_player.getPosition();
+  // Camera tracking: round to integer to prevent subpixel tile gaps!
+  m_camera.target = { std::round(m_player.getPosition().x), std::round(m_player.getPosition().y) };
 }
 
 void Application::render() {
@@ -111,11 +110,13 @@ void Application::render() {
   if (doorCount == 1) {
     const char *msg = "Press 'K' to use door";
     int textWidth = MeasureText(msg, 30);
-    DrawText(msg, (m_screenWidth - textWidth) / 2, m_screenHeight - 100, 30, WHITE);
+    DrawText(msg, (m_screenWidth - textWidth) / 2, m_screenHeight - 100, 30,
+             WHITE);
   } else if (doorCount >= 2) {
     const char *msg = "Press 'K' for door 1, press 'L' for door 2";
     int textWidth = MeasureText(msg, 30);
-    DrawText(msg, (m_screenWidth - textWidth) / 2, m_screenHeight - 100, 30, WHITE);
+    DrawText(msg, (m_screenWidth - textWidth) / 2, m_screenHeight - 100, 30,
+             WHITE);
   }
 
   renderUI();
@@ -133,11 +134,13 @@ void Application::renderUI() {
   ImGui::Text("Maze Statistics");
   ImGui::Text("Random Seed: %u", m_seed);
   ImGui::Text("Number of Rooms: %zu", m_maze.getRooms().size());
-  
+
   int totalCells = m_maze.getWidth() * m_maze.getHeight();
-  float coveragePercent = ((float)m_maze.getNonWallCount() / totalCells) * 100.0f;
-  float corridorPercent = ((float)m_maze.getCorridorCount() / totalCells) * 100.0f;
-  
+  float coveragePercent =
+      ((float)m_maze.getNonWallCount() / totalCells) * 100.0f;
+  float corridorPercent =
+      ((float)m_maze.getCorridorCount() / totalCells) * 100.0f;
+
   ImGui::Text("Maze Coverage: %.1f%%", coveragePercent);
   ImGui::Text("Corridor Coverage: %.1f%%", corridorPercent);
 
@@ -165,16 +168,20 @@ void Application::renderUI() {
   int gridX = (int)std::floor(pPos.x / m_maze.getCellSize());
   int gridY = (int)std::floor(pPos.y / m_maze.getCellSize());
 
-  int wrappedX = (gridX % m_maze.getWidth() + m_maze.getWidth()) % m_maze.getWidth();
-  int wrappedY = (gridY % m_maze.getHeight() + m_maze.getHeight()) % m_maze.getHeight();
+  int wrappedX =
+      (gridX % m_maze.getWidth() + m_maze.getWidth()) % m_maze.getWidth();
+  int wrappedY =
+      (gridY % m_maze.getHeight() + m_maze.getHeight()) % m_maze.getHeight();
 
   float percentX = (float)wrappedX / m_maze.getWidth();
   float percentY = (float)wrappedY / m_maze.getHeight();
 
-  ImVec2 playerScreenPos = ImVec2(mapScreenPos.x + (percentX * mapDisplaySize.x),
-                                  mapScreenPos.y + (percentY * mapDisplaySize.y));
+  ImVec2 playerScreenPos =
+      ImVec2(mapScreenPos.x + (percentX * mapDisplaySize.x),
+             mapScreenPos.y + (percentY * mapDisplaySize.y));
 
-  ImGui::GetWindowDrawList()->AddCircleFilled(playerScreenPos, 3.0f, IM_COL32(255, 0, 0, 255));
+  ImGui::GetWindowDrawList()->AddCircleFilled(playerScreenPos, 3.0f,
+                                              IM_COL32(255, 0, 0, 255));
   ImGui::End();
 
   rlImGuiEnd();

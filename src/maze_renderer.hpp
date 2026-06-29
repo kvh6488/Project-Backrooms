@@ -22,4 +22,5 @@ public:
 private:
   Texture2D m_floorTileset;
   Texture2D m_wallTileset;
+  Texture2D m_propTileset;
 };
