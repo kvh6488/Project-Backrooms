@@ -85,15 +85,14 @@ Generate a maze, render it, and let the player walk through it.
 - Player entity: position, WASD movement, wall collision
 - **Dynamic 2D Camera** — Camera follows the player through a massively expanded maze grid
 
-### Phase 2 — Dynamic Maze & Non-Euclidean Topology *(Days 13–22)*
+### Phase 2 (IN PROGRESS) — Dynamic Maze & Non-Euclidean Topology *(Days 13–22)*
 Make the maze shift and break physical rules.
 - Toroidal wrapping (modulo addressing for "infinite" feel)
-- Maze mutation: reconnect edges on timer or distance trigger
-- "Look-away" detection: re-roll rooms outside the player's view
-- Edge pointer-swapping for non-Euclidean room flipping , or rotating ring
-- Noclip hidden exits (wall cells secretly passable)
-- Fog-of-war / limited visibility
-- Load proper tile textures (end of phase)
+- Maze mutation/regeneration sections
+- Load proper tile textures for rooms/corridors
+- Add door textures
+- Animate player movement
+- Fog-of-war / limited visibility in corrdiors (maybe using raycasting), rooms are always fully lit, when you first enter the corridors you get a message saying dam its dark in these corridors, and you can only see just small section in front of you, if you get torch you can see further in front.
 
 ### Phase 3 — Virus & BFS Territory *(Days 23–34)*
 The mathematical heart — competing virus systems spreading across the grid.
@@ -103,82 +102,75 @@ The mathematical heart — competing virus systems spreading across the grid.
   - Triggers auditory hallucinations, screen distortion
   - Forces the maze to reroute more frequently
   - Gases/viruses can physically weaken player, forcing crawl
-- Visual feedback: infected cells change color
-- Virsus Radiator/emitter spawner nodes (destroyable — yields useful parts, removes blockages for cure spread)
+- Visual feedback: infected cells change color (covered with gas)
+- Virsus Radiator/emitter spawner nodes (destroyable — yields useful parts, removes blockages for cure spread)?
 - Cure spreader placement and expansion
   - Cure acts like expanding BFS gas radar
   - Slightly reduces dangers, stops maze from merging
   - Permanently fixes cured region on the map
 - Maze mutation rate linked to infection level, (shifting zone size starts at 14 starts at can increase and decrease every night, depending on the domination of the cure or virsus, if cure is dominating more shifting zone decreases, if virsus is dominating more shifting zone increases)
+- We also must figure out how the virsus/infection spreads through the maze as rooms and corrdiors are seperated, currently I am thinking the virus will be mainly a corridor thing and mobs a room thing.
 
 ### Phase 4 — Death, Escape & Progression *(Days 35–42)*
 Test the full cure → escape loop early, so we can verify the core game mechanic works.
 - Death mechanics:
   - Low-level hazards (upper depths): kidnap/knock player out, wake up in disorienting new location, day count intact
   - High-level hazards (lower depths): harsh permadeath, reset run to Day 0
+  - Need to rethink death mechanics!
   - Maps and resources can be permanently lost upon death
 - Stats screen on death (days survived, % mapped, kill counts)
-- Live stat updates upon successfully finishing a level
-- Escape trigger: cure threshold → complexity reduction → maze stops confusing player → cure crystal radar guides to long hallway exit
+- Live stat updates upon successfully finishing a level or dying not sure if there will be game levels anymore...
+- Escape trigger: cure threshold → complexity reduction → maze stops confusing player → cure crystal radar guides to long hallway exit - not sure if the goal will be to escape the maze anymore
 - Level progression: escaping transitions to a brand-new, significantly harder level (infinite scaling)
 - Exploration gate mechanics: early game requires strict 100% maze exploration metric (of the fixed/capped region)
 
-### Phase 5 — Mobs & Flow-Field Navigation *(Days 43–52)*
+### Phase 5 — Mobs & Flow-Field Navigation *(Days 43–52)* (may need to merge into phase 4 because mob attack mechisms may be needed for player death)
 Entities that move, hunt, and fight using the flow-field.
 - Dijkstra flow-field generation
 - Mob spawning tied to Lotka-Volterra population caps and variable spawn rates
-- Scent trail system (per-cell decay value)
+- Scent trail system (per-cell decay value)? - May remove if too complex
 - Mob state machine: idle → patrol → track-scent → chase → attack
 - Basic melee combat (hit detection, health, death)
-- Territorial mob interactions and fighting between mobs
 - List of Deadily mobs (those that attack you), to be determined later each mob will have unique characteristics and abilites
 - Flora & fauna ecosystem:
   - Cockroaches, moss, rats, mushrooms — plague-like infectious reproduction
   - Potential bird/bat swarms
-  - Simulates a living ecological food chain with territorial fighting
-- Scent trail system:
-  - Mobs and player leave data-driven scent trails on the maze grid that fade over time
-  - Heavily infected player leaves a much stronger trail that predatory mobs track
+  - Simulates a living ecological food chain with territorial fighting/conquering
+- Also need to figure out of there will mobs in corrdiors, I was thinking single jumpscare mob type with birds eye view textures, all other mobs randomly spawn inside rooms.
 
 ### Phase 6 — Base Building, Crafting & Essential Items *(Days 53–64)*
 Player agency, progression, and core items needed for fundamental gameplay.
-- **Furniture spawns**: Like the Backrooms film, odd furniture pieces (desks, chairs, filing cabinets, shelves) are occasionally placed throughout the maze. These are where found items (items that cannot be crafted) spawn. Players search furniture to discover items, raw materials, and lore. Mechanic to be expanded further.
+- **Furniture spawns**: Like the Backrooms film, odd furniture pieces (desks, chairs, filing cabinets, shelves) are occasionally placed throughout the maze. These are where found items (items that cannot be crafted) spawn. Players search furniture to discover items, raw materials, and lore. Mechanic to be expanded further. (Maybe move to eariler phase)
 - **Fundamental crafting materials**: Raw materials found throughout the maze (e.g., scrap metal, wires, wood, cloth, chemicals, electronic components) that aren't useful on their own but are combined in the crafting system to build useful items. Exact material list TBD — we will figure out what these are later as we design the crafting recipes.
 - Base placement - bases must be placed within a room, you can choose any room to build you base in but you must balance the number of exits too few if mobs break through your door, you can get cornererd easily as no other direction, too many and you are forced
 to maintain a large amount of doors meaning one of them is more likely to get broken down by mobs. Size is also a consideration smaller rooms often have less entrances/exits meaning there easier to defend, but have less space for building your base equipment
-like farming, chemical lab etc, where as larger rooms often have a great amount of room for equipment but many more entrances/exits.
+like farming, chemical lab etc, where as larger rooms often have a great amount of room for equipment but many more entrances/exits. (Might change the door breaking meachism so its rather door leaks, from gas infection, not sure yet)
 - Bed + sleep mechanic:
   - Allows sleeping, temporarily pauses game (time limit)
   - Sleeping is mandatory — failing to sleep causes sluggishness, increased hallucinations, can lead to passing out (lost/respawned)
-  - Sleeping accelerates maze shuffling in outer regions (distant map scrambled when you wake up), if you go to build you maze in a room in that is in the shifting sections of the maze you get a pop saying "there's something off about this room", and you get very confused about your location when you wake up as you spawn somewhere in shifing zone and your base is gone.
+  - Sleeping is what produces a maze regeneration (in the shfiting zones), if you go to build you maze in a room in that is in the shifting sections of the maze you get a pop saying "there's something off about this room" or "this room gives me the creeps", and you get very confused about your location when you wake up as you spawn somewhere random and your base is gone.
   - Maze reshufulling noise players in your sleep (on first night sleeping your player goes what was all that noise in the night)
 - Crafting system: inventory → recipe → item
-- Barricade & Door placement (modify BFS cost map / block enemy BFS pathfinding)
-  - Doors can be placed in room exits. They can be opened/closed by the player but must be broken down by mobs.
 - Cure disperser building + upgrade tiers
-  - Strategy choice: few heavily upgraded dispersers large radar (severely reduced mob spawns) vs. dozens of weak ones (stops maze merging but easily destroyed by mobs)
+  - Strategy choice: few heavily upgraded dispersers large radar (severely reduced mob spawns) vs. dozens of weak ones (stops maze merging but easily destroyed by mobs) - may need to be modifed.
 - Item pickup / inventory system
 - Key Early Game Items:
   - Batteries (can be found or crafted in chemical lab)
-  - Torch + battery drain (upgradeable range, can blind mobs when upgraded)
-  - Rope mechanic (physical link, severable by direct mob attacks in L1)
-  - Classic Map (limited region, full-screen overlay, unreliable due to maze shifts)
-  - Spray Can (mark walls, invalidated by maze shifts)
-  - Barricades (wood, reinforced wood — block BFS pathfinding)
-  - Doors (wood, metal, reinforced — placed in room entrances/exits to secure a base, upgradeable health)
+  - Torch + battery drain (upgradeable range, can blind corridor mobs when upgraded) - Allows you to see much further in corridors (use raycasting?)
+  - Rope mechanic (physical link, severable by direct mob attacks)
+  - Classic Map (limited region only a rectangle around the players current map initilaisation spot, can be unrealible as it does not update when maze shifts, upgradble one time only to increase its region, crafted using paper and pen)
   - Melee weapons (baseball bat, bat with nails)
-- Navigation risk: opening map takes up entire screen, leaving player blind and vulnerable
+- Navigation risk: opening map takes up entire screen, leaving player blind and vulnerable (might chane so map just acts like minimap)
 
 ### Phase 7 — Full Level 1 Items *(Days 65–72)*
 All remaining items that can be found or crafted in Level 1.
 - Sword / Machete
 - Throwing Spear / Trident Fork
 - Armour (increases protection, reduces speed)
-- Tripwire Flashbangs (defensive traps)
+- Tripwire Flashbangs (defensive traps) - May be removed
 - Screwdriver (required for Level 2 access — item exists now, use comes later, cannot be crafted must be found on L1)
-- Geiger Counter (passive belt item, clicks faster near un-destroyed Radiators or toxic virus/infection zones)
-- Gas Mask (protects player from gases only)
-- Hazmat Suit (protects from negative infection and gases)
+- Geiger Counter (passive belt item, clicks faster near un-destroyed Radiators or toxic virus/infection zones) - Likley to be removed
+- Gas Mask/Hazmat suit (protects player from infection/gases) - uses gas mask icon, turns player texture in gas suit man.
 
 ### Phase 8 — Extra Gameplay Features *(Days 73–78)*
 Fun gameplay systems that enrich Level 1 but aren't core to the loop.
@@ -187,23 +179,22 @@ Fun gameplay systems that enrich Level 1 but aren't core to the loop.
 - Farming (done in base, hydroponic food, moss spreading like viruses)
 - Chemical Lab crafting:
   - Speed drug (faster run, mobs faster too, paranoid hallucinations — fake mob spawns)
-  - LSD/Shrooms (reveals hidden exits, aggressively increases maze shuffling, decreases maze emptiness and item spawn, increases item hallucinations — fake items, chance to find magic map, extremely dangerous in L3 — causes mass paranoid hallucinations)
-  - Ketamine/Dissociative (instant floating/teleporting between maze levels without finding physical entrances)
-  - Parasitic Syringe (crafted from rat + cockroach serum, injected into friendly dispersers for exponential hybrid virus spread, severe decay rate collapses disperser if not maintained. Other potential boosters use moss and mushrooms)
+  - LSD/Shrooms (maze will regenerate at its shifitng zone every 1.5 minutes even if player is awake, need to figure out what will happen if player is in shifitng zone when this occurs, chance to find magic map)
+  - Parasitic Syringe (crafted from rat + cockroach serum, injected into friendly dispersers for exponential/faster and wider cure spread, severe decay rate collapses disperser if not maintained. Other potential boosters use moss and mushrooms)
   - Cure will be developed in the chemical lab
   - Batteries, wires, scrap metal, and chemicals
-- Symbiotic Infection (voluntary infection with mutated strains for buffs like Night Vision — eliminates torch reliance — at cost of emitting biological hum that attracts predators)
-- Gases fill rooms and force players to crawl (deadly in level 2 vents)
+- Symbiotic Infection (voluntary infection with mutated strains for buffs like Night Vision — eliminates torch reliance — at cost of emitting biological hum that attracts predators) - potential feature.
+- Gases fill rooms and force players to crawl (deadly in level 2 vents) - may be removed.
 - Potentially add rounds (will be days) were the number of mobs increases each round (like in cod zombies), meaning the game gets harder and each day and your chance of surviving decreases, although could affect overall gameplay goal and cure/virus dynamic. Not sure if I like this mechanic yet.
 - Extra Items:
-  - Magic Map (dynamically updates, rare find, limited region, only found when on LSD)
-  - Pulsar Radar Gun (tracks base through shifting walls, pings enemies, frontal shield, built using crystals found in level 3)
+  - Magic Map (dynamically updates when maze shifts at night, fixed size/region, rare find, only found when on LSD, cannot be crafted)
+  - Pulsar Radar Gun (tracks base through shifting walls, pings enemies, frontal shield, built using crystals found in level 3) - level 3 likley to be removed so maybe level 2.
 
-### Phase 9 — GUI & Graphical Polish *(Days 79–85)*
+### Phase 9 — GUI & Graphical Polish (Finalisation most should be completed already) *(Days 79–85)*
 Get Level 1 and everything in it looking perfect.
 - Final tile textures and sprite art
 - Player character sprite and animations
-- Mob sprites and animations
+- Mob sprites and animations 
 - Item sprites and UI icons
 - HUD design (health, infection meter, inventory bar, day counter)
 - Clean up any left over testing framework shown in the GUI, or code, and move it into a dedicated testing mode (in normal gameplay mode, testing GUI element will not appear)
@@ -225,10 +216,11 @@ Vertical depth — introduces new environments and items.
 - Radar/map suppression in L3 (radar guns fail due to localized crystal interference)
 - Rope in L3: only lifeline, can be cut mid-way by stalking mobs
 - Level 2 & 3 specific items:
-  - Night Vision Goggles (see in all light conditions, requires visiting depths of L3 to get somehow unsure yet)
-  - Glitched VHS Tape (circular ring buffer, O(1) state rewind, 30s–10m recording, consumable found in deep levels)
-  - Pulsar Radar Gun crystals (found in L3)
-  - L3 provides rare resources for powerful items
+  - Night Vision Goggles (see in all light conditions, requires visiting depths of L3 to get somehow unsure yet) - likely now just to fully light up all sections of corrdiors, and found in level 2.
+  - Glitched VHS Tape (circular ring buffer, O(1) state rewind, 30s–10m recording, consumable found in deep levels) - possible mechanic.
+  - Pulsar Radar Gun crystals (found in L3) - likely to be level 2 now.
+  - L3 provides rare resources for powerful items - likely to be level 2 now
+- NOTE: Level 3 is likley to be removed from the game and there will only be two levels 1 and 2, with level 2 now containing all the extra items and features mentioned above. Level 2 will also shift in design I believe it will be a circular ring underneath the inner sections (non shifting section) of level 1, with multiple entrances to level 2 in the corners with vents (we need to figure out how this will work if the maze shifiting section can expand depending on the virsuses strength). When you enter level 2 it just looks like a long corrdior you are looking at from the side (no floor tiles render, only walls/doors), equally spaced through the corridor are doors with lights above them, that lead to equally sized rooms, each of these rooms will have a unique feature/item or something that affects gameplay (almost like a lucky dip will still need to figure out what exactly later), the corridor is never ending so once you get to end you loop back around to start of corridor. Rooms order will be shuffled randomly when the player sleeps (also idea to base the order of rooms or shuffuling on series patterns/numbers to showcase a mathematical concept).
 
 ### Phase 11 — Telemetry & Python Analytics *(Stretch — Days 97–103)*
 Data science showcase.
@@ -244,6 +236,7 @@ Presentation layer.
 - README.md with GIF hook, architecture diagrams, 3-min summary
 - Academic report: Big O proofs & analysis, Python charts, algorithm analysis
 - Code cleanup, commenting (finalise comments & clean them up), final profiling pass
+- Throughough quizing and interview practice/test making sure I understand all code and concepts generated by the agent, and have read and understood clearly every line.
 
 ---
 
@@ -365,11 +358,3 @@ Features planned for after the core game is complete (post-Phase 12). Not in the
 | **Heuristic vs. AI comparison** | Empirical comparison of hand-written pathfinding vs. trained NN models |
 
 ---
-
-## 8. Working Agreements
-
-- **No code changes without explicit user approval.**
-- **All algorithm choices are explored together** — I present options, we discuss, you decide.
-- **This document is updated** whenever a decision is made or a phase is completed.
-- **User is in the loop at every step** — no surprise implementations.
-- **Explain before doing** — new concepts, tools, and workflows are explained before they're used.
