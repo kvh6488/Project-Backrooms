@@ -10,8 +10,7 @@
 #include <iostream>
 
 Application::Application()
-    //    : m_seed(std::time(nullptr)),
-    : m_seed(1782699959), m_maze(250, 150, 32, m_seed),
+    : m_seed(std::time(nullptr)), m_maze(250, 150, 32, m_seed),
       m_player(Vector2{0, 0}, AreaState::ROOM), m_minimapDirty(false) {
 
   // 1. Initialize Raylib System
@@ -92,7 +91,8 @@ void Application::update() {
   }
 
   // Camera tracking: round to integer to prevent subpixel tile gaps!
-  m_camera.target = { std::round(m_player.getPosition().x), std::round(m_player.getPosition().y) };
+  m_camera.target = {std::round(m_player.getPosition().x),
+                     std::round(m_player.getPosition().y)};
 }
 
 void Application::render() {
