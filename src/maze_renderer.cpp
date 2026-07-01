@@ -276,21 +276,16 @@ void MazeRenderer::generateLightGradient(int diameter) {
       float diff = std::abs(angle - (-90.0f));
       if (diff > 180.0f) diff = 360.0f - diff;
 
-      // 235-degree cone = 117.5 degrees on each side
-      if (dist < radius && diff <= 117.5f) {
+      float halfConeAngle = m_lightConeAngle / 2.0f;
+      if (dist < radius && diff <= halfConeAngle) {
         // Distance falloff: alpha starts at 1.0 at center and drops to 0 at edge of circle.
         float normalizedDist = dist / radius;
         float distAlpha = 1.0f - (normalizedDist * normalizedDist);
 
-        // Angular falloff: fade the edges of the cone so they aren't sharp cuts.
-        // Starts fading 25 degrees off-center, dropping to 5% brightness at the 117.5-degree edge.
-        float angularAlpha = 1.0f;
-        float fadeStartAngle = 25.0f;
-        if (diff > fadeStartAngle) {
-          float fadeFactor = (diff - fadeStartAngle) / (117.5f - fadeStartAngle);
-          // Quadratic ease-in for a smooth fade
-          angularAlpha = 1.0f - (fadeFactor * fadeFactor * 0.95f);
-        }
+        // Angular falloff: starts at center (0 degrees) and fades to the edge.
+        // The fade strength controls the exponent of the curve.
+        float fadeFactor = diff / halfConeAngle;
+        float angularAlpha = 1.0f - (std::pow(fadeFactor, m_lightFadeStrength) * 0.95f);
 
         float finalAlpha = distAlpha * angularAlpha;
         unsigned char a = static_cast<unsigned char>(finalAlpha * 255.0f);
@@ -302,6 +297,24 @@ void MazeRenderer::generateLightGradient(int diameter) {
 
   m_lightGradient = LoadTextureFromImage(img);
   UnloadImage(img);
+}
+
+// ============================================================================
+// updateLightSettings — Update flashlight parameters and regenerate if needed
+// ============================================================================
+void MazeRenderer::updateLightSettings(float coneAngle, float fadeStrength, float sizeScale) {
+  bool needsRegen = (m_lightConeAngle != coneAngle || m_lightFadeStrength != fadeStrength);
+  
+  m_lightConeAngle = coneAngle;
+  m_lightFadeStrength = fadeStrength;
+  m_lightSizeScale = sizeScale;
+
+  if (needsRegen) {
+    if (m_lightGradient.id != 0) {
+      UnloadTexture(m_lightGradient);
+    }
+    generateLightGradient(250);
+  }
 }
 
 // ============================================================================
@@ -350,8 +363,7 @@ void MazeRenderer::renderDarknessOverlay(Vector2 playerWorldPos,
   Vector2 playerScreen = GetWorldToScreen2D(playerWorldPos, camera);
 
   // Scale the gradient to match the FOV radius.
-  // Increased size by 25% (2.5 * 1.25 = 3.125)
-  float overlaySize = 3.0f * 32.0f * camera.zoom * 3.125f;
+  float overlaySize = 3.0f * 32.0f * camera.zoom * m_lightSizeScale;
 
   // Calculate rotation based on facing direction
   // The texture is generated facing UP (0 degrees rotation).

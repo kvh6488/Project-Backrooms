@@ -153,7 +153,7 @@ The mathematical heart — competing virus systems spreading across the grid.
 - Cure Spreaders (Chemical Dispersers): Alters differential equation variables in a sector, slowing/halting enemy virus spread. Upgradeable. Strategy: few heavily upgraded (large radar, reduced mob spawns) vs. dozens of weak ones (stops merging, easily destroyed).
 - **Weapons & Gear**:
   - Batteries (found or crafted).
-  - Torch + battery drain (potentially add lantern which lights up circle 360 degrees around player)
+  - Torch/Lantern + battery drain
   - Rope mechanic (physical link, severable by mob attacks).
   - **Classic Map**: Crafted with pen and paper. Upgradeable (one time only) to increase its range. *Conflict note: May remain a fullscreen overlay (leaving player vulnerable) OR change to a minimap.*
   - Spray Can (mark walls, invalidated by shifts).
@@ -230,7 +230,7 @@ All items organized by category.
 | Item | Description | Level |
 |---|---|---|
 | Spray Can | Marks walls. Unreliable if maze shifts. | L1 |
-| Torch | Light source. Requires batteries. Upgradeable range. Can blind mobs when upgraded. | L1+ |
+| Torch/Lantern | Light source. Requires batteries. Upgradeable range (starts at circle size 3.5, then can go to 4.5, 6) (potentially blinds mobs - flash bang effect for a few seconds at max level) | L1+ |
 | Classic Map | Crafted with pen & paper. Upgradeable (one time only) to increase its range. May be a fullscreen overlay or a minimap. Unreliable due to maze shifting. | L1 |
 | Magic Map | Dynamically updates to reflect maze changes at night. Rare — only found when on LSD. Fixed region. | L1 (rare) |
 | Rope | Physical link between locations. Can be severed by direct mob attacks. | L1+ |

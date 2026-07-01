@@ -31,6 +31,9 @@ public:
   void renderDarknessOverlay(Vector2 playerWorldPos, const Camera2D &camera,
                              AreaState state, FacingDirection dir);
 
+  // Updates flashlight parameters dynamically. Regenerates gradient if needed.
+  void updateLightSettings(float coneAngle, float fadeStrength, float sizeScale);
+
 private:
   Texture2D m_floorTileset;
   Texture2D m_wallTileset;
@@ -40,6 +43,10 @@ private:
   // A pre-generated radial gradient texture: white at center, fading to
   // transparent at edges. Used as a "stamp" in the light mask.
   Texture2D m_lightGradient;
+  
+  float m_lightConeAngle = 235.0f;
+  float m_lightFadeStrength = 2.0f;
+  float m_lightSizeScale = 3.125f;
 
   // Off-screen render texture used as a "light mask".
   // Each frame in corridor mode, we:

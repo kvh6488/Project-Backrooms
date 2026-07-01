@@ -51,4 +51,12 @@ private:
   // --- Debug / Toggles ---
   bool m_flashlightEnabled = true;
   bool m_showGenerationZones = false;
+
+  // --- Flashlight Overlay Settings ---
+  float m_lightConeAngle = 235.0f;
+  float m_lightFadeStrength = 1.5f;
+  float m_lightSizeScale = 3.5f;
+
+  // --- View Settings ---
+  float m_cameraZoom = 1.2f;
 };

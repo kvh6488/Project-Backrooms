@@ -103,6 +103,7 @@ void Application::update() {
   // Camera tracking: round to integer to prevent subpixel tile gaps!
   m_camera.target = {std::round(m_player.getPosition().x),
                      std::round(m_player.getPosition().y)};
+  m_camera.zoom = m_cameraZoom;
 
   // --- Popups Logic ---
   if (m_player.getAreaState() == AreaState::CORRIDOR && !m_hasSeenCorridorPopup) {
@@ -190,8 +191,23 @@ void Application::renderUI() {
     m_minimapDirty = true;
   }
 
+  ImGui::Separator();
+  ImGui::Text("View Settings");
+  ImGui::SliderFloat("Tile Zoom", &m_cameraZoom, 0.5f, 5.0f);
+
   if (ImGui::Button("Regenerate Tic-Tac-Toe Zones")) {
     regenerateTicTacToeZones();
+  }
+
+  ImGui::Separator();
+  ImGui::Text("Flashlight Tweaks");
+  bool lightSettingsChanged = false;
+  if (ImGui::SliderFloat("Degree Cut", &m_lightConeAngle, 90.0f, 360.0f)) lightSettingsChanged = true;
+  if (ImGui::SliderFloat("Circle Size", &m_lightSizeScale, 1.0f, 6.0f)) lightSettingsChanged = true;
+  if (ImGui::SliderFloat("Angular Fade Strength", &m_lightFadeStrength, 0.1f, 10.0f)) lightSettingsChanged = true;
+
+  if (lightSettingsChanged) {
+    m_renderer.updateLightSettings(m_lightConeAngle, m_lightFadeStrength, m_lightSizeScale);
   }
 
   ImGui::Separator();
