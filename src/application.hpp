@@ -1,14 +1,15 @@
 #pragma once
 
 #include "maze.hpp"
+#include "maze_renderer.hpp"
 #include "player.hpp"
 #include "player_renderer.hpp"
-#include "maze_renderer.hpp"
 #include "raylib.h"
 
 // The Application class encapsulates the entire game loop and engine state.
 // This is an implementation of the Facade Pattern, hiding the complex
-// interactions of the subsystems (Maze, Player, Camera, Renderer) from main.cpp.
+// interactions of the subsystems (Maze, Player, Camera, Renderer) from
+// main.cpp.
 class Application {
 public:
   Application();
@@ -42,4 +43,12 @@ private:
   // --- UI / Minimap State ---
   RenderTexture2D m_minimapTexture;
   bool m_minimapDirty;
+
+  // --- Popups ---
+  bool m_hasSeenCorridorPopup = false;
+  float m_corridorPopupTimer = 0.0f;
+
+  // --- Debug / Toggles ---
+  bool m_flashlightEnabled = true;
+  bool m_showGenerationZones = false;
 };

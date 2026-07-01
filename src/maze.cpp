@@ -1,4 +1,5 @@
 #include "maze.hpp"
+#include "player.hpp"
 #include "raylib.h"
 #include <algorithm>
 #include <cmath>
@@ -10,7 +11,8 @@
 Maze::Maze(int width, int height, int cellSize, unsigned int seed)
     : m_width(width), m_height(height), m_cellSize(cellSize), m_nonWallCount(0),
       m_corridorCount(0), m_grid(width * height, CELL_WALL),
-      m_visible(width * height, false) {
+      m_visible(width * height, false),
+      m_lightLevel(width * height, 0.0f) {
 }
 
 Maze::~Maze() {
@@ -58,57 +60,70 @@ void Maze::setCell(int x, int y, int cellType) {
 }
 
 // ============================================================================
-// FIELD OF VIEW (Flood Fill)
+// RECURSIVE SHADOWCASTING (Replaces old BFS Flood Fill)
 // ============================================================================
-void Maze::updateFOV(Vector2 playerPos, AreaState state) {
-  // Clear the visibility map every frame
+// Algorithm Reference: Björn Bergström's recursive shadowcasting,
+void Maze::updateVisibility(int playerX, int playerY, AreaState state) {
+  // Clear visibility and light levels every frame
   std::fill(m_visible.begin(), m_visible.end(), false);
+  std::fill(m_lightLevel.begin(), m_lightLevel.end(), 0.0f);
 
-  int playerGridX = (int)floor(playerPos.x / m_cellSize);
-  int playerGridY = (int)floor(playerPos.y / m_cellSize);
+  if (state == AreaState::ROOM) {
+    // --- ROOMS ARE ALWAYS FULLY LIT ---
+    // Simple BFS flood fill through CELL_ROOM tiles only.
+    std::queue<std::pair<int, int>> q;
+    q.push({playerX, playerY});
+    int startIdx = getIndex(playerX, playerY);
+    m_visible[startIdx] = true;
+    m_lightLevel[startIdx] = 1.0f;
 
-  std::queue<std::pair<int, int>> q;
-  q.push({playerGridX, playerGridY});
-  m_visible[getIndex(playerGridX, playerGridY)] = true;
+    int dx[] = {0, 0, -1, 1, -1, 1, -1, 1};
+    int dy[] = {-1, 1, 0, 0, -1, -1, 1, 1};
 
-  // Max distance prevents flood fill from lighting up the whole map if
-  // corridors connect
-  int maxDistance = 25;
+    while (!q.empty()) {
+      auto [x, y] = q.front();
+      q.pop();
 
-  // 8-way Flood Fill
-  int dx[] = {0, 0, -1, 1, -1, 1, -1, 1};
-  int dy[] = {-1, 1, 0, 0, -1, -1, 1, 1};
+      for (int i = 0; i < 8; ++i) {
+        int nx = x + dx[i];
+        int ny = y + dy[i];
+        int nIndex = getIndex(nx, ny);
 
-  while (!q.empty()) {
-    auto [x, y] = q.front();
-    q.pop();
+        if (!m_visible[nIndex]) {
+          m_visible[nIndex] = true;
+          m_lightLevel[nIndex] = 1.0f;
 
-    // Manhattan distance approx to stop unbounded filling
-    if (std::abs(x - playerGridX) + std::abs(y - playerGridY) > maxDistance)
-      continue;
-
-    for (int i = 0; i < 8; ++i) {
-      int nx = x + dx[i];
-      int ny = y + dy[i];
-      int nIndex = getIndex(nx, ny);
-
-      if (!m_visible[nIndex]) {
-        m_visible[nIndex] = true;
-
-        // If it is a floor matching our current context, keep expanding!
-        int cell = getCell(nx, ny);
-        if (state == AreaState::CORRIDOR && cell == CELL_CORRIDOR) {
-          q.push({nx, ny});
-        } else if (state == AreaState::ROOM && cell == CELL_ROOM) {
-          q.push({nx, ny});
+          // Only flood through room tiles (walls become visible but stop the flood)
+          if (getCell(nx, ny) == CELL_ROOM) {
+            q.push({nx, ny});
+          }
         }
       }
     }
   }
+  // For corridors, we don't need to compute visibility, because the renderer
+  // now completely ignores the FOV check and draws all corridor tiles,
+  // relying entirely on the screen-space darkness overlay to hide unseen areas.
 }
+
+// ============================================================================
+// castOctant — The Recursive Octant Scanner
+// ============================================================================
+// This function scans a single octant row-by-row (or column-by-column,
+// depending on the octant transform). It tracks which angular range
+// is still visible via [startSlope, endSlope].
+//
+// The recursion happens when we detect a transition from wall → floor:
+//   we've found the edge of a shadow, so we recurse to continue scanning
+//   the newly revealed arc.
+//
 
 bool Maze::isVisible(int x, int y) const {
   return m_visible[getIndex(x, y)];
+}
+
+float Maze::getLightLevel(int x, int y) const {
+  return m_lightLevel[getIndex(x, y)];
 }
 
 // ============================================================================

@@ -94,7 +94,8 @@ Make the maze visually distinct and physically wrap around.
 - **Fog-of-war / visibility system:** 
   - Corridors are inherently dark. First entering yields a message: *"Damn it's dark in these corridors"*, with heavily restricted sight distance (raycasting).
   - Rooms are always fully lit.
-  - Equipping a torch extends corridor visibility distance.
+  - Equipping a torch extends corridor visibility distance (implmented in later phase)
+- Possibly resize game window, and gameview to fit screen etc, add temporary application icon.
 
 ### Phase 3 — Virus & BFS Territory *(Days 23–34)*
 The mathematical heart — competing virus systems spreading across the grid.
@@ -137,6 +138,7 @@ The mathematical heart — competing virus systems spreading across the grid.
     - Potential bird/bat swarms.
     - Simulates a living ecological food chain with territorial fighting/conquering.
 - **Mob Spawning Rules:** Also need to figure out if there will be mobs in corridors. Currently thinking a single jumpscare mob type with bird's eye view textures in corridors, and all other mobs randomly spawn inside rooms.
+- May need to also add basic menu and save mechanisms, for testing, level settings etc.
 
 ### Phase 5 — Base Building, Crafting & Full Arsenal *(Days 53–72)*
 - **Furniture spawns**: Searching desks, chairs, filing cabinets for raw materials and lore.
@@ -151,7 +153,7 @@ The mathematical heart — competing virus systems spreading across the grid.
 - Cure Spreaders (Chemical Dispersers): Alters differential equation variables in a sector, slowing/halting enemy virus spread. Upgradeable. Strategy: few heavily upgraded (large radar, reduced mob spawns) vs. dozens of weak ones (stops merging, easily destroyed).
 - **Weapons & Gear**:
   - Batteries (found or crafted).
-  - Torch + battery drain.
+  - Torch + battery drain (potentially add lantern which lights up circle 360 degrees around player)
   - Rope mechanic (physical link, severable by mob attacks).
   - **Classic Map**: Crafted with pen and paper. Upgradeable (one time only) to increase its range. *Conflict note: May remain a fullscreen overlay (leaving player vulnerable) OR change to a minimap.*
   - Spray Can (mark walls, invalidated by shifts).

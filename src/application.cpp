@@ -84,7 +84,15 @@ void Application::run() {
 
 void Application::update() {
   m_player.update(m_maze);
-  m_maze.updateFOV(m_player.getPosition(), m_player.getAreaState());
+
+  // Convert player pixel position to grid coordinates for the FOV system
+  int playerGridX = static_cast<int>(std::floor(m_player.getPosition().x / m_maze.getCellSize()));
+  int playerGridY = static_cast<int>(std::floor(m_player.getPosition().y / m_maze.getCellSize()));
+
+  // Compute FOV: rooms use full-lit flood fill.
+  // Corridors ignore FOV and render all tiles, masked by the darkness overlay.
+  m_maze.updateVisibility(playerGridX, playerGridY, m_player.getAreaState());
+
   m_playerRenderer.update(GetFrameTime(), m_player);
 
   if (m_minimapDirty) {
@@ -95,6 +103,16 @@ void Application::update() {
   // Camera tracking: round to integer to prevent subpixel tile gaps!
   m_camera.target = {std::round(m_player.getPosition().x),
                      std::round(m_player.getPosition().y)};
+
+  // --- Popups Logic ---
+  if (m_player.getAreaState() == AreaState::CORRIDOR && !m_hasSeenCorridorPopup) {
+    m_hasSeenCorridorPopup = true;
+    m_corridorPopupTimer = 4.0f; // Show for 4 seconds
+  }
+
+  if (m_corridorPopupTimer > 0.0f) {
+    m_corridorPopupTimer -= GetFrameTime();
+  }
 }
 
 void Application::render() {
@@ -103,10 +121,18 @@ void Application::render() {
 
   // --- World Space ---
   BeginMode2D(m_camera);
-  m_renderer.render(m_maze, m_camera, m_player.getAreaState());
+  m_renderer.render(m_maze, m_camera, m_player.getAreaState(), m_showGenerationZones);
   m_playerRenderer.render(m_player);
   EndMode2D();
 
+  // --- Smooth Darkness Overlay (Screen Space) ---
+  // Drawn AFTER EndMode2D so it composites over the world,
+  // but BEFORE UI so the HUD remains readable.
+  if (m_flashlightEnabled) {
+    m_renderer.renderDarknessOverlay(m_player.getPosition(), m_camera,
+                                     m_player.getAreaState(),
+                                     m_player.getFacingDirection());
+  }
   // --- Screen Space (UI) ---
   int doorCount = m_player.getAvailableDoors(m_maze);
   if (doorCount == 1) {
@@ -119,6 +145,18 @@ void Application::render() {
     int textWidth = MeasureText(msg, 30);
     DrawText(msg, (m_screenWidth - textWidth) / 2, m_screenHeight - 100, 30,
              WHITE);
+  }
+
+  // Draw one-time corridor popup
+  if (m_corridorPopupTimer > 0.0f) {
+    const char *msg = "Dam it's dark in the corridor";
+    int textWidth = MeasureText(msg, 30);
+    int x = (m_screenWidth - textWidth) / 2;
+    int y = m_screenHeight - 150; // slightly above door interact text
+    
+    // Draw a translucent black background for readability
+    DrawRectangle(x - 15, y - 5, textWidth + 30, 40, Fade(BLACK, 0.6f));
+    DrawText(msg, x, y, 30, WHITE);
   }
 
   renderUI();
@@ -147,6 +185,11 @@ void Application::renderUI() {
   ImGui::Text("Corridor Coverage: %.1f%%", corridorPercent);
 
   ImGui::Separator();
+  ImGui::Checkbox("Flashlight Torch Mode", &m_flashlightEnabled);
+  if (ImGui::Checkbox("Show Regeneration Zones", &m_showGenerationZones)) {
+    m_minimapDirty = true;
+  }
+
   if (ImGui::Button("Regenerate Tic-Tac-Toe Zones")) {
     regenerateTicTacToeZones();
   }
@@ -197,7 +240,7 @@ void Application::generateMinimap() {
       if (m_maze.getCell(x, y) == Maze::CELL_WALL) {
         DrawPixel(x, y, Color{100, 100, 100, 255});
       } else {
-        if (m_maze.isShiftingZone(x, y)) {
+        if (m_showGenerationZones && m_maze.isShiftingZone(x, y)) {
           DrawPixel(x, y, Color{255, 100, 100, 255});
         } else {
           DrawPixel(x, y, Color{30, 30, 35, 255});

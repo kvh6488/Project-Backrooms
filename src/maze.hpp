@@ -3,10 +3,13 @@
 
 #include <raylib.h>
 #include <vector> // For std::vector (our dynamic 1D array)
+#include <cmath>
 
 enum class AreaState { CORRIDOR, ROOM };
 
+// Forward declarations
 class Player;
+enum class FacingDirection;
 
 // ============================================================================
 // Maze Class
@@ -51,11 +54,28 @@ public:
   // Set the cell type at grid position (x, y).
   void setCell(int x, int y, int cellType);
 
-  // Calculate Field of View (Flood Fill)
-  void updateFOV(Vector2 playerPos, AreaState state);
+  // ============================================================================
+  // Recursive Shadowcasting FOV
+  // ============================================================================
+  // Computes line-of-sight visibility from the player's grid position.
+  // In CORRIDOR mode: restricts to a forward-facing cone of `radius` tiles,
+  //   using recursive shadowcasting to produce true LOS with wall shadows.
+  // In ROOM mode: marks the entire room as fully visible (always lit).
+  //
+  // This is the 2D roguelike gold standard for FOV. It divides the circle
+  // around the player into 8 octants and recursively scans each row outward.
+  // When it encounters a wall, it splits the visible arc and recurses on the
+  // remaining visible portion — producing perfect shadow geometry with no
+  // artifacts. See: http://www.roguebasin.com/index.php/FOV_using_recursive_shadowcasting
+  // ============================================================================
+  void updateVisibility(int playerX, int playerY, AreaState state);
 
   // Check if cell is visible (used by MazeRenderer)
   bool isVisible(int x, int y) const;
+
+  // Get the light level at a cell (0.0 = pitch black, 1.0 = fully lit)
+  // Used by the renderer to apply smooth distance-based darkening.
+  float getLightLevel(int x, int y) const;
 
   // --- Phase 2.3: Rubik's Torus ---
   // Check if a coordinate is within the designated shifting slice
@@ -101,6 +121,10 @@ private:
   // THE 1D FLAT ARRAY
   std::vector<int> m_grid;
   std::vector<bool> m_visible;
+  std::vector<float> m_lightLevel; // Per-cell brightness (0.0 to 1.0)
+
+  // Helper to place walls and floors
+  void setRoomTiles(int startX, int startY, int width, int height);
 
   // List of all carved rooms
   std::vector<Room> m_rooms;

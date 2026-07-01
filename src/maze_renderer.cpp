@@ -1,11 +1,15 @@
 #include "maze_renderer.hpp"
 #include <cmath>
 #include <iostream>
+#include "player.hpp"
 
 MazeRenderer::MazeRenderer() {
   m_floorTileset = {0};
   m_wallTileset = {0};
   m_propTileset = {0};
+  m_lightGradient = {0};
+  m_lightMask = {0};
+  m_lightMaskReady = false;
 }
 
 void MazeRenderer::loadTextures() {
@@ -13,6 +17,11 @@ void MazeRenderer::loadTextures() {
     m_floorTileset = LoadTexture("assets/BCKRMlv1_Floor_set.png");
     m_wallTileset = LoadTexture("assets/BCKRMlv1_Wall_set.png");
     m_propTileset = LoadTexture("assets/BCKRMlv1_Prop_set.png");
+
+    // Generate the soft radial gradient for the flashlight overlay.
+    // Diameter of 512px gives us a smooth, high-res gradient circle
+    // that scales well when drawn to screen.
+    generateLightGradient(512);
   } else {
     std::cerr << "[ERROR] Window not ready. Cannot load textures!" << std::endl;
   }
@@ -23,10 +32,12 @@ MazeRenderer::~MazeRenderer() {
     UnloadTexture(m_floorTileset);
     UnloadTexture(m_wallTileset);
     UnloadTexture(m_propTileset);
+    UnloadTexture(m_lightGradient);
+    if (m_lightMaskReady) UnloadRenderTexture(m_lightMask);
   }
 }
 
-void MazeRenderer::render(const Maze &maze, const Camera2D &camera, AreaState state) const {
+void MazeRenderer::render(const Maze &maze, const Camera2D &camera, AreaState state, bool showGenerationZones) const {
   // --- FRUSTUM CULLING ---
   Vector2 topLeft = GetScreenToWorld2D({0.0f, 0.0f}, camera);
   Vector2 bottomRight = GetScreenToWorld2D(
@@ -67,15 +78,21 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera, AreaState st
       }
 
       bool isVoid = false;
-      if (!maze.isVisible(x, y)) {
-        isVoid = true;
-      } else if (state == AreaState::CORRIDOR && cell == Maze::CELL_ROOM) {
-        if (!isRoomTouchingCorridor) {
+      
+      if (state == AreaState::ROOM) {
+        // In rooms, we MUST respect the FOV (BFS flood fill) so we only see the current room.
+        if (!maze.isVisible(x, y)) {
+          isVoid = true;
+        } else if (cell == Maze::CELL_CORRIDOR) {
+          // Doors in rooms are rendered as walls, so they are not void!
+          isVoid = false;
+        }
+      } else if (state == AreaState::CORRIDOR) {
+        // In corridors, ignore FOV to let the flashlight mask do the work.
+        // But we still don't want to render rooms that aren't touching the corridor.
+        if (cell == Maze::CELL_ROOM && !isRoomTouchingCorridor) {
           isVoid = true;
         }
-      } else if (state == AreaState::ROOM && cell == Maze::CELL_CORRIDOR) {
-        // Doors in rooms are rendered as walls, so they are not void!
-        isVoid = false;
       }
 
       if (isVoid) {
@@ -98,15 +115,15 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera, AreaState st
         };
 
         if (state == AreaState::CORRIDOR) {
-          auto isVisibleCorridor = [&maze](int cx, int cy) {
-            return (maze.getCell(cx, cy) == Maze::CELL_CORRIDOR) && maze.isVisible(cx, cy);
+          auto isCorridor = [&maze](int cx, int cy) {
+            return (maze.getCell(cx, cy) == Maze::CELL_CORRIDOR);
           };
           
           int mask = 0;
-          if (isVisibleCorridor(x, y - 1)) mask += 1; // Top
-          if (isVisibleCorridor(x + 1, y)) mask += 2; // Right
-          if (isVisibleCorridor(x, y + 1)) mask += 4; // Bottom
-          if (isVisibleCorridor(x - 1, y)) mask += 8; // Left
+          if (isCorridor(x, y - 1)) mask |= 1; // N
+          if (isCorridor(x + 1, y)) mask |= 2; // E
+          if (isCorridor(x, y + 1)) mask |= 4; // S
+          if (isCorridor(x - 1, y)) mask |= 8; // W
 
           Vector2 tilePos = tileMap[mask];
           if (isRoomTouchingCorridor) {
@@ -200,19 +217,23 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera, AreaState st
         }
       } else {
         // Floor or Room
-        Color drawColor;
         bool isTexture = false;
         Rectangle sourceRect = {0};
 
         if (cell == Maze::CELL_CORRIDOR || cell == Maze::CELL_ROOM) {
-          drawColor = maze.isShiftingZone(x, y) ? (Color){255, 100, 100, 255} : WHITE;
           isTexture = true;
           sourceRect = {9.0f * 16.0f, 0.0f * 16.0f, 16.0f, 16.0f};
-        } else {
-          drawColor = MAGENTA;
         }
 
         if (isTexture) {
+          // The light mask overlay handles all darkness/shadows now.
+          // We just draw the tiles at full brightness (WHITE).
+          Color drawColor = WHITE;
+          if (showGenerationZones && maze.isShiftingZone(x, y)) {
+            // Highlight shifting zones in red
+            drawColor = (Color){255, 100, 100, 255};
+          }
+
           Rectangle destRect = {(float)(x * cellSize),
                                 (float)(y * cellSize), (float)cellSize,
                                 (float)cellSize};
@@ -220,9 +241,162 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera, AreaState st
                          drawColor);
         } else {
           DrawRectangle(x * cellSize, y * cellSize, cellSize, cellSize,
-                        drawColor);
+                        MAGENTA);
         }
       }
     }
   }
+}
+
+// ============================================================================
+// generateLightGradient — Procedural Radial Gradient Texture
+// ============================================================================
+// Creates a semi-circular gradient image (facing UP/North): fully opaque
+// white at the center, fading smoothly to fully transparent at the edges.
+// Only the top half (dy <= 0) is generated to create a directional "torch" cone.
+//
+// This is drawn on top of a black screen-filling rectangle to create
+// the "flashlight hole" effect.
+// ============================================================================
+void MazeRenderer::generateLightGradient(int diameter) {
+  Image img = GenImageColor(diameter, diameter, BLACK);
+  float center = diameter / 2.0f;
+  float radius = center;
+
+  for (int y = 0; y < diameter; ++y) {
+    for (int x = 0; x < diameter; ++x) {
+      float dx = x - center;
+      float dy = y - center;
+      float dist = std::sqrt(dx * dx + dy * dy);
+
+      // Calculate angle from center. In screen space, UP is -y, so -90 degrees.
+      float angle = std::atan2(dy, dx) * 180.0f / PI;
+      
+      // Calculate difference from UP (-90.0f)
+      float diff = std::abs(angle - (-90.0f));
+      if (diff > 180.0f) diff = 360.0f - diff;
+
+      // 235-degree cone = 117.5 degrees on each side
+      if (dist < radius && diff <= 117.5f) {
+        // Distance falloff: alpha starts at 1.0 at center and drops to 0 at edge of circle.
+        float normalizedDist = dist / radius;
+        float distAlpha = 1.0f - (normalizedDist * normalizedDist);
+
+        // Angular falloff: fade the edges of the cone so they aren't sharp cuts.
+        // Starts fading 25 degrees off-center, dropping to 5% brightness at the 117.5-degree edge.
+        float angularAlpha = 1.0f;
+        float fadeStartAngle = 25.0f;
+        if (diff > fadeStartAngle) {
+          float fadeFactor = (diff - fadeStartAngle) / (117.5f - fadeStartAngle);
+          // Quadratic ease-in for a smooth fade
+          angularAlpha = 1.0f - (fadeFactor * fadeFactor * 0.95f);
+        }
+
+        float finalAlpha = distAlpha * angularAlpha;
+        unsigned char a = static_cast<unsigned char>(finalAlpha * 255.0f);
+        ImageDrawPixel(&img, x, y, (Color){255, 255, 255, a});
+      }
+      // Pixels outside the radius remain BLACK (fully opaque darkness)
+    }
+  }
+
+  m_lightGradient = LoadTextureFromImage(img);
+  UnloadImage(img);
+}
+
+// ============================================================================
+// initLightMask — Create/Resize the Light Mask RenderTexture
+// ============================================================================
+void MazeRenderer::initLightMask() {
+  int screenW = GetScreenWidth();
+  int screenH = GetScreenHeight();
+
+  // If already allocated at the right size, skip
+  if (m_lightMaskReady &&
+      m_lightMask.texture.width == screenW &&
+      m_lightMask.texture.height == screenH) {
+    return;
+  }
+
+  if (m_lightMaskReady) UnloadRenderTexture(m_lightMask);
+  m_lightMask = LoadRenderTexture(screenW, screenH);
+  m_lightMaskReady = true;
+}
+
+// ============================================================================
+// renderDarknessOverlay — Screen-Space Flashlight Effect (Fixed)
+// ============================================================================
+// Uses a RenderTexture "light mask":
+//   1. Render the light mask off-screen: clear to BLACK, draw directional gradient
+//   2. Draw the light mask onto the main framebuffer using BLEND_MULTIPLIED
+//   3. Where the mask is white (1.0): tiles show through unchanged
+//      Where the mask is black (0.0): tiles are multiplied to darkness
+// ============================================================================
+void MazeRenderer::renderDarknessOverlay(Vector2 playerWorldPos,
+                                         const Camera2D &camera,
+                                         AreaState state,
+                                         FacingDirection dir) {
+  // Only draw darkness in corridors; rooms are always fully lit
+  if (state != AreaState::CORRIDOR) return;
+
+  // Ensure the light mask RenderTexture exists and matches screen size
+  initLightMask();
+  if (!m_lightMaskReady) return;
+
+  int screenW = GetScreenWidth();
+  int screenH = GetScreenHeight();
+
+  // Convert player's world position to screen position
+  Vector2 playerScreen = GetWorldToScreen2D(playerWorldPos, camera);
+
+  // Scale the gradient to match the FOV radius.
+  // Increased size by 25% (2.5 * 1.25 = 3.125)
+  float overlaySize = 3.0f * 32.0f * camera.zoom * 3.125f;
+
+  // Calculate rotation based on facing direction
+  // The texture is generated facing UP (0 degrees rotation).
+  // Raylib rotations are clockwise.
+  float rotation = 0.0f;
+  switch (dir) {
+    case FacingDirection::UP:    rotation = 0.0f; break;
+    case FacingDirection::RIGHT: rotation = 90.0f; break;
+    case FacingDirection::DOWN:  rotation = 180.0f; break;
+    case FacingDirection::LEFT:  rotation = 270.0f; break;
+  }
+
+  // --- Step 1: Build the light mask in the off-screen RenderTexture ---
+  BeginTextureMode(m_lightMask);
+  ClearBackground(BLACK); // Start with total darkness
+
+  // Draw the directional gradient at the player's screen position.
+  Rectangle srcRect = {0, 0, (float)m_lightGradient.width,
+                       (float)m_lightGradient.height};
+  // The destRect specifies the location of the origin (which we set to center)
+  Rectangle destRect = {playerScreen.x, playerScreen.y,
+                        overlaySize, overlaySize};
+  
+  // Shift the origin backward (down in local texture space) so the tip
+  // of the cone drops slightly behind the player. This ensures the player's
+  // full sprite is visible.
+  float backwardOffset = 28.0f * camera.zoom;
+  Vector2 origin = {overlaySize / 2.0f, (overlaySize / 2.0f) - backwardOffset};
+
+  DrawTexturePro(m_lightGradient, srcRect, destRect, origin, rotation, WHITE);
+
+  EndTextureMode();
+
+  // --- Step 2: Composite the light mask onto the main framebuffer ---
+  // BLEND_MULTIPLIED: finalPixel = framebufferPixel × maskPixel
+  //   mask white (1,1,1) → tiles show through
+  //   mask black (0,0,0) → tiles become black
+  BeginBlendMode(BLEND_MULTIPLIED);
+
+  // RenderTextures in Raylib are vertically flipped, so we negate the height
+  DrawTexturePro(
+      m_lightMask.texture,
+      {0, 0, (float)screenW, -(float)screenH},
+      {0, 0, (float)screenW, (float)screenH},
+      {0, 0}, 0.0f, WHITE);
+
+  EndBlendMode();
 }
