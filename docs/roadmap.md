@@ -120,6 +120,7 @@ The mathematical heart — competing virus systems spreading across the grid.
   - High-level hazards (lower depths): harsh permadeath, reset run to Day 0.
   - *Note: Need to rethink death mechanics!*
   - Maps and resources can be permanently lost upon death.
+  - Add player damage and death animations here (also need to think about potential player level mechanic)
 - Stats screen on death (days survived, % mapped, kill counts).
 - Live stat updates upon successfully finishing a level or dying. *Note: Not sure if there will be game levels anymore...*
 - Escape trigger: cure threshold → complexity reduction → maze stops confusing player → cure crystal radar guides to long hallway exit. *Note: Not sure if the goal will be to escape the maze anymore.*
@@ -192,7 +193,7 @@ The mathematical heart — competing virus systems spreading across the grid.
 ### Phase 7 — GUI & Graphical Polish *(Days 86–90)*
 *(Finalisation - most should be completed already)*
 Get Level 1 and Level 2 looking perfect.
-- Final tile textures and sprite art (Player, Mobs, Items, UI icons).
+- Final tile textures and sprite art (Player, Mobs, Items, UI icons), maybe add carpet bitmasking.
 - HUD design (health, infection meter, inventory bar, day counter).
 - Clean up leftover testing framework into a dedicated testing mode (hidden during normal gameplay).
 - Screen distortion effects (VHS aesthetic).

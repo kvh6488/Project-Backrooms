@@ -21,6 +21,7 @@ Application::Application()
   // 2. Initialize ImGui and Textures
   rlImGuiSetup(true);
   m_renderer.loadTextures();
+  m_playerRenderer.loadTextures();
 
   // 3. Generate Initial Maze
   std::cout << "[INFO] Initializing Maze with seed: " << m_seed << std::endl;
@@ -84,6 +85,7 @@ void Application::run() {
 void Application::update() {
   m_player.update(m_maze);
   m_maze.updateFOV(m_player.getPosition(), m_player.getAreaState());
+  m_playerRenderer.update(GetFrameTime(), m_player);
 
   if (m_minimapDirty) {
     generateMinimap();
@@ -102,7 +104,7 @@ void Application::render() {
   // --- World Space ---
   BeginMode2D(m_camera);
   m_renderer.render(m_maze, m_camera, m_player.getAreaState());
-  m_player.render();
+  m_playerRenderer.render(m_player);
   EndMode2D();
 
   // --- Screen Space (UI) ---

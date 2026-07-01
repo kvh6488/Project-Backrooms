@@ -2,6 +2,7 @@
 
 #include "maze.hpp"
 #include "player.hpp"
+#include "player_renderer.hpp"
 #include "maze_renderer.hpp"
 #include "raylib.h"
 
@@ -36,6 +37,7 @@ private:
   Player m_player;
   Camera2D m_camera;
   MazeRenderer m_renderer;
+  PlayerRenderer m_playerRenderer;
 
   // --- UI / Minimap State ---
   RenderTexture2D m_minimapTexture;

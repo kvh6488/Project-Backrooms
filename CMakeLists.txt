@@ -45,6 +45,9 @@ if(NOT rlimhui_POPULATED)
     FetchContent_Populate(rlimhui)
 endif()
 
+# Copy assets to the build directory so the executable can find them
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 # 4. Define our executable and include the external source files directly
 add_executable(Backrooms 
     src/main.cpp 
@@ -57,6 +60,7 @@ add_executable(Backrooms
     src/generators/tunnel_borer.cpp
     src/generators/generator_utils.cpp
     src/player.cpp
+    src/player_renderer.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -104,6 +108,7 @@ add_executable(BackroomsTests
     src/generators/tunnel_borer.cpp
     src/generators/generator_utils.cpp
     src/player.cpp
+    src/player_renderer.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp

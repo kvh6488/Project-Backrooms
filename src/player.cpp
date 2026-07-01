@@ -7,7 +7,8 @@
 // ============================================================================
 Player::Player(Vector2 startPosition, AreaState startState)
     : m_position(startPosition), m_speed(130.0f), m_radius(10.0f),
-      m_areaState(startState) {}
+      m_areaState(startState), m_facingDirection(FacingDirection::DOWN),
+      m_isMoving(false) {}
 
 // ============================================================================
 // Update - Kinematics and Input
@@ -32,6 +33,24 @@ void Player::update(const Maze &maze) {
     velocity.x -= m_speed;
   if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT))
     velocity.x += m_speed;
+
+  // FACING DIRECTION (Edge-Triggered)
+  // IsKeyPressed() fires only on the frame a key is first pressed, so the
+  // facing direction reflects the LAST key the player tapped. This gives
+  // intuitive diagonal behavior: pressing W+D shows "up" if W was pressed
+  // most recently, or "right" if D was.
+  if (IsKeyPressed(KEY_S) || IsKeyPressed(KEY_DOWN))
+    m_facingDirection = FacingDirection::DOWN;
+  if (IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP))
+    m_facingDirection = FacingDirection::UP;
+  if (IsKeyPressed(KEY_A) || IsKeyPressed(KEY_LEFT))
+    m_facingDirection = FacingDirection::LEFT;
+  if (IsKeyPressed(KEY_D) || IsKeyPressed(KEY_RIGHT))
+    m_facingDirection = FacingDirection::RIGHT;
+
+  // Track whether the player is moving this frame (used by PlayerRenderer
+  // to decide whether to animate or show idle frame).
+  m_isMoving = (velocity.x != 0.0f || velocity.y != 0.0f);
 
   // 1.5 DOOR TRANSITIONS (KEY_K and KEY_L)
   int doorIndexToEnter = -1;
@@ -169,14 +188,6 @@ void Player::resolveCollision(const Maze &maze) {
       }
     }
   }
-}
-
-// ============================================================================
-// Render
-// ============================================================================
-void Player::render() const {
-  // Draw the player as a simple red circle
-  DrawCircleV(m_position, m_radius, RED);
 }
 
 // ============================================================================
