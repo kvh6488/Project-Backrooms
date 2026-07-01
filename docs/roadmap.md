@@ -201,7 +201,7 @@ Get Level 1 and Level 2 looking perfect.
 - Screen distortion effects (VHS aesthetic).
 - Audio polish: ambient buzz, flickering lights, distrusting messages, mechanical maze shifting sounds, hallucination triggers, cryptic clues.
 - Micro-animations and visual feedback (damage, pickups, cure spreading).
-- Menu screens (title, death stats, level transition).
+- Menu screens (title, death stats, level transition), finalise full screen and window resizing.
 - General atmosphere: flickering yellow lights, office rooms.
 
 ### Phase 8 — Telemetry & Python Analytics *(Stretch — Days 91–97)*
