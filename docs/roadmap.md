@@ -84,7 +84,7 @@ Generate a maze, render it, and let the player walk through it.
 - **Dynamic 2D Camera** — Camera follows the player through a massively expanded maze grid.
 - **Room vs. Corridor Separation** — Rooms and corridors are strictly separated via pre-spawned doors. This constrains rendering complexity and establishes choke points for gameplay.
 
-### Phase 2 (IN PROGRESS) — Dynamic Maze & Textures *(Days 13–22)*
+### Phase 2 (COMPLETE) — Dynamic Maze & Textures *(Days 13–22)*
 Make the maze visually distinct and physically wrap around.
 - Toroidal wrapping (modulo addressing for "infinite" feel).
 - Maze mutation/regeneration sections.

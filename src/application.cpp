@@ -92,6 +92,10 @@ void Application::run() {
 }
 
 void Application::update() {
+  if (IsKeyPressed(KEY_F11)) {
+    ToggleFullscreen();
+  }
+
   m_player.update(m_maze);
 
   // Convert player pixel position to grid coordinates for the FOV system
@@ -210,6 +214,9 @@ void Application::renderUI() {
 
   ImGui::Separator();
   ImGui::Text("View Settings");
+  if (ImGui::Button(IsWindowFullscreen() ? "Exit Fullscreen (F11)" : "Enter Fullscreen (F11)")) {
+    ToggleFullscreen();
+  }
   ImGui::SliderFloat("Tile Zoom", &m_cameraZoom, 0.5f, 5.0f);
 
   if (ImGui::Button("Regenerate Tic-Tac-Toe Zones")) {
