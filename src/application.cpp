@@ -16,7 +16,16 @@ Application::Application()
   // 1. Initialize Raylib System
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
   InitWindow(m_screenWidth, m_screenHeight, "Project Backrooms");
+  SetWindowMinSize(m_screenWidth, m_screenHeight);
   SetTargetFPS(60);
+
+  // 1.5 Set Window Icon
+  Image iconImage = LoadImage("assets/guard_yellow_spritesheet.png");
+  if (IsImageReady(iconImage)) {
+    ImageCrop(&iconImage, Rectangle{0, 0, 16, 16});
+    SetWindowIcon(iconImage);
+    UnloadImage(iconImage);
+  }
 
   // 2. Initialize ImGui and Textures
   rlImGuiSetup(true);
@@ -100,10 +109,15 @@ void Application::update() {
     m_minimapDirty = false;
   }
 
+  // Scale dynamically based on window size
+  float scale = std::min((float)GetScreenWidth() / m_screenWidth,
+                         (float)GetScreenHeight() / m_screenHeight);
+
   // Camera tracking: round to integer to prevent subpixel tile gaps!
   m_camera.target = {std::round(m_player.getPosition().x),
                      std::round(m_player.getPosition().y)};
-  m_camera.zoom = m_cameraZoom;
+  m_camera.zoom = m_cameraZoom * scale;
+  m_camera.offset = Vector2{(float)GetScreenWidth() / 2.0f, (float)GetScreenHeight() / 2.0f};
 
   // --- Popups Logic ---
   if (m_player.getAreaState() == AreaState::CORRIDOR && !m_hasSeenCorridorPopup) {
@@ -127,48 +141,51 @@ void Application::render() {
   EndMode2D();
 
   // --- Smooth Darkness Overlay (Screen Space) ---
-  // Drawn AFTER EndMode2D so it composites over the world,
-  // but BEFORE UI so the HUD remains readable.
   if (m_flashlightEnabled) {
     m_renderer.renderDarknessOverlay(m_player.getPosition(), m_camera,
                                      m_player.getAreaState(),
                                      m_player.getFacingDirection());
   }
-  // --- Screen Space (UI) ---
+
+  // --- Screen Space (UI Popups) ---
+  float scale = std::min((float)GetScreenWidth() / m_screenWidth,
+                         (float)GetScreenHeight() / m_screenHeight);
+  int screenW = GetScreenWidth();
+  int screenH = GetScreenHeight();
+
   int doorCount = m_player.getAvailableDoors(m_maze);
   if (doorCount == 1) {
     const char *msg = "Press 'K' to use door";
-    int textWidth = MeasureText(msg, 30);
-    DrawText(msg, (m_screenWidth - textWidth) / 2, m_screenHeight - 100, 30,
-             WHITE);
+    int textWidth = MeasureText(msg, 30 * scale);
+    DrawText(msg, (screenW - textWidth) / 2, screenH - (100 * scale), 30 * scale, WHITE);
   } else if (doorCount >= 2) {
     const char *msg = "Press 'K' for door 1, press 'L' for door 2";
-    int textWidth = MeasureText(msg, 30);
-    DrawText(msg, (m_screenWidth - textWidth) / 2, m_screenHeight - 100, 30,
-             WHITE);
+    int textWidth = MeasureText(msg, 30 * scale);
+    DrawText(msg, (screenW - textWidth) / 2, screenH - (100 * scale), 30 * scale, WHITE);
   }
 
   // Draw one-time corridor popup
   if (m_corridorPopupTimer > 0.0f) {
     const char *msg = "Dam it's dark in the corridor";
-    int textWidth = MeasureText(msg, 30);
-    int x = (m_screenWidth - textWidth) / 2;
-    int y = m_screenHeight - 150; // slightly above door interact text
+    int textWidth = MeasureText(msg, 30 * scale);
+    int x = (screenW - textWidth) / 2;
+    int y = screenH - (150 * scale); 
     
-    // Draw a translucent black background for readability
-    DrawRectangle(x - 15, y - 5, textWidth + 30, 40, Fade(BLACK, 0.6f));
-    DrawText(msg, x, y, 30, WHITE);
+    DrawRectangle(x - (15 * scale), y - (5 * scale), textWidth + (30 * scale), 40 * scale, Fade(BLACK, 0.6f));
+    DrawText(msg, x, y, 30 * scale, WHITE);
   }
 
+  // 3. Draw ImGui with matching scale
+  rlImGuiBegin();
+  ImGui::GetIO().FontGlobalScale = scale;
   renderUI();
+  rlImGuiEnd();
 
   EndDrawing();
 }
 
 // TODO: Extract to a separate UIManager class later
 void Application::renderUI() {
-  rlImGuiBegin();
-
   ImGui::Begin("Debug Engine");
   ImGui::Text("FPS: %d", GetFPS());
   ImGui::Separator();
@@ -244,8 +261,6 @@ void Application::renderUI() {
   ImGui::GetWindowDrawList()->AddCircleFilled(playerScreenPos, 3.0f,
                                               IM_COL32(255, 0, 0, 255));
   ImGui::End();
-
-  rlImGuiEnd();
 }
 
 void Application::generateMinimap() {

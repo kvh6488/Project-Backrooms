@@ -1,8 +1,5 @@
 #include "maze.hpp"
-#include "player.hpp"
-#include "raylib.h"
 #include <algorithm>
-#include <cmath>
 #include <queue>
 
 // ============================================================================
@@ -11,12 +8,9 @@
 Maze::Maze(int width, int height, int cellSize, unsigned int seed)
     : m_width(width), m_height(height), m_cellSize(cellSize), m_nonWallCount(0),
       m_corridorCount(0), m_grid(width * height, CELL_WALL),
-      m_visible(width * height, false),
-      m_lightLevel(width * height, 0.0f) {
-}
+      m_visible(width * height, false), m_lightLevel(width * height, 0.0f) {}
 
-Maze::~Maze() {
-}
+Maze::~Maze() {}
 
 // ============================================================================
 // getIndex — The heart of 1D-to-2D Mapping
@@ -93,7 +87,8 @@ void Maze::updateVisibility(int playerX, int playerY, AreaState state) {
           m_visible[nIndex] = true;
           m_lightLevel[nIndex] = 1.0f;
 
-          // Only flood through room tiles (walls become visible but stop the flood)
+          // Only flood through room tiles (walls become visible but stop the
+          // flood)
           if (getCell(nx, ny) == CELL_ROOM) {
             q.push({nx, ny});
           }
@@ -118,9 +113,7 @@ void Maze::updateVisibility(int playerX, int playerY, AreaState state) {
 //   the newly revealed arc.
 //
 
-bool Maze::isVisible(int x, int y) const {
-  return m_visible[getIndex(x, y)];
-}
+bool Maze::isVisible(int x, int y) const { return m_visible[getIndex(x, y)]; }
 
 float Maze::getLightLevel(int x, int y) const {
   return m_lightLevel[getIndex(x, y)];
@@ -193,7 +186,7 @@ bool Maze::isValidDoorPlacement(int x, int y) const {
   int roomNeighbors = 0;
   const int dx[] = {1, -1, 0, 0};
   const int dy[] = {0, 0, 1, -1};
-  
+
   for (int d = 0; d < 4; ++d) {
     int nx = x + dx[d];
     int ny = y + dy[d];
@@ -203,10 +196,13 @@ bool Maze::isValidDoorPlacement(int x, int y) const {
       }
     }
   }
-  // Rule 1: A corridor cannot border > 1 room cell (prevents inner corner doors)
-  if (roomNeighbors > 1) return false;
+  // Rule 1: A corridor cannot border > 1 room cell (prevents inner corner
+  // doors)
+  if (roomNeighbors > 1)
+    return false;
 
-  // Rule 2: A room cell cannot border > 1 corridor cell (prevents adjacent doors)
+  // Rule 2: A room cell cannot border > 1 corridor cell (prevents adjacent
+  // doors)
   for (int d = 0; d < 4; ++d) {
     int nx = x + dx[d];
     int ny = y + dy[d];
@@ -222,7 +218,8 @@ bool Maze::isValidDoorPlacement(int x, int y) const {
             }
           }
         }
-        if (currentCorridorNeighbors >= 1) return false;
+        if (currentCorridorNeighbors >= 1)
+          return false;
       }
     }
   }

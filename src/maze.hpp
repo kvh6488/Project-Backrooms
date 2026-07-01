@@ -1,9 +1,6 @@
-#pragma once // Tells the compiler: only include this file once, even if
-             // multiple files #include it.
-
+#pragma once
 #include <raylib.h>
-#include <vector> // For std::vector (our dynamic 1D array)
-#include <cmath>
+#include <vector>
 
 enum class AreaState { CORRIDOR, ROOM };
 
@@ -66,7 +63,8 @@ public:
   // around the player into 8 octants and recursively scans each row outward.
   // When it encounters a wall, it splits the visible arc and recurses on the
   // remaining visible portion — producing perfect shadow geometry with no
-  // artifacts. See: http://www.roguebasin.com/index.php/FOV_using_recursive_shadowcasting
+  // artifacts. See:
+  // http://www.roguebasin.com/index.php/FOV_using_recursive_shadowcasting
   // ============================================================================
   void updateVisibility(int playerX, int playerY, AreaState state);
 
@@ -98,7 +96,7 @@ public:
   int getCorridorCount() const { return m_corridorCount; }
 
   bool hasDiagonalLeak(int x, int y) const;
-  
+
   // Enforces 1-to-1 Door Isolation Constraint
   bool isValidDoorPlacement(int x, int y) const;
 
