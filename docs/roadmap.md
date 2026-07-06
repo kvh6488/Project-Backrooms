@@ -1,6 +1,6 @@
 # Project Backrooms — Roadmap & Reference
 
-> **Living document** — updated as decisions are made. Last updated: **2026-06-29**.
+> **Living document** — updated as decisions are made. Last updated: **06-07-2026**.
 
 ---
 
@@ -11,14 +11,15 @@ A **2D top-down psychological horror maze game** (visual style similar to *The E
 **Inspired by:**
 - **The Backrooms** (film) — the unsettling, liminal atmosphere of endless, procedurally shifting corridors with flickering yellow lights and no clear exit.
 - **The Maze Runner** — the idea of a hostile, ever-changing maze that must be mapped and conquered to escape, with the environment itself as the primary antagonist.
-- **Plague Inc.** — the radiation/cure territory mechanics, where radiation spreads across a map using population growth modelling and the player must combat it with their own competing system.
+- **Plague Inc. / CoD Zombies** — population growth modelling for radiation spread, combined with wave-based escalating survival where the player must endure an ever-growing threat.
 
-**The core loop:** Spreading **radiation** drives maze chaos — shifting walls, increasing mob spawns, and deepening confusion. The player spreads a **cure** to stabilize the maze, map it, and survive. The game operates on a **psychological horror loop** where the radiation is directly tied to the player's mind and performance: the radiation's strength directly influences the aggressiveness of maze shape-shifts, increases layout confusion, and boosts mob spawn rates. Instead of a static environment, the maze fights back harder the worse you're doing.
+**The core loop:** The primary goal is to survive the increasing waves and difficulty of the maze as days go by, seeing how far you can get before you die. Potentailly spreading **radiation** drives maze chaos — shifting walls, increasing mob spawns, and deepening confusion. The game operates on a **psychological horror loop** where the radiation is directly tied to the player's mind and performance: the radiation's strength directly influences the aggressiveness of maze shape-shifts, increases layout confusion, and boosts mob spawn rates. Instead of a static environment, the maze fights back harder as the days progress. If you die, your entire game resets to the beginning.
 
 **Gameplay pillars:**
 - **Navigation under pressure** — limited visibility, corner-peeking, and player-developed maps. The maze cannot be paused while exploring.
-- **Survival over time** — players must survive as many days as possible, manage mandatory sleep, and balance risk vs. exploration. The ultimate goal is currently being evaluated (escaping vs endless survival loop).
-- **Territory warfare** — the player's "clean" cure competes against the hostile radiation in a real-time BFS territory battle driven by differential equations.
+- **Escalating Survival (Wave-based)** — players must survive increasing waves of mobs and difficulty as days go by. The goal is to see how far you can get.
+- **Harsh Permadeath** — any death results in a complete reset of the run back to Day 0.
+- **Radiation Expansion** — hostile radiation spreads in a real-time BFS expansion driven by differential equations, progressively making the maze more hostile.
 
 **Dual purpose:**
 - **Portfolio piece** (primary) — demonstrate systems engineering, algorithm design, and performance optimization to recruiters/senior engineers.
@@ -97,87 +98,93 @@ Make the maze visually distinct and physically wrap around.
   - Equipping a torch extends corridor visibility distance (implmented in later phase)
 - Possibly resize game window, and gameview to fit screen etc, add temporary application icon.
 
-### Phase 3 — Radiation & BFS Territory *(Days 23–34)*
+### Phase 3 — Radiation & Base Game development *(Days 23–34)*
 The mathematical heart — radiation systems spreading across the grid.
 - **Radiation Sources (Barrels):**
-  - Random barrels (represented by blue-tinted tiles as placeholders) spawn in random rooms across the map.
+  - Random barrels spawn in random rooms across the map.
   - Emit a radiation zone around them (starting at ~15 tiles radius).
   - Radiated tiles turn green, spreading calculated using Breadth-First Search (BFS).
-  - Player can press `o` while nearby to destroy a barrel, causing its radiation zone to dissipate.
 - **Debug & UI:**
   - Add an ImGui toggle to visualize radiation barrels and their BFS spread on the minimap.
 - **Domain Separation:** Standard doors do not block radiation spread (it flows like a fluid through empty corridors and rooms). Players can upgrade doors to block radiation later.
-- Discretised Lotka-Volterra population model (radiation vs. cure).
-- Bidirectional BFS for radiation territory expansion.
-- Radiation meter (time-in-zone accumulator):
-  - Triggers auditory hallucinations, screen distortion, and directly affects the player's visual experience.
-  - Forces the maze to reroute more frequently.
-  - Radiation can physically weaken player, forcing crawl.
+- BFS for radiation territory expansion.
+- Radiation causes lighting flickering.
 - **Radiation Spread rules:**
   - If any part of a room gets radiated, the whole room does.
   - Corridors act as the linking arteries that spread radiation between rooms.
 - **Resource Spawning:**
   - Special items and resources (like Mushrooms) only spawn in radiated rooms.
-- Cure spreader placement and expansion:
-  - Cure acts like expanding BFS safe-zone radar.
-  - Slightly reduces dangers, stops maze from merging.
-  - Permanently fixes cured region on the map.
-- Maze mutation rate linked to radiation level (shifting zone size starts at 14, increases/decreases every night depending on cure vs radiation domination).
+  - Two types of mushrooms (magic and normal)
+- **Inventory System**
+  - Allows player to pick up and hold items, 20 slots in total, 5 active slots.
 
-### Phase 4 — Mobs, Death & Progression *(Days 35–52)*
+- **Magic Mushrooms & Map**
+  - Visual distoation when player eats mushrooms screen fades between colours, and wavy effect applied over screen
+  - Maze regenerates at its shifting zone every minute *even if player is awake*. Need to figure out what happens if player is caught in the shifting zone
+  - Eating magic mushroom allows player to find magic map randomly in maze draws/cabinents (may have to add random funiture spawns here)
+  - Magic Map UI (Could include raidation points and regen zones not sure)
+  - Magic map maybe also only found near spawn, (still rare to find), and is instantly set to show just up to the regen zone square border no further.
+- **Add pens and paper spawns in draw and basic crafting system for classic map spawn now to, shows the maze as it is now for a given rectangle radius when opened, permenatly fixed, at that spot.
+  - **Furniture spawns**: Searching desks, chairs, filing cabinets for raw materials and lore.
+  - **Fundamental materials**: Scrap metal, wires, wood, cloth, chemicals, electronic components.
+  - **Classic Map**: Crafted with pen and paper. Upgradeable (one time only) to increase its range. *Conflict note: May remain a fullscreen overlay (leaving player vulnerable) OR change to a minimap.*
+
+### Phase 4 — Mobs, Death, Progression & Main menu *(Days 35–52)*
+- **Main menu:** Allows player to start game and see stats like longest day surived (no saves)
 - **Death mechanics:**
-  - Low-level hazards (upper depths): kidnap/knock player out, wake up in disorienting new location, day count intact.
-  - High-level hazards (lower depths): harsh permadeath, reset run to Day 0.
-  - *Note: Need to rethink death mechanics!*
-  - Maps and resources can be permanently lost upon death.
-  - Add player damage and death animations here (also need to think about potential player level mechanic)
-- Add player health bar (radiation slows down player heal regen)
+  - Harsh permadeath: If you die from any hazard, the entire game resets to Day 0.
+  - The core loop is built around seeing how far you can get before this inevitable reset.
+  - Add player damage and death animations here (also need to think about potential player level mechanic).
+- Add player health bar (radiation slows down player heal regen), also setup and use ablity/disabilty icon HUD system.
 - Stats screen on death (days survived, % mapped, kill counts).
-- Live stat updates upon successfully finishing a level or dying. *Note: Not sure if there will be game levels anymore...*
-- Escape trigger: cure threshold → complexity reduction → maze stops confusing player → cure crystal radar guides to long hallway exit. *Note: Not sure if the goal will be to escape the maze anymore.*
-- Exploration gate mechanics: early game requires strict 100% maze exploration metric (of the fixed/capped region).
+- Stat summary upon dying. 
+
+- Need to add sleep meachnic here so days can be passed.
+- **Base placement**: Must be placed within a room. Balance entrances/exits (too few = cornered by mobs, too many = hard to defend), if attempted to place in regeneration zone pop up saying "There is something off with room appears" before you are forced to try place again to confirm, base cannot be made in radition zones.
+- **Bed + sleep mechanic**: 
+  - Allows sleeping. Pauses game temporarily (time limit). 
+  - Sleeping produces maze shuffling, in regeneration region. 
+  - Mandatory — failing to sleep causes sluggishness, hallucinations, passing out (lost/respawned).
+- Discretised Lotka-Volterra population model (radiation vs. cure), or for mobs and escalting mob waves.
+
+- **Wave-based Progression:** Days act as a rounds mechanic (CoD zombies style escalating mob counts). Every day it gets harder to survive, so the player must keep upgrading equipment and preparing to survive for as long as possible.
+
 - **Navigation & Ecosystem:**
   - Dijkstra flow-field generation.
   - Mob spawning tied to Lotka-Volterra population caps and variable spawn rates.
   - Scent trail system (per-cell decay value)? - *May remove if too complex.*
   - Mob state machine: idle → patrol → track-scent → chase → attack.
-  - Basic melee combat (hit detection, health, death).
+  - Basic melee combat (hit detection, health, death), will need to add one weapon here to start.
   - List of Deadly mobs (those that attack you), to be determined later; each mob will have unique characteristics and abilities.
   - Flora & fauna ecosystem:
     - Cockroaches, moss, rats.
-    - Mushrooms — infectious reproduction, uniquely spawn only in radiated rooms, useful for special crafting.
     - Potential bird/bat swarms.
     - Simulates a living ecological food chain with territorial fighting/conquering.
 - **Mob Spawning Rules:** Also need to figure out if there will be mobs in corridors. Currently thinking a single jumpscare mob type with bird's eye view textures in corridors, and all other mobs randomly spawn inside rooms.
-- May need to also add basic menu and save mechanisms, for testing, level settings etc.
 
-### Phase 5 — Base Building, Crafting & Full Arsenal *(Days 53–72)*
-- **Furniture spawns**: Searching desks, chairs, filing cabinets for raw materials and lore.
-- **Fundamental materials**: Scrap metal, wires, wood, cloth, chemicals, electronic components.
-- **Base placement**: Must be placed within a room. Balance entrances/exits (too few = cornered by mobs, too many = hard to defend).
-- **Bed + sleep mechanic**: 
-  - Allows sleeping. Pauses game temporarily (time limit). 
-  - Sleeping produces maze shuffling, in regeneration region. 
-  - Mandatory — failing to sleep causes sluggishness, hallucinations, passing out (lost/respawned).
-- **Crafting system**: inventory → recipe → item.
-- Barricades & Door placement (modify BFS cost map).
-- Cure Spreaders (Chemical Dispersers): Alters differential equation variables in a sector, slowing/halting enemy virus spread. Upgradeable. Strategy: few heavily upgraded (large radar, reduced mob spawns) vs. dozens of weak ones (stops merging, easily destroyed).
+**Cure meachnic (may be removed)**
+- Cure spreader placement and expansion:
+  - Cure acts like expanding BFS safe-zone radar.
+  - Slightly reduces dangers like mobs, radtion, and maze shifiting.
+  - Potential chemical lab upgrades to the cure that stop radiation spread, or maze regenration
+- Potential maze regeneration zone size changes (shifting zone size starts at 14, increases/decreases every night depending on cure, radiation, or something else maybe just as the days goes on more of the maze shifts/regenerates each night).
+
+### Phase 5 — Full Arsenal & Crafting  *(Days 53–72)*
+- **Full Crafting system**: inventory → recipe → item, potential crafting table vs no crafting, all required items now have a crafting recipe.
+- Barricades/Door upgrades (modify BFS map and radition spread).
+- Potential Cure Spreaders (Chemical Dispersers): Alters differential equation variables in a sector, slowing/halting enemy spawn and radtion spread. Upgradeable. Strategy: few heavily upgraded (large radar, reduced mob spawns) vs. dozens of weak ones ( easily destroyed).
 - **Weapons & Gear**:
   - Batteries (found or crafted).
   - Torch/Lantern + battery drain
-  - Rope mechanic (physical link, severable by mob attacks).
-  - **Classic Map**: Crafted with pen and paper. Upgradeable (one time only) to increase its range. *Conflict note: May remain a fullscreen overlay (leaving player vulnerable) OR change to a minimap.*
-  - Spray Can (mark walls, invalidated by shifts).
-  - Barricades & Doors (wood, metal, reinforced).
+  - Rope mechanic (physical link, severable by a single mob hit).
   - Melee weapons (Baseball bat, nailed bat, Sword/Machete, Throwing Spear).
   - Armour (increases protection, reduces speed).
   - Tripwire Flashbangs *(May be removed)*.
   - Geiger Counter *(Likely to be removed)*.
-  - Gas Mask / Hazmat Suit (merged item: protects from infection/gases, uses gas mask icon, turns player into gas suit man).
-  - Gases filling rooms *(May be removed)*.
+  - Gas Mask / Hazmat Suit (merged item: protects from infection/gases, uses gas mask icon, turns player into gas suit man, upgradble).
 
 ### Phase 6 — Advanced Mechanics & The Level 2 Descent *(Days 73–85)*
-- **Level Transitions**: Screwdriver required to access Level 2 vents.
+- **Level Transitions**: Screwdriver (found) required to access Level 2 vents.
 - **Level 2 Architecture**:
   - Located underneath the *inner, non-shifting* sections of Level 1.
   - **[TBD] Open Question:** What happens if the virus shifting zone expands inward and swallows a corner vent?
@@ -189,16 +196,15 @@ The mathematical heart — radiation systems spreading across the grid.
   - Night Vision Goggles (fully lights up all sections of corridors; found in L2).
   - Pulsar Radar Gun (tracks base, frontal shield; built using L2 crystals).
   - Glitched VHS Tape (circular ring buffer, O(1) state rewind; found in L2. *Possible mechanic*).
-  - Magic Map (dynamically updates when maze shifts at night; fixed region, rare find, only via LSD).
+  - Potential toxic waste destoyer?
+  - Potential Computer/Computer map - current full debug map, advanced item only at highest level.
 - **Advanced Chemical Lab Crafting**:
   - Speed drug (faster run, paranoid hallucinations / fake mobs).
-  - Magic Mushrooms (maze regenerates at its shifting zone every 1.5 minutes *even if player is awake*. Need to figure out what happens if player is caught in the shifting zone).
   - Parasitic Syringe (crafted from rat + cockroach serum. Injected into friendly dispersers for exponential/faster and wider cure spread. Severe decay rate if unmaintained).
 - **Advanced Systems**:
   - Dog companion (Pitbull vs standard).
-  - Hydroponic farming (moss spreading).
+  - Hydroponic farming (items like moss, mushrooms etc can be farmed so you can resupply easy instead of waitng for spawns).
   - Symbiotic Infection (voluntary mutation for buffs like built-in night vision at the cost of emitting biological hum). *(Potential feature)*.
-  - Rounds mechanic (CoD zombies style escalating mob counts). *(Unsure)*.
 
 > **Archive Note (Old Level 3 Concepts):** 
 > Originally, the game planned a "Level 3" with 6:1 spatial compression (like Minecraft's Nether), heavy darkness, no map/radar reliability, and ropes as the only lifeline. To constrain project scope, Level 3 was scrapped. Its unique items (Night Vision, VHS Tape, Pulsar Crystals) were moved into the Level 2 "lucky dip" rooms, and level 2 rooms changed from narrow vents when player forced to crawl to the new level 2.
@@ -240,11 +246,10 @@ All items organized by category.
 ### Navigation Items
 | Item | Description | Level |
 |---|---|---|
-| Spray Can | Marks walls. Unreliable if maze shifts. | L1 |
 | Torch/Lantern | Light source. Requires batteries. Upgradeable range (starts at circle size 3.5, then can go to 4.5, 6) (potentially blinds mobs - flash bang effect for a few seconds at max level) | L1+ |
 | Classic Map | Crafted with pen & paper. Upgradeable (one time only) to increase its range. May be a fullscreen overlay or a minimap. Unreliable due to maze shifting. | L1 |
-| Magic Map | Dynamically updates to reflect maze changes at night. Rare — only found when on LSD. Fixed region. | L1 (rare) |
-| Infected Map | (Potential) Shows raidation zones on map.
+| Magic Map | Dynamically updates to reflect maze changes at night. Rare — only found when under the effects of Magic Mushrooms. Fixed region. | L1 (rare) |
+| Infected Map | (Potential) Shows radiation zones on map. | L1 |
 | Rope | Physical link between locations. Can be severed by direct mob attacks. | L1+ |
 | Pulsar Radar Gun | Tracks base signals through shifting walls. Pings enemies from afar. Frontal shield. Built using crystals. | L2 (crafted) |
 | Geiger Counter | Passive belt item. Clicks near un-destroyed Radiators. *(Likely to be removed)*. | L1 |
@@ -274,14 +279,15 @@ All items organized by category.
 | Item | Description | Level |
 |---|---|---|
 | Speed | Faster run speed. Mobs slightly faster. Increases paranoid hallucinations (fake mob spawns). | L1 (crafted) |
-| Magic Mushrooms | Maze regenerates at shifting zone every 1.5 mins even if awake. Chance to find magic map. | L1 (crafted) |
+| Magic Mushrooms | Maze regenerates at shifting zone every 1.5 mins even if awake. Required state to find the Magic Map. | L1 (found/farmed) |
 | Parasitic Syringe | Crafted from rat + cockroach serum. Injected into friendly dispersers for exponential/faster and wider cure spread. Severe decay rate if unmaintained. | L1 (crafted) |
+| Potential LSD |
 
 ### Base Structures
 | Item | Description | Level |
 |---|---|---|
 | Bed | Allows sleeping. Pauses game temporarily (time limit). Sleeping produces maze shuffling, in regeneration region. Mandatory — failing to sleep causes sluggishness, hallucinations, passing out (lost/respawned). | L1 (crafted) |
-| Cure Spreaders (Chemical Dispersers) | Alters differential equation variables in a sector, slowing/halting enemy virus spread. Upgradeable. Strategy: few heavily upgraded (large radar, reduced mob spawns) vs. dozens of weak ones (stops merging, easily destroyed). | L1 (crafted) |
+| Cure Spreaders (Chemical Dispersers) | Alters differential equation variables in a sector, slowing/halting radiation spread and enemy spawns. Upgradeable. Strategy: few heavily upgraded (large radar, reduced mob spawns) vs. dozens of weak ones (stops merging, easily destroyed). | L1 (crafted) |
 | Hydroponic Farm | Grows food. Uses moss that spreads like viruses. | L1 (crafted) |
 
 ---
@@ -301,14 +307,14 @@ These are **starting points, not final decisions** — each will be researched a
 | Concept | Approach | Used For |
 |---|---|---|
 | **Hybrid Procedural Generation** | BSP ($O(R \log R)$) for office rooms + Prim's ($O(V \log V)$) for highly-branched spanning tree corridors + Loop Injection + Connected Component Pruning (identifying and stripping dead-end alcoves). | Initial maze layout |
-| **Doorway Node Graphs** | Pre-spawned doors naturally isolate rooms and corridors, allowing systems to abstract the 32x32 cellular grid into a highly optimized, high-level graph of connected sectors rather than individual cells. | Faster pathfinding, localized virus spread |
+| **Doorway Node Graphs** | Pre-spawned doors naturally isolate rooms and corridors, allowing systems to abstract the 32x32 cellular grid into a highly optimized, high-level graph of connected sectors rather than individual cells. | Faster pathfinding, localized radiation spread |
 | **Mathematical Shuffling** | (TBD) Using abstract algebra (Permutation Groups) or discrete number theory (Linear Congruential Generators) to predictably shuffle the Level 2 room order based on the current Day index. | Level 2 room logic |
 
 ### Macro Simulations & Territory
 | Concept | Approach | Used For |
 |---|---|---|
-| **Mathematical Population Modelling** | Discretised system of non-linear Lotka-Volterra (Predator-Prey) differential equations. Calculates global population metrics, growth, decay, and territorial balance every frame. | Virus vs. cure ecosystem balance, mob spawn rates |
-| **Frontier Expansion Search** | Bidirectional Breadth-First Search (BFS) as spatial execution engine. Decoupled Macro/Micro pipeline for deterministic execution under load. Maps intersection boundary of competing forces across 2D grid, modifying local cost-maps. | Virus/cure territory expansion |
+| **Mathematical Population Modelling** | Discretised system of non-linear Lotka-Volterra (Predator-Prey) differential equations. Calculates global population metrics, growth, decay, and territorial balance every frame. | Radiation vs. cure ecosystem balance, mob spawn rates |
+| **Frontier Expansion Search** | Bidirectional Breadth-First Search (BFS) as spatial execution engine. Decoupled Macro/Micro pipeline for deterministic execution under load. Maps intersection boundary of competing forces across 2D grid, modifying local cost-maps. | Radiation/cure territory expansion |
 
 ### Agent Routing & Navigation
 | Concept | Approach | Used For |
