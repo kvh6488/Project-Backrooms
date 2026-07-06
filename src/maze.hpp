@@ -121,6 +121,7 @@ public:
   int getRadiationLevel(int x, int y) const;
   bool hasBarrel(int x, int y) const;
   bool isBarrelNear(int x, int y, int radius = 1) const;
+  const std::vector<RadiationBarrel>& getBarrels() const { return m_barrels; }
 
   // Zone-aware barrel management (used during regeneration)
   int removeBarrelsInZone(int zx, int zy, int zw, int zh);

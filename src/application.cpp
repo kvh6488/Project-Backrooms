@@ -100,10 +100,12 @@ void Application::update() {
   if (IsKeyPressed(KEY_F11)) {
     ToggleFullscreen();
   }
-  
+
   if (IsKeyPressed(KEY_O)) {
-    int px = static_cast<int>(std::floor(m_player.getPosition().x / m_maze.getCellSize()));
-    int py = static_cast<int>(std::floor(m_player.getPosition().y / m_maze.getCellSize()));
+    int px = static_cast<int>(
+        std::floor(m_player.getPosition().x / m_maze.getCellSize()));
+    int py = static_cast<int>(
+        std::floor(m_player.getPosition().y / m_maze.getCellSize()));
     if (m_maze.isBarrelNear(px, py, 1)) {
       m_maze.destroyBarrelNear(px, py, 1);
       m_minimapDirty = true;
@@ -113,8 +115,10 @@ void Application::update() {
   m_player.update(m_maze);
 
   // Convert player pixel position to grid coordinates for the FOV system
-  int playerGridX = static_cast<int>(std::floor(m_player.getPosition().x / m_maze.getCellSize()));
-  int playerGridY = static_cast<int>(std::floor(m_player.getPosition().y / m_maze.getCellSize()));
+  int playerGridX = static_cast<int>(
+      std::floor(m_player.getPosition().x / m_maze.getCellSize()));
+  int playerGridY = static_cast<int>(
+      std::floor(m_player.getPosition().y / m_maze.getCellSize()));
 
   // Compute FOV: rooms use full-lit flood fill.
   // Corridors ignore FOV and render all tiles, masked by the darkness overlay.
@@ -135,16 +139,60 @@ void Application::update() {
   m_camera.target = {std::round(m_player.getPosition().x),
                      std::round(m_player.getPosition().y)};
   m_camera.zoom = m_cameraZoom * scale;
-  m_camera.offset = Vector2{(float)GetScreenWidth() / 2.0f, (float)GetScreenHeight() / 2.0f};
+  m_camera.offset =
+      Vector2{(float)GetScreenWidth() / 2.0f, (float)GetScreenHeight() / 2.0f};
 
   // --- Popups Logic ---
-  if (m_player.getAreaState() == AreaState::CORRIDOR && !m_hasSeenCorridorPopup) {
+  if (m_player.getAreaState() == AreaState::CORRIDOR &&
+      !m_hasSeenCorridorPopup) {
     m_hasSeenCorridorPopup = true;
     m_corridorPopupTimer = 4.0f; // Show for 4 seconds
   }
 
   if (m_corridorPopupTimer > 0.0f) {
     m_corridorPopupTimer -= GetFrameTime();
+  }
+
+  if (m_maze.getRadiationLevel(playerGridX, playerGridY) > 0 && !m_hasSeenRadiationPopup) {
+    m_hasSeenRadiationPopup = true;
+    m_radiationPopupTimer = 3.0f; // Show for 3 seconds
+  }
+
+  if (m_radiationPopupTimer > 0.0f) {
+    m_radiationPopupTimer -= GetFrameTime();
+  }
+
+  // --- Radiation Flicker Logic ---
+  if (m_maze.getRadiationLevel(playerGridX, playerGridY) > 0) {
+    m_radiationFlickerTimer += GetFrameTime();
+    if (m_radiationFlickerTimer > m_radiationNextFlickerTime) {
+      float flickerDuration = 2.0f;
+      float t = m_radiationFlickerTimer - m_radiationNextFlickerTime;
+      if (t < flickerDuration) {
+        float envelope = sinf((t / flickerDuration) * PI);
+        float jitter = ((float)GetRandomValue(0, 100) / 100.0f) * 0.4f;
+        m_radiationDarknessAlpha = envelope * 0.7f + jitter * envelope;
+        if (m_radiationDarknessAlpha > 0.98f)
+          m_radiationDarknessAlpha = 0.98f;
+        if (m_radiationDarknessAlpha < 0.0f)
+          m_radiationDarknessAlpha = 0.0f;
+      } else {
+        m_radiationDarknessAlpha = 0.0f;
+        m_radiationFlickerTimer = 0.0f;
+        m_radiationNextFlickerTime = (float)GetRandomValue(350, 550) / 100.0f;
+      }
+    } else {
+      m_radiationDarknessAlpha = 0.0f;
+    }
+  } else {
+    // Fade out quickly if not radiated
+    if (m_radiationDarknessAlpha > 0.0f) {
+      m_radiationDarknessAlpha -= GetFrameTime() * 2.0f;
+      if (m_radiationDarknessAlpha < 0.0f)
+        m_radiationDarknessAlpha = 0.0f;
+    }
+    m_radiationFlickerTimer = 0.0f;
+    m_radiationNextFlickerTime = (float)GetRandomValue(350, 550) / 100.0f;
   }
 }
 
@@ -154,7 +202,8 @@ void Application::render() {
 
   // --- World Space ---
   BeginMode2D(m_camera);
-  m_renderer.render(m_maze, m_camera, m_player.getAreaState(), m_showGenerationZones);
+  m_renderer.render(m_maze, m_camera, m_player.getAreaState(),
+                    m_showGenerationZones);
   m_playerRenderer.render(m_player);
   EndMode2D();
 
@@ -163,6 +212,12 @@ void Application::render() {
     m_renderer.renderDarknessOverlay(m_player.getPosition(), m_camera,
                                      m_player.getAreaState(),
                                      m_player.getFacingDirection());
+  }
+
+  // --- Radiation Darkness Overlay ---
+  if (m_radiationDarknessAlpha > 0.0f) {
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
+                  Fade(BLACK, m_radiationDarknessAlpha));
   }
 
   // --- Screen Space (UI Popups) ---
@@ -175,11 +230,13 @@ void Application::render() {
   if (doorCount == 1) {
     const char *msg = "Press 'K' to use door";
     int textWidth = MeasureText(msg, 30 * scale);
-    DrawText(msg, (screenW - textWidth) / 2, screenH - (100 * scale), 30 * scale, WHITE);
+    DrawText(msg, (screenW - textWidth) / 2, screenH - (100 * scale),
+             30 * scale, WHITE);
   } else if (doorCount >= 2) {
     const char *msg = "Press 'K' for door 1, press 'L' for door 2";
     int textWidth = MeasureText(msg, 30 * scale);
-    DrawText(msg, (screenW - textWidth) / 2, screenH - (100 * scale), 30 * scale, WHITE);
+    DrawText(msg, (screenW - textWidth) / 2, screenH - (100 * scale),
+             30 * scale, WHITE);
   }
 
   // Draw one-time corridor popup
@@ -187,22 +244,44 @@ void Application::render() {
     const char *msg = "Dam it's dark in the corridor";
     int textWidth = MeasureText(msg, 30 * scale);
     int x = (screenW - textWidth) / 2;
-    int y = screenH - (150 * scale); 
-    
-    DrawRectangle(x - (15 * scale), y - (5 * scale), textWidth + (30 * scale), 40 * scale, Fade(BLACK, 0.6f));
+    int y = screenH - (150 * scale);
+
+    DrawRectangle(x - (15 * scale), y - (5 * scale), textWidth + (30 * scale),
+                  40 * scale, Fade(BLACK, 0.6f));
     DrawText(msg, x, y, 30 * scale, WHITE);
   }
 
+  // Draw radiation zone popup
+  if (m_radiationPopupTimer > 0.0f) {
+    const char *msg = "Radiation!";
+    int textWidth = MeasureText(msg, 60 * scale);
+    int x = (screenW - textWidth) / 2;
+    int y = screenH / 8; // Closer to the top of the screen
+    
+    float alpha = 1.0f;
+    if (m_radiationPopupTimer < 1.0f) {
+      alpha = m_radiationPopupTimer; // Fade out over the last second
+    }
+
+    // Shadow
+    DrawText(msg, x + 2*scale, y + 2*scale, 60 * scale, Fade(BLACK, alpha * 0.7f));
+    // Text
+    DrawText(msg, x, y, 60 * scale, Fade(GREEN, alpha));
+  }
+
   // Draw radiation barrel interact popup
-  int px = static_cast<int>(std::floor(m_player.getPosition().x / m_maze.getCellSize()));
-  int py = static_cast<int>(std::floor(m_player.getPosition().y / m_maze.getCellSize()));
+  int px = static_cast<int>(
+      std::floor(m_player.getPosition().x / m_maze.getCellSize()));
+  int py = static_cast<int>(
+      std::floor(m_player.getPosition().y / m_maze.getCellSize()));
   if (m_maze.isBarrelNear(px, py, 1)) {
     const char *msg = "Press 'O' to destroy radiation barrel";
     int textWidth = MeasureText(msg, 30 * scale);
     int x = (screenW - textWidth) / 2;
-    int y = screenH - (200 * scale); 
-    
-    DrawRectangle(x - (15 * scale), y - (5 * scale), textWidth + (30 * scale), 40 * scale, Fade(BLACK, 0.6f));
+    int y = screenH - (200 * scale);
+
+    DrawRectangle(x - (15 * scale), y - (5 * scale), textWidth + (30 * scale),
+                  40 * scale, Fade(BLACK, 0.6f));
     DrawText(msg, x, y, 30 * scale, GREEN);
   }
 
@@ -244,7 +323,8 @@ void Application::renderUI() {
 
   ImGui::Separator();
   ImGui::Text("View Settings");
-  if (ImGui::Button(IsWindowFullscreen() ? "Exit Fullscreen (F11)" : "Enter Fullscreen (F11)")) {
+  if (ImGui::Button(IsWindowFullscreen() ? "Exit Fullscreen (F11)"
+                                         : "Enter Fullscreen (F11)")) {
     ToggleFullscreen();
   }
   ImGui::SliderFloat("Tile Zoom", &m_cameraZoom, 0.5f, 5.0f);
@@ -256,12 +336,17 @@ void Application::renderUI() {
   ImGui::Separator();
   ImGui::Text("Flashlight Tweaks");
   bool lightSettingsChanged = false;
-  if (ImGui::SliderFloat("Degree Cut", &m_lightConeAngle, 90.0f, 360.0f)) lightSettingsChanged = true;
-  if (ImGui::SliderFloat("Circle Size", &m_lightSizeScale, 1.0f, 6.0f)) lightSettingsChanged = true;
-  if (ImGui::SliderFloat("Angular Fade Strength", &m_lightFadeStrength, 0.1f, 10.0f)) lightSettingsChanged = true;
+  if (ImGui::SliderFloat("Degree Cut", &m_lightConeAngle, 90.0f, 360.0f))
+    lightSettingsChanged = true;
+  if (ImGui::SliderFloat("Circle Size", &m_lightSizeScale, 1.0f, 6.0f))
+    lightSettingsChanged = true;
+  if (ImGui::SliderFloat("Angular Fade Strength", &m_lightFadeStrength, 0.1f,
+                         10.0f))
+    lightSettingsChanged = true;
 
   if (lightSettingsChanged) {
-    m_renderer.updateLightSettings(m_lightConeAngle, m_lightFadeStrength, m_lightSizeScale);
+    m_renderer.updateLightSettings(m_lightConeAngle, m_lightFadeStrength,
+                                   m_lightSizeScale);
   }
 
   ImGui::Separator();
@@ -308,9 +393,7 @@ void Application::generateMinimap() {
       if (m_maze.getCell(x, y) == Maze::CELL_WALL) {
         DrawPixel(x, y, Color{100, 100, 100, 255});
       } else {
-        if (m_showRadiationOnMinimap && m_maze.hasBarrel(x, y)) {
-          DrawPixel(x, y, BLUE);
-        } else if (m_showRadiationOnMinimap && m_maze.getRadiationLevel(x, y) > 0) {
+        if (m_showRadiationOnMinimap && m_maze.getRadiationLevel(x, y) > 0) {
           DrawPixel(x, y, Color{0, 255, 0, 255});
         } else if (m_showGenerationZones && m_maze.isShiftingZone(x, y)) {
           DrawPixel(x, y, Color{255, 100, 100, 255});
@@ -320,6 +403,14 @@ void Application::generateMinimap() {
       }
     }
   }
+
+  // Draw barrels on top of the terrain so they are highly visible
+  if (m_showRadiationOnMinimap) {
+    for (const auto &barrel : m_maze.getBarrels()) {
+      DrawRectangle(barrel.x - 1, barrel.y - 1, 3, 3, BLUE);
+    }
+  }
+
   EndTextureMode();
 }
 

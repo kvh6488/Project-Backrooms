@@ -38,6 +38,8 @@ private:
   Texture2D m_floorTileset;
   Texture2D m_wallTileset;
   Texture2D m_propTileset;
+  Texture2D m_postApocWorkshopTextures;
+  Texture2D m_doodadsTexture;
 
   // --- Darkness Overlay ---
   // A pre-generated radial gradient texture: white at center, fading to

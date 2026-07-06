@@ -131,6 +131,7 @@ The mathematical heart — radiation systems spreading across the grid.
   - *Note: Need to rethink death mechanics!*
   - Maps and resources can be permanently lost upon death.
   - Add player damage and death animations here (also need to think about potential player level mechanic)
+- Add player health bar (radiation slows down player heal regen)
 - Stats screen on death (days survived, % mapped, kill counts).
 - Live stat updates upon successfully finishing a level or dying. *Note: Not sure if there will be game levels anymore...*
 - Escape trigger: cure threshold → complexity reduction → maze stops confusing player → cure crystal radar guides to long hallway exit. *Note: Not sure if the goal will be to escape the maze anymore.*
@@ -243,6 +244,7 @@ All items organized by category.
 | Torch/Lantern | Light source. Requires batteries. Upgradeable range (starts at circle size 3.5, then can go to 4.5, 6) (potentially blinds mobs - flash bang effect for a few seconds at max level) | L1+ |
 | Classic Map | Crafted with pen & paper. Upgradeable (one time only) to increase its range. May be a fullscreen overlay or a minimap. Unreliable due to maze shifting. | L1 |
 | Magic Map | Dynamically updates to reflect maze changes at night. Rare — only found when on LSD. Fixed region. | L1 (rare) |
+| Infected Map | (Potential) Shows raidation zones on map.
 | Rope | Physical link between locations. Can be severed by direct mob attacks. | L1+ |
 | Pulsar Radar Gun | Tracks base signals through shifting walls. Pings enemies from afar. Frontal shield. Built using crystals. | L2 (crafted) |
 | Geiger Counter | Passive belt item. Clicks near un-destroyed Radiators. *(Likely to be removed)*. | L1 |

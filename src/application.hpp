@@ -47,6 +47,14 @@ private:
   // --- Popups ---
   bool m_hasSeenCorridorPopup = false;
   float m_corridorPopupTimer = 0.0f;
+  
+  bool m_hasSeenRadiationPopup = false;
+  float m_radiationPopupTimer = 0.0f;
+
+  // --- Radiation Flicker ---
+  float m_radiationFlickerTimer = 0.0f;
+  float m_radiationNextFlickerTime = 4.0f;
+  float m_radiationDarknessAlpha = 0.0f;
 
   // --- Debug / Toggles ---
   bool m_flashlightEnabled = true;

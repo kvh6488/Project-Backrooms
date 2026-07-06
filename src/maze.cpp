@@ -308,13 +308,13 @@ void Maze::calculateRadiationZones() {
     }
   }
 
-  // Post-pass: Update the isRadiated flag on all Room structs
-  // This provides an easy check for specialised spawns/items.
+  // Post-pass: If ANY tile in a room is radiated, mark the ENTIRE room as
+  // radiated. This fixes the edge case where BFS enters a room at max depth
+  // and can't spread further (even at cost 0) due to the depth cap.
   for (auto& room : m_rooms) {
     room.isRadiated = false;
-    for (int ry = room.y; ry < room.y + room.height; ++ry) {
-      for (int rx = room.x; rx < room.x + room.width; ++rx) {
-        // Toroidal coordinates
+    for (int ry = room.y; ry < room.y + room.height && !room.isRadiated; ++ry) {
+      for (int rx = room.x; rx < room.x + room.width && !room.isRadiated; ++rx) {
         int mx = rx % m_width;
         if (mx < 0) mx += m_width;
         int my = ry % m_height;
@@ -323,10 +323,25 @@ void Maze::calculateRadiationZones() {
         int idx = getIndex(mx, my);
         if (m_grid[idx] == CELL_ROOM && m_radiationMap[idx] > 0) {
           room.isRadiated = true;
-          break; // One radiated tile means the whole room is radiated
         }
       }
-      if (room.isRadiated) break;
+    }
+
+    // If the room is radiated, paint every CELL_ROOM tile in the radiation map
+    if (room.isRadiated) {
+      for (int ry = room.y; ry < room.y + room.height; ++ry) {
+        for (int rx = room.x; rx < room.x + room.width; ++rx) {
+          int mx = rx % m_width;
+          if (mx < 0) mx += m_width;
+          int my = ry % m_height;
+          if (my < 0) my += m_height;
+          
+          int idx = getIndex(mx, my);
+          if (m_grid[idx] == CELL_ROOM) {
+            m_radiationMap[idx] = 1;
+          }
+        }
+      }
     }
   }
 }
