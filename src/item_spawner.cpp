@@ -95,7 +95,8 @@ void ItemSpawner::spawnBarrels(Maze &maze, int count, int boundsX, int boundsY,
 // ============================================================================
 // spawnMushroomClump — Spreads a clump of mushrooms from a starting cell
 // ============================================================================
-int ItemSpawner::spawnMushroomClump(Maze &maze, int startX, int startY, ItemType type) {
+int ItemSpawner::spawnMushroomClump(Maze &maze, int startX, int startY,
+                                    ItemType type) {
   std::uniform_int_distribution<int> sizeDist(2, 5);
   int targetSize = sizeDist(m_rng);
   int placed = 0;
@@ -116,11 +117,11 @@ int ItemSpawner::spawnMushroomClump(Maze &maze, int startX, int startY, ItemType
 
     // Verify it is still valid: must be a radiated room cell with no item,
     // and must not be right in front of a door (corridor).
-    bool isValidRad = (type == ItemType::MAGIC_MUSHROOM) ? (maze.getRadiationLevel(cx, cy) > 0)
-                                                         : (maze.getRadiationLevel(cx, cy) == 0);
+    bool isValidRad = (type == ItemType::MAGIC_MUSHROOM)
+                          ? (maze.getRadiationLevel(cx, cy) > 0)
+                          : (maze.getRadiationLevel(cx, cy) == 0);
     if (maze.getCell(cx, cy) == Maze::CELL_ROOM &&
-        maze.getItem(cx, cy) == ItemType::NONE &&
-        isValidRad &&
+        maze.getItem(cx, cy) == ItemType::NONE && isValidRad &&
         !isNearCorridor(maze, cx, cy)) {
 
       // Place the mushroom
@@ -146,8 +147,9 @@ int ItemSpawner::spawnMushroomClump(Maze &maze, int startX, int startY, ItemType
 // ============================================================================
 // spawnMushrooms — Places mushroom clumps in room corners
 // ============================================================================
-void ItemSpawner::spawnMushrooms(Maze &maze, ItemType type, int target, int boundsX,
-                                 int boundsY, int boundsW, int boundsH) {
+void ItemSpawner::spawnMushrooms(Maze &maze, ItemType type, int target,
+                                 int boundsX, int boundsY, int boundsW,
+                                 int boundsH) {
   if (boundsW == -1)
     boundsW = maze.getWidth();
   if (boundsH == -1)
@@ -163,12 +165,12 @@ void ItemSpawner::spawnMushrooms(Maze &maze, ItemType type, int target, int boun
     std::vector<std::pair<int, int>> validCorners;
     for (int y = boundsY; y < boundsY + boundsH; ++y) {
       for (int x = boundsX; x < boundsX + boundsW; ++x) {
-        bool isValidRad = (type == ItemType::MAGIC_MUSHROOM) ? (maze.getRadiationLevel(x, y) > 0)
-                                                             : (maze.getRadiationLevel(x, y) == 0);
+        bool isValidRad = (type == ItemType::MAGIC_MUSHROOM)
+                              ? (maze.getRadiationLevel(x, y) > 0)
+                              : (maze.getRadiationLevel(x, y) == 0);
         if (maze.getCell(x, y) == Maze::CELL_ROOM &&
-            maze.getItem(x, y) == ItemType::NONE &&
-            isValidRad && isRoomCorner(maze, x, y) &&
-            !isNearCorridor(maze, x, y)) {
+            maze.getItem(x, y) == ItemType::NONE && isValidRad &&
+            isRoomCorner(maze, x, y) && !isNearCorridor(maze, x, y)) {
           validCorners.push_back({x, y});
         }
       }
@@ -191,12 +193,12 @@ void ItemSpawner::spawnMushrooms(Maze &maze, ItemType type, int target, int boun
   else {
     for (int y = boundsY; y < boundsY + boundsH; ++y) {
       for (int x = boundsX; x < boundsX + boundsW; ++x) {
-        bool isValidRad = (type == ItemType::MAGIC_MUSHROOM) ? (maze.getRadiationLevel(x, y) > 0)
-                                                             : (maze.getRadiationLevel(x, y) == 0);
+        bool isValidRad = (type == ItemType::MAGIC_MUSHROOM)
+                              ? (maze.getRadiationLevel(x, y) > 0)
+                              : (maze.getRadiationLevel(x, y) == 0);
         if (maze.getCell(x, y) == Maze::CELL_ROOM &&
-            maze.getItem(x, y) == ItemType::NONE &&
-            isValidRad && isRoomCorner(maze, x, y) &&
-            !isNearCorridor(maze, x, y)) {
+            maze.getItem(x, y) == ItemType::NONE && isValidRad &&
+            isRoomCorner(maze, x, y) && !isNearCorridor(maze, x, y)) {
 
           if (chance(m_rng) < 0.03f) {
             totalPlaced += spawnMushroomClump(maze, x, y, type);
@@ -251,10 +253,12 @@ void ItemSpawner::respawnItems(Maze &maze,
       spawnBarrels(maze, count, zoneX, zoneY, zoneW, zoneH);
       break;
     case ItemType::MUSHROOM:
-      spawnMushrooms(maze, ItemType::MUSHROOM, count, zoneX, zoneY, zoneW, zoneH);
+      spawnMushrooms(maze, ItemType::MUSHROOM, count, zoneX, zoneY, zoneW,
+                     zoneH);
       break;
     case ItemType::MAGIC_MUSHROOM:
-      spawnMushrooms(maze, ItemType::MAGIC_MUSHROOM, count, zoneX, zoneY, zoneW, zoneH);
+      spawnMushrooms(maze, ItemType::MAGIC_MUSHROOM, count, zoneX, zoneY, zoneW,
+                     zoneH);
       break;
     default:
       break;

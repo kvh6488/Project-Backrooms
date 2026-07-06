@@ -25,6 +25,7 @@ private:
   void update();
   void render();
   void renderUI(); // TODO: Extract to a separate UIManager class later
+  void renderInventory();
 
   // --- Helper Methods ---
   void generateMinimap();
@@ -49,6 +50,13 @@ private:
   bool m_minimapDirty;
   
   // UI / Popups
+  bool m_inventoryOpen = false;
+  int m_heldSlotIndex = -1; // -1 if no item is held
+  
+  // Hotbar & Dropping
+  int m_activeHotbarSlot = 0;
+  bool m_isDroppingItem = false;
+  
   float m_popupTimer = 0.0f;
   std::string m_popupText = "";
 

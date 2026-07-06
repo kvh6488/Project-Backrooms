@@ -518,3 +518,25 @@ void MazeRenderer::renderDarknessOverlay(Vector2 playerWorldPos,
 
   EndBlendMode();
 }
+
+void MazeRenderer::renderItemUI(ItemType type, Rectangle destRect, Color tint) const {
+  switch (type) {
+    case ItemType::MUSHROOM:
+    case ItemType::MAGIC_MUSHROOM: {
+      Rectangle sourceRect = {
+          (type == ItemType::MUSHROOM) ? 16.0f : 0.0f,
+          (type == ItemType::MUSHROOM) ? 0.0f : 32.0f,
+          16.0f, 16.0f
+      };
+      DrawTexturePro(m_mushroomTexture, sourceRect, destRect, {0, 0}, 0.0f, tint);
+      break;
+    }
+    case ItemType::BARREL: {
+      DrawRectangleRec(destRect, GREEN);
+      break;
+    }
+    default:
+      DrawRectangleRec(destRect, tint);
+      break;
+  }
+}

@@ -2,6 +2,7 @@
 
 #include "maze.hpp"
 #include "raylib.h"
+#include <array>
 
 // ============================================================================
 // FacingDirection Enum
@@ -24,6 +25,14 @@ enum class FacingDirection {
 // against the Maze's grid cells.
 // ============================================================================
 
+// ============================================================================
+// Inventory System
+// ============================================================================
+struct InventorySlot {
+  ItemType type = ItemType::NONE;
+  int count = 0;
+};
+
 
 class Player {
 public:
@@ -35,7 +44,7 @@ public:
   // --- Core Methods ---
 
   // Updates player logic every frame (Input -> Kinematics -> Collision)
-  void update(const Maze &maze);
+  void update(Maze &maze);
 
   // Getters
   Vector2 getPosition() const { return m_position; }
@@ -47,7 +56,16 @@ public:
   // Get the number of available doors near the player
   int getAvailableDoors(const Maze& maze) const;
 
+  // --- Inventory System ---
+  void pickupItem(Maze &maze);
+  void dropItem(Maze &maze, int slotIndex);
+  void destroyItem(int slotIndex);
+  void swapSlots(int slotIndex1, int slotIndex2);
+  const std::array<InventorySlot, 20>& getInventory() const { return m_inventory; }
+
 private:
+  std::array<InventorySlot, 20> m_inventory;
+
   Vector2 m_position; // Center of the player in world space (pixels)
   float m_speed;      // Movement speed in pixels per second
   float m_radius;     // Size of the player for the Circle Hitbox

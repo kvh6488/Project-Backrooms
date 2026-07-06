@@ -443,3 +443,52 @@ bool Maze::isBarrelNear(int x, int y, int radius) const {
   }
   return false;
 }
+
+// ============================================================================
+// PHASE 5: INVENTORY SYSTEM
+// ============================================================================
+
+bool Maze::isPickupable(ItemType type) {
+  return type == ItemType::MUSHROOM || type == ItemType::MAGIC_MUSHROOM;
+}
+
+bool Maze::findNearestEmptyItemCell(int startX, int startY, int maxRadius, int& outX, int& outY) const {
+  struct BFSNode { int x, y, depth; };
+  std::deque<BFSNode> q;
+  std::vector<bool> visited(m_width * m_height, false);
+
+  q.push_back({startX, startY, 0});
+  visited[getIndex(startX, startY)] = true;
+
+  const int dx[] = {0, 1, -1, 0, 0};
+  const int dy[] = {0, 0, 0, 1, -1};
+
+  while (!q.empty()) {
+    auto node = q.front();
+    q.pop_front();
+
+    if (node.depth > maxRadius) continue;
+
+    int cellType = getCell(node.x, node.y);
+    if ((cellType == CELL_ROOM || cellType == CELL_CORRIDOR) && getItem(node.x, node.y) == ItemType::NONE) {
+      outX = node.x;
+      outY = node.y;
+      return true;
+    }
+
+    for (int i = 1; i < 5; ++i) {
+      int nx = (node.x + dx[i]) % m_width;
+      if (nx < 0) nx += m_width;
+      int ny = (node.y + dy[i]) % m_height;
+      if (ny < 0) ny += m_height;
+
+      int idx = getIndex(nx, ny);
+      if (!visited[idx]) {
+        visited[idx] = true;
+        q.push_back({nx, ny, node.depth + 1});
+      }
+    }
+  }
+  return false;
+}
+

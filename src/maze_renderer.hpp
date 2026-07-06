@@ -6,7 +6,7 @@
 // MazeRenderer Class
 // ============================================================================
 // Responsible for drawing the Maze to the screen using Raylib.
-// This implements the Strategy Pattern by separating the presentation logic 
+// This implements the Strategy Pattern by separating the presentation logic
 // from the core data structure (Maze).
 //
 // The darkness overlay system uses a pre-generated radial gradient texture
@@ -32,7 +32,11 @@ public:
                              AreaState state, FacingDirection dir);
 
   // Updates flashlight parameters dynamically. Regenerates gradient if needed.
-  void updateLightSettings(float coneAngle, float fadeStrength, float sizeScale);
+  void updateLightSettings(float coneAngle, float fadeStrength,
+                           float sizeScale);
+
+  // Draws an item icon for the UI
+  void renderItemUI(ItemType type, Rectangle destRect, Color tint = WHITE) const;
 
 private:
   Texture2D m_floorTileset;
@@ -46,7 +50,7 @@ private:
   // A pre-generated radial gradient texture: white at center, fading to
   // transparent at edges. Used as a "stamp" in the light mask.
   Texture2D m_lightGradient;
-  
+
   float m_lightConeAngle = 235.0f;
   float m_lightFadeStrength = 2.0f;
   float m_lightSizeScale = 3.125f;
@@ -56,7 +60,8 @@ private:
   //   1. Clear this to BLACK (total darkness)
   //   2. Draw the gradient circle onto it (white = lit area)
   //   3. Multiply this mask onto the main framebuffer
-  // This avoids the ordering bug of drawing black directly onto the framebuffer.
+  // This avoids the ordering bug of drawing black directly onto the
+  // framebuffer.
   RenderTexture2D m_lightMask;
   bool m_lightMaskReady;
 

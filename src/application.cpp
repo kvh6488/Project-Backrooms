@@ -10,10 +10,9 @@
 #include <iostream>
 
 Application::Application()
-    : m_seed(std::time(nullptr)), m_rng(m_seed),
-      m_maze(250, 150, 32, m_seed),
-      m_player(Vector2{0, 0}, AreaState::ROOM),
-      m_itemSpawner(m_rng), m_minimapDirty(false) {
+    : m_seed(std::time(nullptr)), m_rng(m_seed), m_maze(250, 150, 32, m_seed),
+      m_player(Vector2{0, 0}, AreaState::ROOM), m_itemSpawner(m_rng),
+      m_minimapDirty(false) {
 
   // 1. Initialize Raylib System
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -111,20 +110,57 @@ void Application::update() {
     }
   }
 
-  // --- Pickup Interaction ---
-  if (IsKeyPressed(KEY_P)) {
-    int px = static_cast<int>(std::floor(m_player.getPosition().x / m_maze.getCellSize()));
-    int py = static_cast<int>(std::floor(m_player.getPosition().y / m_maze.getCellSize()));
-    
-    bool pickedUp = false;
-    for (int y = py - 1; y <= py + 1 && !pickedUp; ++y) {
-      for (int x = px - 1; x <= px + 1 && !pickedUp; ++x) {
-        ItemType type = m_maze.getItem(x, y);
-        if (type == ItemType::MUSHROOM || type == ItemType::MAGIC_MUSHROOM) {
-          m_maze.setItem(x, y, ItemType::NONE);
-          m_popupText = (type == ItemType::MAGIC_MUSHROOM) ? "Picked up Magic Mushroom!" : "Picked up Mushroom!";
-          m_popupTimer = 3.0f;
-          pickedUp = true;
+  // --- Inventory Toggle ---
+  if (IsKeyPressed(KEY_I)) {
+    m_inventoryOpen = !m_inventoryOpen;
+    if (!m_inventoryOpen) {
+      // If closed while holding an item, put it back
+      m_heldSlotIndex = -1;
+    }
+  }
+
+  // --- Hotbar Selection ---
+  if (IsKeyPressed(KEY_ONE))
+    m_activeHotbarSlot = 0;
+  if (IsKeyPressed(KEY_TWO))
+    m_activeHotbarSlot = 1;
+  if (IsKeyPressed(KEY_THREE))
+    m_activeHotbarSlot = 2;
+  if (IsKeyPressed(KEY_FOUR))
+    m_activeHotbarSlot = 3;
+  if (IsKeyPressed(KEY_FIVE))
+    m_activeHotbarSlot = 4;
+
+  // --- Drop Item Mode ---
+  if (IsKeyPressed(KEY_Q)) {
+    if (m_isDroppingItem) {
+      m_isDroppingItem = false;
+    } else {
+      if (m_player.getInventory()[m_activeHotbarSlot].type != ItemType::NONE) {
+        m_isDroppingItem = true;
+      }
+    }
+  }
+
+  // --- Click to Drop ---
+  if (m_isDroppingItem && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+    Vector2 mouseWorld = GetScreenToWorld2D(GetMousePosition(), m_camera);
+    int gridX =
+        static_cast<int>(std::floor(mouseWorld.x / m_maze.getCellSize()));
+    int gridY =
+        static_cast<int>(std::floor(mouseWorld.y / m_maze.getCellSize()));
+
+    if (m_maze.getItem(gridX, gridY) == ItemType::NONE) {
+      int cellType = m_maze.getCell(gridX, gridY);
+      if (cellType == Maze::CELL_ROOM || cellType == Maze::CELL_CORRIDOR) {
+        if (m_maze.isVisible(gridX, gridY)) {
+          m_maze.setItem(gridX, gridY,
+                         m_player.getInventory()[m_activeHotbarSlot].type);
+          m_player.destroyItem(m_activeHotbarSlot);
+          m_isDroppingItem = false;
+        } else {
+          m_popupText = "Cannot place there!";
+          m_popupTimer = 2.0f;
         }
       }
     }
@@ -253,12 +289,12 @@ void Application::render() {
   if (doorCount == 1) {
     const char *msg = "Press 'K' to use door";
     int textWidth = MeasureText(msg, 30 * scale);
-    DrawText(msg, (screenW - textWidth) / 2, screenH - (100 * scale),
+    DrawText(msg, (screenW - textWidth) / 2, screenH - (115 * scale),
              30 * scale, WHITE);
   } else if (doorCount >= 2) {
     const char *msg = "Press 'K' for door 1, press 'L' for door 2";
     int textWidth = MeasureText(msg, 30 * scale);
-    DrawText(msg, (screenW - textWidth) / 2, screenH - (100 * scale),
+    DrawText(msg, (screenW - textWidth) / 2, screenH - (115 * scale),
              30 * scale, WHITE);
   }
 
@@ -267,11 +303,12 @@ void Application::render() {
     const char *msg = "Dam it's dark in the corridor";
     int textWidth = MeasureText(msg, 30 * scale);
     int x = (screenW - textWidth) / 2;
-    int y = screenH - (150 * scale);
+    int y = screenH - (147 * scale);
 
     DrawRectangle(x - (15 * scale), y - (5 * scale), textWidth + (30 * scale),
                   40 * scale, Fade(BLACK, 0.6f));
-    DrawText(msg, x, y, 30 * scale, Fade(WHITE, std::min(1.0f, m_corridorPopupTimer)));
+    DrawText(msg, x, y, 30 * scale,
+             Fade(WHITE, std::min(1.0f, m_corridorPopupTimer)));
   }
 
   // Draw pickup popup
@@ -279,7 +316,20 @@ void Application::render() {
     int textWidth = MeasureText(m_popupText.c_str(), 30 * scale);
     int x = (screenW - textWidth) / 2;
     int y = screenH - (150 * scale); // Display slightly above hotbar/bottom
-    DrawText(m_popupText.c_str(), x, y, 30 * scale, Fade(WHITE, std::min(1.0f, m_popupTimer)));
+    DrawText(m_popupText.c_str(), x, y, 30 * scale,
+             Fade(WHITE, std::min(1.0f, m_popupTimer)));
+  }
+
+  // Draw drop prompt
+  if (m_isDroppingItem) {
+    const char *msg = "Select location to place (Q to cancel)";
+    int textWidth = MeasureText(msg, 30 * scale);
+    int x = (screenW - textWidth) / 2;
+    int y = screenH - (190 * scale);
+
+    DrawRectangle(x - (15 * scale), y - (5 * scale), textWidth + (30 * scale),
+                  40 * scale, Fade(BLACK, 0.6f));
+    DrawText(msg, x, y, 30 * scale, WHITE);
   }
 
   // Draw radiation zone popup
@@ -316,6 +366,9 @@ void Application::render() {
                   40 * scale, Fade(BLACK, 0.6f));
     DrawText(msg, x, y, 30 * scale, GREEN);
   }
+
+  // --- Inventory UI ---
+  renderInventory();
 
   // 3. Draw ImGui with matching scale
   rlImGuiBegin();
@@ -417,6 +470,112 @@ void Application::renderUI() {
   ImGui::End();
 }
 
+void Application::renderInventory() {
+  int screenW = GetScreenWidth();
+  int screenH = GetScreenHeight();
+  float scale =
+      std::min((float)screenW / m_screenWidth, (float)screenH / m_screenHeight);
+
+  float slotSize = 60 * scale;
+  float padding = 10 * scale;
+
+  auto drawSlot = [&](int index, float x, float y, bool isHotbar) {
+    Rectangle slotRect = {x, y, slotSize, slotSize};
+
+    // Draw slot background
+    Color bgColor =
+        (index == m_heldSlotIndex) ? Fade(YELLOW, 0.3f) : Fade(BLACK, 0.7f);
+    DrawRectangleRec(slotRect, bgColor);
+
+    if (isHotbar && index == m_activeHotbarSlot) {
+      DrawRectangleLinesEx(slotRect, 4.0f * scale, WHITE);
+    } else {
+      DrawRectangleLinesEx(slotRect, 2.0f * scale, GRAY);
+    }
+
+    // Mouse Interaction
+    if (CheckCollisionPointRec(GetMousePosition(), slotRect)) {
+      DrawRectangleLinesEx(slotRect, 3.0f * scale, WHITE);
+
+      if (m_inventoryOpen && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        if (m_heldSlotIndex == -1) { // Pick up item
+          if (m_player.getInventory()[index].type != ItemType::NONE) {
+            m_heldSlotIndex = index;
+          }
+        } else { // Swap or place item
+          // Cast away const since we're interacting with Player from
+          // Application (temporary fix for UI logic here)
+          const_cast<Player &>(m_player).swapSlots(m_heldSlotIndex, index);
+          m_heldSlotIndex = -1;
+        }
+      }
+    }
+
+    // Draw item icon using the renderer
+    auto slot = m_player.getInventory()[index];
+    if (slot.type != ItemType::NONE && index != m_heldSlotIndex) {
+      Rectangle destRect = {x + padding, y + padding, slotSize - 2 * padding,
+                            slotSize - 2 * padding};
+      m_renderer.renderItemUI(slot.type, destRect, WHITE);
+
+      // Draw count
+      if (slot.count > 1) {
+        DrawText(TextFormat("%d", slot.count), x + slotSize - 20 * scale,
+                 y + slotSize - 20 * scale, 20 * scale, WHITE);
+      }
+    }
+
+    // Draw Hotbar index
+    if (isHotbar) {
+      DrawText(TextFormat("%d", index + 1), x + 5 * scale, y + 5 * scale,
+               15 * scale, LIGHTGRAY);
+    }
+  };
+
+  // 1. Draw Hotbar (Slots 0-4)
+  float hotbarTotalWidth = (5 * slotSize) + (4 * padding);
+  float startX = (screenW - hotbarTotalWidth) / 2.0f;
+  float startY = screenH - slotSize - (20 * scale);
+
+  for (int i = 0; i < 5; ++i) {
+    drawSlot(i, startX + i * (slotSize + padding), startY, true);
+  }
+
+  // 2. Draw Bag (Slots 5-19)
+  if (m_inventoryOpen) {
+    // Darken screen
+    DrawRectangle(0, 0, screenW, screenH, Fade(BLACK, 0.5f));
+
+    float bagStartX = (screenW - hotbarTotalWidth) / 2.0f;
+    float bagStartY = startY - (3 * (slotSize + padding)) - (20 * scale);
+
+    for (int row = 0; row < 3; ++row) {
+      for (int col = 0; col < 5; ++col) {
+        int index = 5 + (row * 5) + col;
+        drawSlot(index, bagStartX + col * (slotSize + padding),
+                 bagStartY + row * (slotSize + padding), false);
+      }
+    }
+
+    // Draw held item on cursor
+    if (m_heldSlotIndex != -1) {
+      Vector2 mousePos = GetMousePosition();
+      auto slot = m_player.getInventory()[m_heldSlotIndex];
+
+      Rectangle destRect = {mousePos.x - slotSize / 2 + padding,
+                            mousePos.y - slotSize / 2 + padding,
+                            slotSize - 2 * padding, slotSize - 2 * padding};
+      m_renderer.renderItemUI(slot.type, destRect, Fade(WHITE, 0.8f));
+
+      if (slot.count > 1) {
+        DrawText(TextFormat("%d", slot.count),
+                 mousePos.x + slotSize / 2 - 20 * scale,
+                 mousePos.y + slotSize / 2 - 20 * scale, 20 * scale, WHITE);
+      }
+    }
+  }
+}
+
 void Application::generateMinimap() {
   BeginTextureMode(m_minimapTexture);
   ClearBackground(BLANK);
@@ -498,8 +657,8 @@ void Application::regenerateTicTacToeZones() {
   // Phase 3 interaction: Respawn items in the freshly carved rooms.
   for (size_t i = 0; i < zones.size(); ++i) {
     const auto &z = zones[i];
-    m_itemSpawner.respawnItems(m_maze, removedPerZone[i],
-                               z.x, z.y, z.width, z.height);
+    m_itemSpawner.respawnItems(m_maze, removedPerZone[i], z.x, z.y, z.width,
+                               z.height);
   }
 
   // Recalculate all radiation BFS zones with the updated item set

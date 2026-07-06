@@ -149,6 +149,10 @@ public:
   bool hasBarrel(int x, int y) const;
   bool isBarrelNear(int x, int y, int radius = 1) const;
 
+  // --- Phase 5: Inventory System ---
+  static bool isPickupable(ItemType type);
+  bool findNearestEmptyItemCell(int startX, int startY, int maxRadius, int& outX, int& outY) const;
+
 private:
   int m_width;    // Number of cells horizontally
   int m_height;   // Number of cells vertically

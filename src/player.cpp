@@ -13,7 +13,7 @@ Player::Player(Vector2 startPosition, AreaState startState)
 // ============================================================================
 // Update - Kinematics and Input
 // ============================================================================
-void Player::update(const Maze &maze) {
+void Player::update(Maze &maze) {
   // 1. FRAMERATE INDEPENDENCE (Delta Time)
   // GetFrameTime() returns the seconds elapsed since the last frame (e.g.,
   // 0.016s for 60 FPS). Multiplying our speed by this ensures we move exactly
@@ -54,8 +54,15 @@ void Player::update(const Maze &maze) {
 
   // 1.5 DOOR TRANSITIONS (KEY_K and KEY_L)
   int doorIndexToEnter = -1;
-  if (IsKeyPressed(KEY_K)) doorIndexToEnter = 0;
-  if (IsKeyPressed(KEY_L)) doorIndexToEnter = 1;
+  if (IsKeyPressed(KEY_K))
+    doorIndexToEnter = 0;
+  if (IsKeyPressed(KEY_L))
+    doorIndexToEnter = 1;
+
+  // INVENTORY PICKUP (KEY_P)
+  if (IsKeyPressed(KEY_P)) {
+    pickupItem(maze);
+  }
 
   if (doorIndexToEnter != -1) {
     int gridX = static_cast<int>(std::floor(m_position.x / maze.getCellSize()));
@@ -74,7 +81,8 @@ void Player::update(const Maze &maze) {
       bool isDoor = false;
       if (m_areaState == AreaState::CORRIDOR && cell == Maze::CELL_ROOM) {
         isDoor = true;
-      } else if (m_areaState == AreaState::ROOM && cell == Maze::CELL_CORRIDOR) {
+      } else if (m_areaState == AreaState::ROOM &&
+                 cell == Maze::CELL_CORRIDOR) {
         isDoor = true;
       }
 
@@ -144,7 +152,8 @@ void Player::resolveCollision(const Maze &maze) {
       } else if (m_areaState == AreaState::CORRIDOR &&
                  cell == Maze::CELL_ROOM) {
         isSolid = true; // Rooms are solid walls from the outside
-      } else if (m_areaState == AreaState::ROOM && cell == Maze::CELL_CORRIDOR) {
+      } else if (m_areaState == AreaState::ROOM &&
+                 cell == Maze::CELL_CORRIDOR) {
         isSolid = true; // Corridors are solid walls from the inside
       } else if (maze.getItem(x, y) != ItemType::NONE) {
         isSolid = true; // Any placed item is a solid obstacle by default
@@ -214,4 +223,109 @@ int Player::getAvailableDoors(const Maze &maze) const {
       count++;
   }
   return count;
+}
+
+// ============================================================================
+// INVENTORY SYSTEM
+// ============================================================================
+
+void Player::pickupItem(Maze &maze) {
+  int px = static_cast<int>(std::floor(m_position.x / maze.getCellSize()));
+  int py = static_cast<int>(std::floor(m_position.y / maze.getCellSize()));
+  
+  ItemType typeToPickup = ItemType::NONE;
+  int targetX = px;
+  int targetY = py;
+
+  // Search a 3x3 area around the player for a pickupable item
+  for (int y = py - 1; y <= py + 1 && typeToPickup == ItemType::NONE; ++y) {
+    for (int x = px - 1; x <= px + 1 && typeToPickup == ItemType::NONE; ++x) {
+      ItemType type = maze.getItem(x, y);
+      if (type != ItemType::NONE && Maze::isPickupable(type)) {
+        typeToPickup = type;
+        targetX = x;
+        targetY = y;
+      }
+    }
+  }
+  
+  if (typeToPickup == ItemType::NONE) return;
+
+  // 1. Try to find an existing stack that isn't full (limit 6)
+  for (int i = 0; i < 20; ++i) {
+    if (m_inventory[i].type == typeToPickup && m_inventory[i].count < 6) {
+      m_inventory[i].count++;
+      maze.setItem(targetX, targetY, ItemType::NONE);
+      return;
+    }
+  }
+
+  // 2. Try to find an empty slot
+  for (int i = 0; i < 20; ++i) {
+    if (m_inventory[i].type == ItemType::NONE) {
+      m_inventory[i].type = typeToPickup;
+      m_inventory[i].count = 1;
+      maze.setItem(targetX, targetY, ItemType::NONE);
+      return;
+    }
+  }
+}
+
+void Player::dropItem(Maze &maze, int slotIndex) {
+  if (slotIndex < 0 || slotIndex >= 20)
+    return;
+  if (m_inventory[slotIndex].type == ItemType::NONE)
+    return;
+
+  int gridX = static_cast<int>(std::floor(m_position.x / maze.getCellSize()));
+  int gridY = static_cast<int>(std::floor(m_position.y / maze.getCellSize()));
+
+  int outX, outY;
+  // Try to find nearest empty cell up to radius 2
+  if (maze.findNearestEmptyItemCell(gridX, gridY, 2, outX, outY)) {
+    maze.setItem(outX, outY, m_inventory[slotIndex].type);
+
+    m_inventory[slotIndex].count--;
+    if (m_inventory[slotIndex].count <= 0) {
+      m_inventory[slotIndex].type = ItemType::NONE;
+      m_inventory[slotIndex].count = 0;
+    }
+  }
+}
+
+void Player::destroyItem(int slotIndex) {
+  if (slotIndex < 0 || slotIndex >= 20)
+    return;
+  if (m_inventory[slotIndex].type == ItemType::NONE)
+    return;
+
+  m_inventory[slotIndex].count--;
+  if (m_inventory[slotIndex].count <= 0) {
+    m_inventory[slotIndex].type = ItemType::NONE;
+    m_inventory[slotIndex].count = 0;
+  }
+}
+
+void Player::swapSlots(int slotIndex1, int slotIndex2) {
+  if (slotIndex1 < 0 || slotIndex1 >= 20 || slotIndex2 < 0 || slotIndex2 >= 20)
+    return;
+
+  // If same type, try to merge stacks
+  if (m_inventory[slotIndex1].type != ItemType::NONE &&
+      m_inventory[slotIndex1].type == m_inventory[slotIndex2].type) {
+
+    int spaceInSlot2 = 6 - m_inventory[slotIndex2].count;
+    int amountToMove = std::min(m_inventory[slotIndex1].count, spaceInSlot2);
+
+    m_inventory[slotIndex2].count += amountToMove;
+    m_inventory[slotIndex1].count -= amountToMove;
+
+    if (m_inventory[slotIndex1].count <= 0) {
+      m_inventory[slotIndex1].type = ItemType::NONE;
+      m_inventory[slotIndex1].count = 0;
+    }
+  } else {
+    // Standard swap
+    std::swap(m_inventory[slotIndex1], m_inventory[slotIndex2]);
+  }
 }
