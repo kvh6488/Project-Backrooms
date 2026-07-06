@@ -287,7 +287,7 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
           // O(1) lookup per cell. Adding a new item type means adding a
           // new case here — no need to touch any other rendering code.
           switch (maze.getItem(x, y)) {
-            case ItemType::BARREL: {
+            case ItemType::TOXIC_WASTE: {
               Rectangle sourceRectBarrel = {70.0f, 193.0f, 22.0f, 30.0f};
               Rectangle destRectBarrel = {
                   (float)(x * cellSize) + (cellSize / 2.0f) - 11.0f,
@@ -531,7 +531,7 @@ void MazeRenderer::renderItemUI(ItemType type, Rectangle destRect, Color tint) c
       DrawTexturePro(m_mushroomTexture, sourceRect, destRect, {0, 0}, 0.0f, tint);
       break;
     }
-    case ItemType::BARREL: {
+    case ItemType::TOXIC_WASTE: {
       DrawRectangleRec(destRect, GREEN);
       break;
     }

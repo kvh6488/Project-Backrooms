@@ -409,7 +409,7 @@ TEST(MazeTest, UniformRoomRadiation) {
         int ry = testRng() % maze.getHeight();
         if (maze.getCell(rx, ry) == Maze::CELL_ROOM &&
             maze.getItem(rx, ry) == ItemType::NONE) {
-          maze.setItem(rx, ry, ItemType::BARREL);
+          maze.setItem(rx, ry, ItemType::TOXIC_WASTE);
           break;
         }
       }

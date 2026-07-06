@@ -99,17 +99,6 @@ void Application::update() {
     ToggleFullscreen();
   }
 
-  if (IsKeyPressed(KEY_O)) {
-    int px = static_cast<int>(
-        std::floor(m_player.getPosition().x / m_maze.getCellSize()));
-    int py = static_cast<int>(
-        std::floor(m_player.getPosition().y / m_maze.getCellSize()));
-    if (m_maze.isBarrelNear(px, py, 1)) {
-      m_maze.destroyBarrelNear(px, py, 1);
-      m_minimapDirty = true;
-    }
-  }
-
   // --- Inventory Toggle ---
   if (IsKeyPressed(KEY_I)) {
     m_inventoryOpen = !m_inventoryOpen;
@@ -351,21 +340,7 @@ void Application::render() {
     DrawText(msg, x, y, 60 * scale, Fade(GREEN, alpha));
   }
 
-  // Draw radiation barrel interact popup
-  int px = static_cast<int>(
-      std::floor(m_player.getPosition().x / m_maze.getCellSize()));
-  int py = static_cast<int>(
-      std::floor(m_player.getPosition().y / m_maze.getCellSize()));
-  if (m_maze.isBarrelNear(px, py, 1)) {
-    const char *msg = "Press 'O' to destroy radiation barrel";
-    int textWidth = MeasureText(msg, 30 * scale);
-    int x = (screenW - textWidth) / 2;
-    int y = screenH - (200 * scale);
 
-    DrawRectangle(x - (15 * scale), y - (5 * scale), textWidth + (30 * scale),
-                  40 * scale, Fade(BLACK, 0.6f));
-    DrawText(msg, x, y, 30 * scale, GREEN);
-  }
 
   // --- Inventory UI ---
   renderInventory();
@@ -599,7 +574,7 @@ void Application::generateMinimap() {
   if (m_showRadiationOnMinimap) {
     for (int y = 0; y < m_maze.getHeight(); ++y) {
       for (int x = 0; x < m_maze.getWidth(); ++x) {
-        if (m_maze.getItem(x, y) == ItemType::BARREL) {
+        if (m_maze.getItem(x, y) == ItemType::TOXIC_WASTE) {
           DrawRectangle(x - 1, y - 1, 3, 3, BLUE);
         }
       }

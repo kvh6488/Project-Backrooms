@@ -289,7 +289,7 @@ void Maze::calculateRadiationZones() {
   std::vector<BarrelPos> barrelPositions;
   for (int y = 0; y < m_height; ++y) {
     for (int x = 0; x < m_width; ++x) {
-      if (getItem(x, y) == ItemType::BARREL) {
+      if (getItem(x, y) == ItemType::TOXIC_WASTE) {
         barrelPositions.push_back({x, y});
       }
     }
@@ -398,29 +398,6 @@ void Maze::calculateRadiationZones() {
   }
 }
 
-// ============================================================================
-// destroyBarrelNear — Remove Barrels via m_items Grid
-// ============================================================================
-// Scans a (2*radius+1) x (2*radius+1) neighbourhood around (x, y) for
-// barrels and clears them. Handles toroidal wrapping.
-// ============================================================================
-void Maze::destroyBarrelNear(int x, int y, int radius) {
-  bool destroyed = false;
-  for (int dy = -radius; dy <= radius; ++dy) {
-    for (int dx = -radius; dx <= radius; ++dx) {
-      int nx = (x + dx % m_width + m_width) % m_width;
-      int ny = (y + dy % m_height + m_height) % m_height;
-      if (getItem(nx, ny) == ItemType::BARREL) {
-        setItem(nx, ny, ItemType::NONE);
-        destroyed = true;
-      }
-    }
-  }
-  if (destroyed) {
-    // Recalculate instantly vanishing radiation
-    calculateRadiationZones();
-  }
-}
 
 int Maze::getRadiationLevel(int x, int y) const {
   return m_radiationMap[getIndex(x, y)];
@@ -428,7 +405,7 @@ int Maze::getRadiationLevel(int x, int y) const {
 
 // O(1) lookup — the whole point of the grid-parallel item layer.
 bool Maze::hasBarrel(int x, int y) const {
-  return getItem(x, y) == ItemType::BARREL;
+  return getItem(x, y) == ItemType::TOXIC_WASTE;
 }
 
 bool Maze::isBarrelNear(int x, int y, int radius) const {
@@ -436,7 +413,7 @@ bool Maze::isBarrelNear(int x, int y, int radius) const {
     for (int dx = -radius; dx <= radius; ++dx) {
       int nx = (x + dx % m_width + m_width) % m_width;
       int ny = (y + dy % m_height + m_height) % m_height;
-      if (getItem(nx, ny) == ItemType::BARREL) {
+      if (getItem(nx, ny) == ItemType::TOXIC_WASTE) {
         return true;
       }
     }

@@ -86,7 +86,7 @@ void ItemSpawner::spawnBarrels(Maze &maze, int count, int boundsX, int boundsY,
         continue;
 
       // All rules passed — place the barrel
-      maze.setItem(x, y, ItemType::BARREL);
+      maze.setItem(x, y, ItemType::TOXIC_WASTE);
       break;
     }
   }
@@ -200,7 +200,7 @@ void ItemSpawner::spawnMushrooms(Maze &maze, ItemType type, int target,
             maze.getItem(x, y) == ItemType::NONE && isValidRad &&
             isRoomCorner(maze, x, y) && !isNearCorridor(maze, x, y)) {
 
-          if (chance(m_rng) < 0.03f) {
+          if (chance(m_rng) < 0.3f) {
             totalPlaced += spawnMushroomClump(maze, x, y, type);
           }
         }
@@ -249,7 +249,7 @@ void ItemSpawner::respawnItems(Maze &maze,
                                int zoneX, int zoneY, int zoneW, int zoneH) {
   for (const auto &[type, count] : itemsToSpawn) {
     switch (type) {
-    case ItemType::BARREL:
+    case ItemType::TOXIC_WASTE:
       spawnBarrels(maze, count, zoneX, zoneY, zoneW, zoneH);
       break;
     case ItemType::MUSHROOM:

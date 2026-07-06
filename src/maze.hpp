@@ -20,7 +20,7 @@ enum class AreaState { CORRIDOR, ROOM };
 // ============================================================================
 enum class ItemType : int {
   NONE = 0,          // Empty cell — no item present
-  BARREL = 1,        // Radiation barrel — emits BFS radiation zones
+  TOXIC_WASTE = 1,        // Radiation barrel — emits BFS radiation zones
   MUSHROOM = 2,      // Mushroom — spawns only in normal rooms
   MAGIC_MUSHROOM = 3 // Magic Mushroom — grants special ability, spawns only in
                      // radiated rooms
@@ -144,7 +144,6 @@ public:
 
   // --- Phase 3: Radiation Mechanics ---
   void calculateRadiationZones();
-  void destroyBarrelNear(int x, int y, int radius = 1);
   int getRadiationLevel(int x, int y) const;
   bool hasBarrel(int x, int y) const;
   bool isBarrelNear(int x, int y, int radius = 1) const;
