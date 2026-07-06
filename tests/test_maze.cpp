@@ -2,6 +2,7 @@
 #include "generators/loop_generator.hpp"
 #include "generators/prims_generator.hpp"
 #include "generators/tunnel_borer.hpp"
+#include "item_spawner.hpp"
 #include "maze.hpp"
 #include <ctime>
 #include <gtest/gtest.h>
@@ -397,8 +398,23 @@ TEST(MazeTest, UniformRoomRadiation) {
     borer.ensureConnectivity(maze);
     prims.pruneSmallAlcoves(maze, 5);
     
-    // Spawn barrels
-    maze.spawnRadiationBarrels(15);
+    // Spawn barrels using ItemSpawner
+    std::mt19937 testRng(42);
+    ItemSpawner spawner(testRng);
+    // Manually spawn 15 barrels across the full maze for thorough testing
+    for (int i = 0; i < 15; ++i) {
+      // Use rejection sampling to place barrels in valid room cells
+      for (int attempt = 0; attempt < 100; ++attempt) {
+        int rx = testRng() % maze.getWidth();
+        int ry = testRng() % maze.getHeight();
+        if (maze.getCell(rx, ry) == Maze::CELL_ROOM &&
+            maze.getItem(rx, ry) == ItemType::NONE) {
+          maze.setItem(rx, ry, ItemType::BARREL);
+          break;
+        }
+      }
+    }
+    maze.calculateRadiationZones();
     
     // Check uniform radiation in every contiguous CELL_ROOM component
     std::vector<bool> visited(maze.getWidth() * maze.getHeight(), false);

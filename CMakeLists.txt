@@ -61,6 +61,7 @@ add_executable(Backrooms
     src/generators/generator_utils.cpp
     src/player.cpp
     src/player_renderer.cpp
+    src/item_spawner.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -109,6 +110,7 @@ add_executable(BackroomsTests
     src/generators/generator_utils.cpp
     src/player.cpp
     src/player_renderer.cpp
+    src/item_spawner.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp

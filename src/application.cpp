@@ -10,8 +10,10 @@
 #include <iostream>
 
 Application::Application()
-    : m_seed(std::time(nullptr)), m_maze(250, 150, 32, m_seed),
-      m_player(Vector2{0, 0}, AreaState::ROOM), m_minimapDirty(false) {
+    : m_seed(std::time(nullptr)), m_rng(m_seed),
+      m_maze(250, 150, 32, m_seed),
+      m_player(Vector2{0, 0}, AreaState::ROOM),
+      m_itemSpawner(m_rng), m_minimapDirty(false) {
 
   // 1. Initialize Raylib System
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -34,18 +36,17 @@ Application::Application()
 
   // 3. Generate Initial Maze
   std::cout << "[INFO] Initializing Maze with seed: " << m_seed << std::endl;
-  std::mt19937 rng(m_seed);
 
   BSPGenerator bsp;
-  bsp.generate(m_maze, rng);
+  bsp.generate(m_maze, m_rng);
 
   int midRoomIdx = bsp.getMiddleRoomIndex();
 
   PrimsGenerator prims;
-  prims.generate(m_maze, rng, midRoomIdx);
+  prims.generate(m_maze, m_rng, midRoomIdx);
 
   LoopGenerator loops;
-  loops.generate(m_maze, rng);
+  loops.generate(m_maze, m_rng);
 
   TunnelBorer borer;
   borer.ensureConnectivity(m_maze);
@@ -53,10 +54,8 @@ Application::Application()
   // Post-Prims cleanup
   prims.pruneSmallAlcoves(m_maze, 5);
 
-  // Phase 3: Spawn Initial Radiation Barrels (uniformly from {3, 4, 5})
-  std::uniform_int_distribution<int> barrelDist(3, 5);
-  int barrelCount = barrelDist(rng);
-  m_maze.spawnRadiationBarrels(barrelCount);
+  // Phase 3: Spawn Initial Items (barrels, etc.) — count decided internally
+  m_itemSpawner.spawnInitialItems(m_maze);
 
   // 4. Initialize Player Position
   Vector2 playerStartPos = {0.0f, 0.0f};
@@ -408,8 +407,12 @@ void Application::generateMinimap() {
 
   // Draw barrels on top of the terrain so they are highly visible
   if (m_showRadiationOnMinimap) {
-    for (const auto &barrel : m_maze.getBarrels()) {
-      DrawRectangle(barrel.x - 1, barrel.y - 1, 3, 3, BLUE);
+    for (int y = 0; y < m_maze.getHeight(); ++y) {
+      for (int x = 0; x < m_maze.getWidth(); ++x) {
+        if (m_maze.getItem(x, y) == ItemType::BARREL) {
+          DrawRectangle(x - 1, y - 1, 3, 3, BLUE);
+        }
+      }
     }
   }
 
@@ -428,12 +431,12 @@ void Application::regenerateTicTacToeZones() {
       {194, 105, 56, 14}  // H-Bot-Right
   };
 
-  // Phase 3 interaction: Remove barrels BEFORE erasing zones.
-  // Track how many were in each zone so we can respawn replacements later.
-  std::vector<int> removedPerZone(zones.size(), 0);
+  // Phase 3 interaction: Remove items BEFORE erasing zones.
+  // Track what was destroyed in each zone so we can respawn replacements later.
+  std::vector<std::map<ItemType, int>> removedPerZone(zones.size());
   for (size_t i = 0; i < zones.size(); ++i) {
     const auto &z = zones[i];
-    removedPerZone[i] = m_maze.removeBarrelsInZone(z.x, z.y, z.width, z.height);
+    removedPerZone[i] = m_maze.clearItemsInZone(z.x, z.y, z.width, z.height);
   }
 
   m_maze.clearShiftingZones();
@@ -442,35 +445,33 @@ void Application::regenerateTicTacToeZones() {
     m_maze.eraseZone(z.x, z.y, z.width, z.height);
   }
 
-  std::mt19937 rng(time(0));
+  std::mt19937 regenRng(time(0));
   BSPGenerator bsp;
   PrimsGenerator prims;
   LoopGenerator loops;
 
   for (const auto &z : zones) {
-    bsp.generateZone(m_maze, rng, z.x, z.y, z.width, z.height);
+    bsp.generateZone(m_maze, regenRng, z.x, z.y, z.width, z.height);
   }
   for (const auto &z : zones) {
-    prims.generateZone(m_maze, rng, z.x, z.y, z.width, z.height);
+    prims.generateZone(m_maze, regenRng, z.x, z.y, z.width, z.height);
   }
   for (const auto &z : zones) {
-    loops.generateZone(m_maze, rng, z.x, z.y, z.width, z.height);
+    loops.generateZone(m_maze, regenRng, z.x, z.y, z.width, z.height);
   }
 
   TunnelBorer borer;
   borer.ensureConnectivity(m_maze);
   prims.pruneSmallAlcoves(m_maze, 5);
 
-  // Phase 3 interaction: Respawn barrels in the freshly carved rooms.
-  // One new barrel per barrel that was removed from each zone.
+  // Phase 3 interaction: Respawn items in the freshly carved rooms.
   for (size_t i = 0; i < zones.size(); ++i) {
-    for (int b = 0; b < removedPerZone[i]; ++b) {
-      const auto &z = zones[i];
-      m_maze.spawnBarrelInZone(z.x, z.y, z.width, z.height);
-    }
+    const auto &z = zones[i];
+    m_itemSpawner.respawnItems(m_maze, removedPerZone[i],
+                               z.x, z.y, z.width, z.height);
   }
 
-  // Recalculate all radiation BFS zones with the updated barrel set
+  // Recalculate all radiation BFS zones with the updated item set
   m_maze.calculateRadiationZones();
 
   m_minimapDirty = true;

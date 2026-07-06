@@ -281,24 +281,36 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
           DrawTexturePro(m_floorTileset, sourceRect, destRect, {0, 0}, 0.0f,
                          drawColor);
 
-          if (maze.hasBarrel(x, y)) {
-            Rectangle sourceRectBarrel = {70.0f, 193.0f, 22.0f, 30.0f};
-            Rectangle destRectBarrel = {
-                (float)(x * cellSize) + (cellSize / 2.0f) - 11.0f,
-                (float)(y * cellSize) + cellSize - 30.0f, 22.0f, 30.0f};
-            DrawTexturePro(m_postApocWorkshopTextures, sourceRectBarrel,
-                           destRectBarrel, {0, 0}, 0.0f, WHITE);
+          // --- Item Rendering (Grid-Parallel Switch) ---
+          // O(1) lookup per cell. Adding a new item type means adding a
+          // new case here — no need to touch any other rendering code.
+          switch (maze.getItem(x, y)) {
+            case ItemType::BARREL: {
+              Rectangle sourceRectBarrel = {70.0f, 193.0f, 22.0f, 30.0f};
+              Rectangle destRectBarrel = {
+                  (float)(x * cellSize) + (cellSize / 2.0f) - 11.0f,
+                  (float)(y * cellSize) + cellSize - 30.0f, 22.0f, 30.0f};
+              DrawTexturePro(m_postApocWorkshopTextures, sourceRectBarrel,
+                             destRectBarrel, {0, 0}, 0.0f, WHITE);
 
-            // Draw radiation symbol centered over the barrel
-            Rectangle sourceRectDoodad = {3.0f * 16.0f, 1.0f * 16.0f, 16.0f,
-                                          16.0f};
-            Rectangle destRectDoodad = {
-                (float)(x * cellSize) + (cellSize / 2.0f) - 8.0f,
-                (float)(y * cellSize) + cellSize - 30.0f + (30.0f / 2.0f) -
-                    6.0f, // 2px down
-                16.0f, 16.0f};
-            DrawTexturePro(m_doodadsTexture, sourceRectDoodad, destRectDoodad,
-                           {0, 0}, 0.0f, WHITE);
+              // Draw radiation symbol centered over the barrel
+              Rectangle sourceRectDoodad = {3.0f * 16.0f, 1.0f * 16.0f, 16.0f,
+                                            16.0f};
+              Rectangle destRectDoodad = {
+                  (float)(x * cellSize) + (cellSize / 2.0f) - 8.0f,
+                  (float)(y * cellSize) + cellSize - 30.0f + (30.0f / 2.0f) -
+                      6.0f, // 2px down
+                  16.0f, 16.0f};
+              DrawTexturePro(m_doodadsTexture, sourceRectDoodad, destRectDoodad,
+                             {0, 0}, 0.0f, WHITE);
+              break;
+            }
+            case ItemType::MUSHROOM:
+              // Future: Draw mushroom sprite here
+              break;
+            case ItemType::NONE:
+            default:
+              break;
           }
         } else {
           DrawRectangle(x * cellSize, y * cellSize, cellSize, cellSize,

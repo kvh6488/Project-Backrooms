@@ -1,8 +1,27 @@
 #pragma once
 #include <raylib.h>
+#include <map>
 #include <vector>
 
 enum class AreaState { CORRIDOR, ROOM };
+
+// ============================================================================
+// ItemType Enum — Grid-Parallel Item Layer
+// ============================================================================
+// Each cell in the maze can hold at most one item. This enum encodes the
+// item type using integer codes stored in a flat 1D array (m_items) that
+// mirrors m_grid. This gives us O(1) lookup for rendering and collision:
+//   maze.getItem(x, y)  →  instant answer, no list scanning.
+//
+// Alternative considered: Separate std::vector per item type (m_barrels,
+// m_mushrooms, etc.). Rejected because rendering would require iterating
+// every list for every visible cell — O(items) per cell vs O(1).
+// ============================================================================
+enum class ItemType : int {
+  NONE = 0,     // Empty cell — no item present
+  BARREL = 1,   // Radiation barrel — emits BFS radiation zones
+  MUSHROOM = 2  // Mushroom — spawns only in radiated rooms (future)
+};
 
 // Forward declarations
 class Player;
@@ -108,24 +127,24 @@ public:
   void addRoom(const Room &room) { m_rooms.push_back(room); }
   const std::vector<Room> &getRooms() const { return m_rooms; }
 
-  // --- Phase 3: Radiation Mechanics ---
-  struct RadiationBarrel {
-    int id;
-    int x;
-    int y;
-  };
+  // --- Item Layer (Grid-Parallel) ---
+  // Each cell can hold one item. O(1) read/write via the same index math
+  // as m_grid. This replaces per-item-type lists (m_barrels, etc.).
+  ItemType getItem(int x, int y) const;
+  void setItem(int x, int y, ItemType type);
 
-  void spawnRadiationBarrels(int count);
+  // Wipe all items in a rectangular zone and return a count of each type
+  // that was removed. Used during Tic-Tac-Toe zone regeneration so the
+  // ItemSpawner knows exactly what to replenish.
+  std::map<ItemType, int> clearItemsInZone(int startX, int startY,
+                                           int width, int height);
+
+  // --- Phase 3: Radiation Mechanics ---
   void calculateRadiationZones();
   void destroyBarrelNear(int x, int y, int radius = 1);
   int getRadiationLevel(int x, int y) const;
   bool hasBarrel(int x, int y) const;
   bool isBarrelNear(int x, int y, int radius = 1) const;
-  const std::vector<RadiationBarrel>& getBarrels() const { return m_barrels; }
-
-  // Zone-aware barrel management (used during regeneration)
-  int removeBarrelsInZone(int zx, int zy, int zw, int zh);
-  void spawnBarrelInZone(int zx, int zy, int zw, int zh);
 
 private:
   int m_width;    // Number of cells horizontally
@@ -142,9 +161,10 @@ private:
   std::vector<float> m_lightLevel; // Per-cell brightness (0.0 to 1.0)
   std::vector<int> m_radiationMap; // 0 for safe, >0 for radiated
 
-  // Radiation Barrels
-  std::vector<RadiationBarrel> m_barrels;
-  int m_nextBarrelId = 1;
+  // Item layer — parallel to m_grid. Each index stores the ItemType
+  // occupying that cell (NONE if empty). This is the single source of
+  // truth for all placed items.
+  std::vector<ItemType> m_items;
 
   // Helper to place walls and floors
   void setRoomTiles(int startX, int startY, int width, int height);

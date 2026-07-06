@@ -4,7 +4,9 @@
 #include "maze_renderer.hpp"
 #include "player.hpp"
 #include "player_renderer.hpp"
+#include "item_spawner.hpp"
 #include "raylib.h"
+#include <random>
 
 // The Application class encapsulates the entire game loop and engine state.
 // This is an implementation of the Facade Pattern, hiding the complex
@@ -34,11 +36,13 @@ private:
 
   // --- Core Systems ---
   unsigned int m_seed;
+  std::mt19937 m_rng;       // Application-wide RNG, seeded once for determinism
   Maze m_maze;
   Player m_player;
   Camera2D m_camera;
   MazeRenderer m_renderer;
   PlayerRenderer m_playerRenderer;
+  ItemSpawner m_itemSpawner; // Decoupled item placement logic
 
   // --- UI / Minimap State ---
   RenderTexture2D m_minimapTexture;

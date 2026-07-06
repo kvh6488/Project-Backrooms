@@ -146,8 +146,8 @@ void Player::resolveCollision(const Maze &maze) {
         isSolid = true; // Rooms are solid walls from the outside
       } else if (m_areaState == AreaState::ROOM && cell == Maze::CELL_CORRIDOR) {
         isSolid = true; // Corridors are solid walls from the inside
-      } else if (maze.hasBarrel(x, y)) {
-        isSolid = true; // Barrels are solid obstacles
+      } else if (maze.getItem(x, y) != ItemType::NONE) {
+        isSolid = true; // Any placed item is a solid obstacle by default
       }
 
       if (isSolid) {
