@@ -102,10 +102,29 @@ public:
 
   struct Room {
     int x, y, width, height;
+    bool isRadiated = false;
   };
 
   void addRoom(const Room &room) { m_rooms.push_back(room); }
   const std::vector<Room> &getRooms() const { return m_rooms; }
+
+  // --- Phase 3: Radiation Mechanics ---
+  struct RadiationBarrel {
+    int id;
+    int x;
+    int y;
+  };
+
+  void spawnRadiationBarrels(int count);
+  void calculateRadiationZones();
+  void destroyBarrelNear(int x, int y, int radius = 1);
+  int getRadiationLevel(int x, int y) const;
+  bool hasBarrel(int x, int y) const;
+  bool isBarrelNear(int x, int y, int radius = 1) const;
+
+  // Zone-aware barrel management (used during regeneration)
+  int removeBarrelsInZone(int zx, int zy, int zw, int zh);
+  void spawnBarrelInZone(int zx, int zy, int zw, int zh);
 
 private:
   int m_width;    // Number of cells horizontally
@@ -120,6 +139,11 @@ private:
   std::vector<int> m_grid;
   std::vector<bool> m_visible;
   std::vector<float> m_lightLevel; // Per-cell brightness (0.0 to 1.0)
+  std::vector<int> m_radiationMap; // 0 for safe, >0 for radiated
+
+  // Radiation Barrels
+  std::vector<RadiationBarrel> m_barrels;
+  int m_nextBarrelId = 1;
 
   // Helper to place walls and floors
   void setRoomTiles(int startX, int startY, int width, int height);

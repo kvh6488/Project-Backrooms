@@ -1,6 +1,7 @@
 #include "maze.hpp"
 #include <algorithm>
 #include <queue>
+#include <deque>
 
 // ============================================================================
 // Constructor
@@ -8,7 +9,8 @@
 Maze::Maze(int width, int height, int cellSize, unsigned int seed)
     : m_width(width), m_height(height), m_cellSize(cellSize), m_nonWallCount(0),
       m_corridorCount(0), m_grid(width * height, CELL_WALL),
-      m_visible(width * height, false), m_lightLevel(width * height, 0.0f) {}
+      m_visible(width * height, false), m_lightLevel(width * height, 0.0f),
+      m_radiationMap(width * height, 0) {}
 
 Maze::~Maze() {}
 
@@ -225,3 +227,206 @@ bool Maze::isValidDoorPlacement(int x, int y) const {
   }
   return true;
 }
+
+// ============================================================================
+// PHASE 3: RADIATION MECHANICS
+// ============================================================================
+
+void Maze::spawnRadiationBarrels(int count) {
+  if (m_rooms.empty()) return;
+  
+  // Basic random spawning
+  for (int i = 0; i < count; ++i) {
+    int roomIdx = std::rand() % m_rooms.size();
+    const Room& r = m_rooms[roomIdx];
+    
+    // Pick a random cell in the room (avoiding edges, just to be safe)
+    int rx = r.x + 1 + (std::rand() % (std::max(1, r.width - 2)));
+    int ry = r.y + 1 + (std::rand() % (std::max(1, r.height - 2)));
+    
+    // Make sure it's a room cell and no barrel exists
+    if (getCell(rx, ry) == CELL_ROOM && !hasBarrel(rx, ry)) {
+      m_barrels.push_back({m_nextBarrelId++, rx, ry});
+    }
+  }
+  calculateRadiationZones();
+}
+
+void Maze::calculateRadiationZones() {
+  std::fill(m_radiationMap.begin(), m_radiationMap.end(), 0);
+  
+  for (const auto& barrel : m_barrels) {
+    // 0-1 BFS for each barrel up to depth 15.
+    // Moving ROOM -> ROOM costs 0, effectively infecting the whole room instantly.
+    std::deque<std::pair<int, int>> q;
+    std::vector<int> distances(m_width * m_height, -1);
+    
+    int startIdx = getIndex(barrel.x, barrel.y);
+    q.push_back({barrel.x, barrel.y});
+    distances[startIdx] = 0;
+    
+    const int dx[] = {1, -1, 0, 0};
+    const int dy[] = {0, 0, 1, -1};
+    
+    while (!q.empty()) {
+      auto [x, y] = q.front();
+      q.pop_front();
+      
+      int currentIdx = getIndex(x, y);
+      int d = distances[currentIdx];
+      m_radiationMap[currentIdx] = 1; // Mark as radiated
+      
+      if (d >= 10) continue; // Max radius (reduced to 10)
+      
+      int currentType = m_grid[currentIdx];
+      
+      for (int i = 0; i < 4; ++i) {
+        int nx = (x + dx[i]) % m_width;
+        if (nx < 0) nx += m_width;
+        int ny = (y + dy[i]) % m_height;
+        if (ny < 0) ny += m_height;
+        
+        int nIdx = getIndex(nx, ny);
+        int nextType = m_grid[nIdx];
+        
+        // Fluid flow: Only pass through open spaces (ROOM or CORRIDOR). Walls block.
+        if (nextType == CELL_ROOM || nextType == CELL_CORRIDOR) {
+          // If we are in a room and moving to another room tile, cost is 0.
+          // This causes the entire room to instantly flood at the same depth.
+          int cost = (currentType == CELL_ROOM && nextType == CELL_ROOM) ? 0 : 1;
+          
+          if (distances[nIdx] == -1 || distances[nIdx] > d + cost) {
+            distances[nIdx] = d + cost;
+            if (cost == 0) {
+              q.push_front({nx, ny});
+            } else {
+              q.push_back({nx, ny});
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Post-pass: Update the isRadiated flag on all Room structs
+  // This provides an easy check for specialised spawns/items.
+  for (auto& room : m_rooms) {
+    room.isRadiated = false;
+    for (int ry = room.y; ry < room.y + room.height; ++ry) {
+      for (int rx = room.x; rx < room.x + room.width; ++rx) {
+        // Toroidal coordinates
+        int mx = rx % m_width;
+        if (mx < 0) mx += m_width;
+        int my = ry % m_height;
+        if (my < 0) my += m_height;
+        
+        int idx = getIndex(mx, my);
+        if (m_grid[idx] == CELL_ROOM && m_radiationMap[idx] > 0) {
+          room.isRadiated = true;
+          break; // One radiated tile means the whole room is radiated
+        }
+      }
+      if (room.isRadiated) break;
+    }
+  }
+}
+
+void Maze::destroyBarrelNear(int x, int y, int radius) {
+  auto it = std::remove_if(m_barrels.begin(), m_barrels.end(),
+    [x, y, radius, this](const RadiationBarrel& b) {
+      int dx = std::abs(b.x - x);
+      int dy = std::abs(b.y - y);
+      // Handle toroidal wrapping for distance checking
+      dx = std::min(dx, m_width - dx);
+      dy = std::min(dy, m_height - dy);
+      return dx <= radius && dy <= radius;
+    });
+    
+  if (it != m_barrels.end()) {
+    m_barrels.erase(it, m_barrels.end());
+    // Recalculate instantly vanishing radiation
+    calculateRadiationZones();
+  }
+}
+
+int Maze::getRadiationLevel(int x, int y) const {
+  return m_radiationMap[getIndex(x, y)];
+}
+
+bool Maze::hasBarrel(int x, int y) const {
+  for (const auto& b : m_barrels) {
+    if (b.x == x && b.y == y) return true;
+  }
+  return false;
+}
+
+bool Maze::isBarrelNear(int x, int y, int radius) const {
+  for (const auto& b : m_barrels) {
+    int dx = std::abs(b.x - x);
+    int dy = std::abs(b.y - y);
+    dx = std::min(dx, m_width - dx);
+    dy = std::min(dy, m_height - dy);
+    if (dx <= radius && dy <= radius) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// ============================================================================
+// Zone-Aware Barrel Management
+// ============================================================================
+// These methods handle the interaction between the maze regeneration system
+// and radiation barrels. When a shifting zone regenerates, any barrels inside
+// it would become orphaned (pointing at wall tiles). We remove them first,
+// then spawn replacements in the freshly carved rooms.
+//
+// This is a classic example of maintaining INVARIANTS across subsystem
+// boundaries — the regeneration system (Phase 2) doesn't know about radiation
+// (Phase 3), so we bridge them here. In Gang of Four terms, this is the
+// Mediator pattern: the Maze class mediates between the two subsystems.
+// ============================================================================
+
+int Maze::removeBarrelsInZone(int zx, int zy, int zw, int zh) {
+  // Erase-Remove idiom: O(n) scan, O(n) erase — same pattern used in eraseZone
+  // for room pruning. We count how many were removed so the caller knows how
+  // many replacements to spawn.
+  int removedCount = 0;
+  auto it = std::remove_if(m_barrels.begin(), m_barrels.end(),
+    [zx, zy, zw, zh, &removedCount](const RadiationBarrel& b) {
+      bool inside = (b.x >= zx && b.x < zx + zw &&
+                     b.y >= zy && b.y < zy + zh);
+      if (inside) removedCount++;
+      return inside;
+    });
+  m_barrels.erase(it, m_barrels.end());
+  return removedCount;
+}
+
+void Maze::spawnBarrelInZone(int zx, int zy, int zw, int zh) {
+  // Collect rooms that overlap with the regenerated zone
+  std::vector<const Room*> candidates;
+  for (const auto& r : m_rooms) {
+    // Check if the room's bounding box intersects the zone
+    bool outsideX = (r.x + r.width <= zx) || (r.x >= zx + zw);
+    bool outsideY = (r.y + r.height <= zy) || (r.y >= zy + zh);
+    if (!(outsideX || outsideY)) {
+      candidates.push_back(&r);
+    }
+  }
+  
+  if (candidates.empty()) return;
+  
+  // Try several times to find a valid floor tile (room cell, no existing barrel)
+  for (int attempt = 0; attempt < 20; ++attempt) {
+    const Room& r = *candidates[std::rand() % candidates.size()];
+    int rx = r.x + 1 + (std::rand() % (std::max(1, r.width - 2)));
+    int ry = r.y + 1 + (std::rand() % (std::max(1, r.height - 2)));
+    
+    if (getCell(rx, ry) == CELL_ROOM && !hasBarrel(rx, ry)) {
+      m_barrels.push_back({m_nextBarrelId++, rx, ry});
+      return;
+    }
+  }
+}
+

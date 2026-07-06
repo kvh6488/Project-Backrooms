@@ -234,11 +234,22 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera, AreaState st
             drawColor = (Color){255, 100, 100, 255};
           }
 
+          if (maze.getRadiationLevel(x, y) > 0) {
+            // Green tint for radiated zones
+            drawColor = (Color){100, 255, 100, 255};
+          }
+
           Rectangle destRect = {(float)(x * cellSize),
                                 (float)(y * cellSize), (float)cellSize,
                                 (float)cellSize};
           DrawTexturePro(m_floorTileset, sourceRect, destRect, {0, 0}, 0.0f,
                          drawColor);
+                         
+          if (maze.hasBarrel(x, y)) {
+             // Draw a blue square for the barrel
+             DrawRectangle(x * cellSize + cellSize/4, y * cellSize + cellSize/4, 
+                           cellSize/2, cellSize/2, BLUE);
+          }
         } else {
           DrawRectangle(x * cellSize, y * cellSize, cellSize, cellSize,
                         MAGENTA);

@@ -11,14 +11,14 @@ A **2D top-down psychological horror maze game** (visual style similar to *The E
 **Inspired by:**
 - **The Backrooms** (film) — the unsettling, liminal atmosphere of endless, procedurally shifting corridors with flickering yellow lights and no clear exit.
 - **The Maze Runner** — the idea of a hostile, ever-changing maze that must be mapped and conquered to escape, with the environment itself as the primary antagonist.
-- **Plague Inc.** — the virus/cure territory mechanics, where infection spreads across a map using population growth modelling and the player must combat it with their own competing system.
+- **Plague Inc.** — the radiation/cure territory mechanics, where radiation spreads across a map using population growth modelling and the player must combat it with their own competing system.
 
-**The core loop:** A spreading **virus** drives maze chaos — shifting walls, increasing mob spawns, and deepening confusion. The player spreads a **cure** to stabilize the maze, map it, and survive. The game operates on a **psychological horror loop** where the virus is directly tied to the player's mind and performance: the enemy virus's strength directly influences the aggressiveness of maze shape-shifts, increases layout confusion, and boosts mob spawn rates. Instead of a static environment, the maze fights back harder the worse you're doing.
+**The core loop:** Spreading **radiation** drives maze chaos — shifting walls, increasing mob spawns, and deepening confusion. The player spreads a **cure** to stabilize the maze, map it, and survive. The game operates on a **psychological horror loop** where the radiation is directly tied to the player's mind and performance: the radiation's strength directly influences the aggressiveness of maze shape-shifts, increases layout confusion, and boosts mob spawn rates. Instead of a static environment, the maze fights back harder the worse you're doing.
 
 **Gameplay pillars:**
 - **Navigation under pressure** — limited visibility, corner-peeking, and player-developed maps. The maze cannot be paused while exploring.
 - **Survival over time** — players must survive as many days as possible, manage mandatory sleep, and balance risk vs. exploration. The ultimate goal is currently being evaluated (escaping vs endless survival loop).
-- **Territory warfare** — the player's "clean" cure virus competes against the hostile corruption in a real-time BFS territory battle driven by differential equations.
+- **Territory warfare** — the player's "clean" cure competes against the hostile radiation in a real-time BFS territory battle driven by differential equations.
 
 **Dual purpose:**
 - **Portfolio piece** (primary) — demonstrate systems engineering, algorithm design, and performance optimization to recruiters/senior engineers.
@@ -97,23 +97,32 @@ Make the maze visually distinct and physically wrap around.
   - Equipping a torch extends corridor visibility distance (implmented in later phase)
 - Possibly resize game window, and gameview to fit screen etc, add temporary application icon.
 
-### Phase 3 — Virus & BFS Territory *(Days 23–34)*
-The mathematical heart — competing virus systems spreading across the grid.
-- **Domain Separation:** We must figure out how the virus/infection spreads through the maze as rooms and corridors are separated. Currently thinking the virus will be mainly a corridor thing and mobs a room thing.
-  - *Note: Pre-spawned doors from Phase 1 act as strict flow-control boundaries that prevent the corridor-based virus from flooding into the room-based mob spawns.*
-- Discretised Lotka-Volterra population model (infection vs. cure).
-- Bidirectional BFS for virus territory expansion.
-- Infection meter (time-in-zone accumulator):
-  - Triggers auditory hallucinations, screen distortion.
+### Phase 3 — Radiation & BFS Territory *(Days 23–34)*
+The mathematical heart — radiation systems spreading across the grid.
+- **Radiation Sources (Barrels):**
+  - Random barrels (represented by blue-tinted tiles as placeholders) spawn in random rooms across the map.
+  - Emit a radiation zone around them (starting at ~15 tiles radius).
+  - Radiated tiles turn green, spreading calculated using Breadth-First Search (BFS).
+  - Player can press `o` while nearby to destroy a barrel, causing its radiation zone to dissipate.
+- **Debug & UI:**
+  - Add an ImGui toggle to visualize radiation barrels and their BFS spread on the minimap.
+- **Domain Separation:** Standard doors do not block radiation spread (it flows like a fluid through empty corridors and rooms). Players can upgrade doors to block radiation later.
+- Discretised Lotka-Volterra population model (radiation vs. cure).
+- Bidirectional BFS for radiation territory expansion.
+- Radiation meter (time-in-zone accumulator):
+  - Triggers auditory hallucinations, screen distortion, and directly affects the player's visual experience.
   - Forces the maze to reroute more frequently.
-  - Gases/viruses can physically weaken player, forcing crawl.
-- Visual feedback: infected cells change color.
-- Virus Radiator/emitter spawner nodes (destroyable — yields useful parts, removes blockages for cure spread).
+  - Radiation can physically weaken player, forcing crawl.
+- **Radiation Spread rules:**
+  - If any part of a room gets radiated, the whole room does.
+  - Corridors act as the linking arteries that spread radiation between rooms.
+- **Resource Spawning:**
+  - Special items and resources (like Mushrooms) only spawn in radiated rooms.
 - Cure spreader placement and expansion:
-  - Cure acts like expanding BFS gas radar.
+  - Cure acts like expanding BFS safe-zone radar.
   - Slightly reduces dangers, stops maze from merging.
   - Permanently fixes cured region on the map.
-- Maze mutation rate linked to infection level (shifting zone size starts at 14, increases/decreases every night depending on cure vs virus domination).
+- Maze mutation rate linked to radiation level (shifting zone size starts at 14, increases/decreases every night depending on cure vs radiation domination).
 
 ### Phase 4 — Mobs, Death & Progression *(Days 35–52)*
 - **Death mechanics:**
@@ -134,7 +143,8 @@ The mathematical heart — competing virus systems spreading across the grid.
   - Basic melee combat (hit detection, health, death).
   - List of Deadly mobs (those that attack you), to be determined later; each mob will have unique characteristics and abilities.
   - Flora & fauna ecosystem:
-    - Cockroaches, moss, rats, mushrooms — plague-like infectious reproduction.
+    - Cockroaches, moss, rats.
+    - Mushrooms — infectious reproduction, uniquely spawn only in radiated rooms, useful for special crafting.
     - Potential bird/bat swarms.
     - Simulates a living ecological food chain with territorial fighting/conquering.
 - **Mob Spawning Rules:** Also need to figure out if there will be mobs in corridors. Currently thinking a single jumpscare mob type with bird's eye view textures in corridors, and all other mobs randomly spawn inside rooms.
@@ -248,7 +258,7 @@ All items organized by category.
 | Gas Mask / Hazmat Suit | Protects player from infection/gases. Uses gas mask icon, turns player texture into gas suit man. | L1 |
 | Tripwire Flashbangs | Defensive traps. *(May be removed)*. | L1 |
 | Barricades | Wood / reinforced wood. Blocks enemy BFS pathfinding. Upgradeable. | L1 (crafted) |
-| Doors | Wood / Metal / Reinforced. Placed in room exits to secure bases. Opened/closed by player. Upgradeable. | L1 (crafted) |
+| Doors | Wood / Metal / Reinforced. Placed in room exits to secure bases. Opened/closed by player. Upgradeable to block radiation. | L1 (crafted) |
 
 ### Unique Gear & Companions
 | Item | Description | Level |

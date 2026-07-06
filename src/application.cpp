@@ -53,6 +53,11 @@ Application::Application()
   // Post-Prims cleanup
   prims.pruneSmallAlcoves(m_maze, 5);
 
+  // Phase 3: Spawn Initial Radiation Barrels (uniformly from {3, 4, 5})
+  std::uniform_int_distribution<int> barrelDist(3, 5);
+  int barrelCount = barrelDist(rng);
+  m_maze.spawnRadiationBarrels(barrelCount);
+
   // 4. Initialize Player Position
   Vector2 playerStartPos = {0.0f, 0.0f};
   if (!m_maze.getRooms().empty() && midRoomIdx >= 0) {
@@ -94,6 +99,15 @@ void Application::run() {
 void Application::update() {
   if (IsKeyPressed(KEY_F11)) {
     ToggleFullscreen();
+  }
+  
+  if (IsKeyPressed(KEY_O)) {
+    int px = static_cast<int>(std::floor(m_player.getPosition().x / m_maze.getCellSize()));
+    int py = static_cast<int>(std::floor(m_player.getPosition().y / m_maze.getCellSize()));
+    if (m_maze.isBarrelNear(px, py, 1)) {
+      m_maze.destroyBarrelNear(px, py, 1);
+      m_minimapDirty = true;
+    }
   }
 
   m_player.update(m_maze);
@@ -179,6 +193,19 @@ void Application::render() {
     DrawText(msg, x, y, 30 * scale, WHITE);
   }
 
+  // Draw radiation barrel interact popup
+  int px = static_cast<int>(std::floor(m_player.getPosition().x / m_maze.getCellSize()));
+  int py = static_cast<int>(std::floor(m_player.getPosition().y / m_maze.getCellSize()));
+  if (m_maze.isBarrelNear(px, py, 1)) {
+    const char *msg = "Press 'O' to destroy radiation barrel";
+    int textWidth = MeasureText(msg, 30 * scale);
+    int x = (screenW - textWidth) / 2;
+    int y = screenH - (200 * scale); 
+    
+    DrawRectangle(x - (15 * scale), y - (5 * scale), textWidth + (30 * scale), 40 * scale, Fade(BLACK, 0.6f));
+    DrawText(msg, x, y, 30 * scale, GREEN);
+  }
+
   // 3. Draw ImGui with matching scale
   rlImGuiBegin();
   ImGui::GetIO().FontGlobalScale = scale;
@@ -209,6 +236,9 @@ void Application::renderUI() {
   ImGui::Separator();
   ImGui::Checkbox("Flashlight Torch Mode", &m_flashlightEnabled);
   if (ImGui::Checkbox("Show Regeneration Zones", &m_showGenerationZones)) {
+    m_minimapDirty = true;
+  }
+  if (ImGui::Checkbox("Show Radiation Zones", &m_showRadiationOnMinimap)) {
     m_minimapDirty = true;
   }
 
@@ -278,7 +308,11 @@ void Application::generateMinimap() {
       if (m_maze.getCell(x, y) == Maze::CELL_WALL) {
         DrawPixel(x, y, Color{100, 100, 100, 255});
       } else {
-        if (m_showGenerationZones && m_maze.isShiftingZone(x, y)) {
+        if (m_showRadiationOnMinimap && m_maze.hasBarrel(x, y)) {
+          DrawPixel(x, y, BLUE);
+        } else if (m_showRadiationOnMinimap && m_maze.getRadiationLevel(x, y) > 0) {
+          DrawPixel(x, y, Color{0, 255, 0, 255});
+        } else if (m_showGenerationZones && m_maze.isShiftingZone(x, y)) {
           DrawPixel(x, y, Color{255, 100, 100, 255});
         } else {
           DrawPixel(x, y, Color{30, 30, 35, 255});
@@ -300,6 +334,14 @@ void Application::regenerateTicTacToeZones() {
       {69, 105, 111, 14}, // H-Bot-Mid
       {194, 105, 56, 14}  // H-Bot-Right
   };
+
+  // Phase 3 interaction: Remove barrels BEFORE erasing zones.
+  // Track how many were in each zone so we can respawn replacements later.
+  std::vector<int> removedPerZone(zones.size(), 0);
+  for (size_t i = 0; i < zones.size(); ++i) {
+    const auto &z = zones[i];
+    removedPerZone[i] = m_maze.removeBarrelsInZone(z.x, z.y, z.width, z.height);
+  }
 
   m_maze.clearShiftingZones();
   for (const auto &z : zones) {
@@ -325,6 +367,18 @@ void Application::regenerateTicTacToeZones() {
   TunnelBorer borer;
   borer.ensureConnectivity(m_maze);
   prims.pruneSmallAlcoves(m_maze, 5);
+
+  // Phase 3 interaction: Respawn barrels in the freshly carved rooms.
+  // One new barrel per barrel that was removed from each zone.
+  for (size_t i = 0; i < zones.size(); ++i) {
+    for (int b = 0; b < removedPerZone[i]; ++b) {
+      const auto &z = zones[i];
+      m_maze.spawnBarrelInZone(z.x, z.y, z.width, z.height);
+    }
+  }
+
+  // Recalculate all radiation BFS zones with the updated barrel set
+  m_maze.calculateRadiationZones();
 
   m_minimapDirty = true;
 }

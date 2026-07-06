@@ -51,6 +51,7 @@ private:
   // --- Debug / Toggles ---
   bool m_flashlightEnabled = true;
   bool m_showGenerationZones = false;
+  bool m_showRadiationOnMinimap = false;
 
   // --- Flashlight Overlay Settings ---
   float m_lightConeAngle = 235.0f;
