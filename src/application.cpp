@@ -153,7 +153,8 @@ void Application::update() {
     m_corridorPopupTimer -= GetFrameTime();
   }
 
-  if (m_maze.getRadiationLevel(playerGridX, playerGridY) > 0 && !m_hasSeenRadiationPopup) {
+  if (m_maze.getRadiationLevel(playerGridX, playerGridY) > 0 &&
+      !m_hasSeenRadiationPopup) {
     m_hasSeenRadiationPopup = true;
     m_radiationPopupTimer = 3.0f; // Show for 3 seconds
   }
@@ -257,14 +258,15 @@ void Application::render() {
     int textWidth = MeasureText(msg, 60 * scale);
     int x = (screenW - textWidth) / 2;
     int y = screenH / 8; // Closer to the top of the screen
-    
+
     float alpha = 1.0f;
     if (m_radiationPopupTimer < 1.0f) {
       alpha = m_radiationPopupTimer; // Fade out over the last second
     }
 
     // Shadow
-    DrawText(msg, x + 2*scale, y + 2*scale, 60 * scale, Fade(BLACK, alpha * 0.7f));
+    DrawText(msg, x + 2 * scale, y + 2 * scale, 60 * scale,
+             Fade(BLACK, alpha * 0.7f));
     // Text
     DrawText(msg, x, y, 60 * scale, Fade(GREEN, alpha));
   }

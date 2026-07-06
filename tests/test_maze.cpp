@@ -375,3 +375,72 @@ TEST(MazeTest, NoDiagonalLeaks) {
   // 4. Final scan after regeneration
   scanForLeaks("Zone Regeneration");
 }
+
+// 10. Test Uniform Room Radiation
+TEST(MazeTest, UniformRoomRadiation) {
+  // Test with 5 different seeds
+  unsigned int seeds[5] = {101, 202, 303, 404, 505};
+  
+  for (int i = 0; i < 5; ++i) {
+    unsigned int seed = seeds[i];
+    std::mt19937 rng(seed);
+    Maze maze(100, 100, 32, seed);
+    
+    // Generate full maze
+    BSPGenerator bsp;
+    bsp.generate(maze, rng);
+    PrimsGenerator prims;
+    prims.generate(maze, rng, bsp.getMiddleRoomIndex());
+    LoopGenerator loops;
+    loops.generate(maze, rng);
+    TunnelBorer borer;
+    borer.ensureConnectivity(maze);
+    prims.pruneSmallAlcoves(maze, 5);
+    
+    // Spawn barrels
+    maze.spawnRadiationBarrels(15);
+    
+    // Check uniform radiation in every contiguous CELL_ROOM component
+    std::vector<bool> visited(maze.getWidth() * maze.getHeight(), false);
+    
+    for (int y = 0; y < maze.getHeight(); ++y) {
+      for (int x = 0; x < maze.getWidth(); ++x) {
+        int startIdx = maze.getIndex(x, y);
+        if (maze.getCell(x, y) == Maze::CELL_ROOM && !visited[startIdx]) {
+          
+          bool isComponentRadiated = maze.getRadiationLevel(x, y) > 0;
+          
+          // Flood fill to find all contiguous room tiles
+          std::deque<std::pair<int, int>> q;
+          q.push_back({x, y});
+          visited[startIdx] = true;
+          
+          while (!q.empty()) {
+            auto [cx, cy] = q.front();
+            q.pop_front();
+            
+            bool currentRadiated = maze.getRadiationLevel(cx, cy) > 0;
+            EXPECT_EQ(currentRadiated, isComponentRadiated) 
+                << "Mismatch in contiguous room radiation! Seed: " << seed 
+                << " at (" << cx << "," << cy << ")";
+            
+            const int dx[] = {1, -1, 0, 0};
+            const int dy[] = {0, 0, 1, -1};
+            for (int d = 0; d < 4; ++d) {
+              int nx = (cx + dx[d]) % maze.getWidth();
+              if (nx < 0) nx += maze.getWidth();
+              int ny = (cy + dy[d]) % maze.getHeight();
+              if (ny < 0) ny += maze.getHeight();
+              
+              int nIdx = maze.getIndex(nx, ny);
+              if (maze.getCell(nx, ny) == Maze::CELL_ROOM && !visited[nIdx]) {
+                visited[nIdx] = true;
+                q.push_back({nx, ny});
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

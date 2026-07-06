@@ -308,37 +308,41 @@ void Maze::calculateRadiationZones() {
     }
   }
 
-  // Post-pass: If ANY tile in a room is radiated, mark the ENTIRE room as
+  // Post-pass: If ANY tile in a contiguous room block is radiated, mark the ENTIRE block as
   // radiated. This fixes the edge case where BFS enters a room at max depth
-  // and can't spread further (even at cost 0) due to the depth cap.
-  for (auto& room : m_rooms) {
-    room.isRadiated = false;
-    for (int ry = room.y; ry < room.y + room.height && !room.isRadiated; ++ry) {
-      for (int rx = room.x; rx < room.x + room.width && !room.isRadiated; ++rx) {
-        int mx = rx % m_width;
-        if (mx < 0) mx += m_width;
-        int my = ry % m_height;
-        if (my < 0) my += m_height;
+  // and can't spread further (even at cost 0) due to the depth cap, or when
+  // rooms are non-rectangular due to merging/generation.
+  std::vector<bool> roomVisited(m_width * m_height, false);
+  for (int y = 0; y < m_height; ++y) {
+    for (int x = 0; x < m_width; ++x) {
+      int idx = getIndex(x, y);
+      if (m_grid[idx] == CELL_ROOM && m_radiationMap[idx] > 0 && !roomVisited[idx]) {
+        // We found a radiated room tile. Flood fill all contiguous room tiles.
+        std::vector<int> component;
+        std::deque<std::pair<int, int>> rq;
+        rq.push_back({x, y});
+        roomVisited[idx] = true;
         
-        int idx = getIndex(mx, my);
-        if (m_grid[idx] == CELL_ROOM && m_radiationMap[idx] > 0) {
-          room.isRadiated = true;
-        }
-      }
-    }
-
-    // If the room is radiated, paint every CELL_ROOM tile in the radiation map
-    if (room.isRadiated) {
-      for (int ry = room.y; ry < room.y + room.height; ++ry) {
-        for (int rx = room.x; rx < room.x + room.width; ++rx) {
-          int mx = rx % m_width;
-          if (mx < 0) mx += m_width;
-          int my = ry % m_height;
-          if (my < 0) my += m_height;
+        while (!rq.empty()) {
+          auto [cx, cy] = rq.front();
+          rq.pop_front();
+          int cIdx = getIndex(cx, cy);
           
-          int idx = getIndex(mx, my);
-          if (m_grid[idx] == CELL_ROOM) {
-            m_radiationMap[idx] = 1;
+          m_radiationMap[cIdx] = 1; // Paint it radiated
+          
+          const int rdx[] = {1, -1, 0, 0};
+          const int rdy[] = {0, 0, 1, -1};
+          for (int d = 0; d < 4; ++d) {
+            int nx = (cx + rdx[d]) % m_width;
+            if (nx < 0) nx += m_width;
+            int ny = (cy + rdy[d]) % m_height;
+            if (ny < 0) ny += m_height;
+            
+            int nIdx = getIndex(nx, ny);
+            if (m_grid[nIdx] == CELL_ROOM && !roomVisited[nIdx]) {
+              roomVisited[nIdx] = true;
+              rq.push_back({nx, ny});
+            }
           }
         }
       }
