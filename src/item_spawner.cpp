@@ -200,7 +200,7 @@ void ItemSpawner::spawnMushrooms(Maze &maze, ItemType type, int target,
             maze.getItem(x, y) == ItemType::NONE && isValidRad &&
             isRoomCorner(maze, x, y) && !isNearCorridor(maze, x, y)) {
 
-          if (chance(m_rng) < 0.3f) {
+          if (chance(m_rng) < 0.03f) {
             totalPlaced += spawnMushroomClump(maze, x, y, type);
           }
         }

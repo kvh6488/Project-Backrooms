@@ -34,19 +34,32 @@ void Player::update(Maze &maze) {
   if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT))
     velocity.x += m_speed;
 
-  // FACING DIRECTION (Edge-Triggered)
-  // IsKeyPressed() fires only on the frame a key is first pressed, so the
-  // facing direction reflects the LAST key the player tapped. This gives
-  // intuitive diagonal behavior: pressing W+D shows "up" if W was pressed
-  // most recently, or "right" if D was.
-  if (IsKeyPressed(KEY_S) || IsKeyPressed(KEY_DOWN))
-    m_facingDirection = FacingDirection::DOWN;
-  if (IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP))
-    m_facingDirection = FacingDirection::UP;
-  if (IsKeyPressed(KEY_A) || IsKeyPressed(KEY_LEFT))
-    m_facingDirection = FacingDirection::LEFT;
-  if (IsKeyPressed(KEY_D) || IsKeyPressed(KEY_RIGHT))
-    m_facingDirection = FacingDirection::RIGHT;
+  // Normalize velocity if moving diagonally to prevent speed boost
+  if (velocity.x != 0.0f && velocity.y != 0.0f) {
+    float length = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+    velocity.x = (velocity.x / length) * m_speed;
+    velocity.y = (velocity.y / length) * m_speed;
+  }
+
+  // FACING DIRECTION (Velocity-based)
+  // The player faces the direction they are moving the most.
+  if (std::abs(velocity.x) > std::abs(velocity.y)) {
+    m_facingDirection = (velocity.x > 0.0f) ? FacingDirection::RIGHT : FacingDirection::LEFT;
+  } else if (std::abs(velocity.y) > std::abs(velocity.x)) {
+    m_facingDirection = (velocity.y > 0.0f) ? FacingDirection::DOWN : FacingDirection::UP;
+  } else if (velocity.x != 0.0f || velocity.y != 0.0f) {
+    // Exact diagonal movement. Keep the current facing direction if valid,
+    // otherwise default to the X-axis direction.
+    bool validDirection = false;
+    if (m_facingDirection == FacingDirection::RIGHT && velocity.x > 0.0f) validDirection = true;
+    if (m_facingDirection == FacingDirection::LEFT && velocity.x < 0.0f) validDirection = true;
+    if (m_facingDirection == FacingDirection::DOWN && velocity.y > 0.0f) validDirection = true;
+    if (m_facingDirection == FacingDirection::UP && velocity.y < 0.0f) validDirection = true;
+
+    if (!validDirection) {
+      m_facingDirection = (velocity.x > 0.0f) ? FacingDirection::RIGHT : FacingDirection::LEFT;
+    }
+  }
 
   // Track whether the player is moving this frame (used by PlayerRenderer
   // to decide whether to animate or show idle frame).

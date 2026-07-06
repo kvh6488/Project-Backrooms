@@ -13,7 +13,7 @@ A **2D top-down psychological horror maze game** (visual style similar to *The E
 - **The Maze Runner** — the idea of a hostile, ever-changing maze that must be mapped and conquered to escape, with the environment itself as the primary antagonist.
 - **Plague Inc. / CoD Zombies** — population growth modelling for radiation spread, combined with wave-based escalating survival where the player must endure an ever-growing threat.
 
-**The core loop:** The primary goal is to survive the increasing waves and difficulty of the maze as days go by, seeing how far you can get before you die. Potentailly spreading **radiation** drives maze chaos — shifting walls, increasing mob spawns, and deepening confusion. The game operates on a **psychological horror loop** where the radiation is directly tied to the player's mind and performance: the radiation's strength directly influences the aggressiveness of maze shape-shifts, increases layout confusion, and boosts mob spawn rates. Instead of a static environment, the maze fights back harder as the days progress. If you die, your entire game resets to the beginning.
+**The core loop:** The primary goal is to survive the increasing waves and difficulty of the maze as days go by, seeing how far you can get before you die. The game operates on a **psychological horror loop** where the day count is directly tied to the player's mind and performance: the day count directly influences the aggressiveness of maze shape-shifts, increases layout confusion, radiation strength/spread, and boosts mob spawn rates. Instead of a static environment, the maze fights back harder as the days progress. If you die, your entire game resets to the beginning.
 
 **Gameplay pillars:**
 - **Navigation under pressure** — limited visibility, corner-peeking, and player-developed maps. The maze cannot be paused while exploring.
@@ -168,6 +168,7 @@ The mathematical heart — radiation systems spreading across the grid.
   - Slightly reduces dangers like mobs, radtion, and maze shifiting.
   - Potential chemical lab upgrades to the cure that stop radiation spread, or maze regenration
 - Potential maze regeneration zone size changes (shifting zone size starts at 14, increases/decreases every night depending on cure, radiation, or something else maybe just as the days goes on more of the maze shifts/regenerates each night).
+- Potentail spreading radiation drives maze chaos — shifting walls, increasing mob spawns.
 
 ### Phase 5 — Full Arsenal & Crafting  *(Days 53–72)*
 - **Full Crafting system**: inventory → recipe → item, potential crafting table vs no crafting, all required items now have a crafting recipe.
