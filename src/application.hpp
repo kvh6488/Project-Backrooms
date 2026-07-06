@@ -47,6 +47,10 @@ private:
   // --- UI / Minimap State ---
   RenderTexture2D m_minimapTexture;
   bool m_minimapDirty;
+  
+  // UI / Popups
+  float m_popupTimer = 0.0f;
+  std::string m_popupText = "";
 
   // --- Popups ---
   bool m_hasSeenCorridorPopup = false;

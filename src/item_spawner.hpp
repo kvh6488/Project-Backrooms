@@ -51,7 +51,21 @@ private:
   void spawnBarrels(Maze& maze, int count,
                     int boundsX, int boundsY, int boundsW, int boundsH);
 
+  // Spawn mushrooms (normal or magic) in room corners across the maze or bounding box.
+  // Target parameter tells us exactly how many to spawn during respawning
+  // (target = -1 means normal generation based on 6% chance).
+  void spawnMushrooms(Maze& maze, ItemType type, int target = -1,
+                      int boundsX = 0, int boundsY = 0,
+                      int boundsW = -1, int boundsH = -1);
+
+  // Grows a single clump of 2-5 mushrooms starting at (startX, startY).
+  // Returns the actual number of mushrooms placed.
+  int spawnMushroomClump(Maze& maze, int startX, int startY, ItemType type);
+
   // Helper: Check if a room cell is adjacent to any corridor cell
   // (i.e., it's a doorway transition cell and items should not go here).
   bool isNearCorridor(const Maze& maze, int x, int y) const;
+
+  // Helper: Check if a room cell is in a corner (walls on two adjacent sides).
+  bool isRoomCorner(const Maze& maze, int x, int y) const;
 };

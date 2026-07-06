@@ -22,6 +22,7 @@ void MazeRenderer::loadTextures() {
     m_postApocWorkshopTextures =
         LoadTexture("assets/PostApoc_Workshop_WithShadow.png");
     m_doodadsTexture = LoadTexture("assets/doodads_spritesheet.png");
+    m_mushroomTexture = LoadTexture("assets/mushrooms_pixel_asset.png");
 
     // Generate the soft radial gradient for the flashlight overlay.
     // Diameter of 512px gives us a smooth, high-res gradient circle
@@ -39,6 +40,7 @@ MazeRenderer::~MazeRenderer() {
     UnloadTexture(m_propTileset);
     UnloadTexture(m_postApocWorkshopTextures);
     UnloadTexture(m_doodadsTexture);
+    UnloadTexture(m_mushroomTexture);
     UnloadTexture(m_lightGradient);
     if (m_lightMaskReady)
       UnloadRenderTexture(m_lightMask);
@@ -306,8 +308,26 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
               break;
             }
             case ItemType::MUSHROOM:
-              // Future: Draw mushroom sprite here
+            case ItemType::MAGIC_MUSHROOM: {
+              // Pseudo-random consistent hash to pick a tile from the top 8 (0-7)
+              int tileIndex = (x * 73 + y * 37) % 8;
+              int tx = tileIndex % 4;
+              
+              // Normal mushrooms use top half (rows 0-1), magic mushrooms use bottom half (rows 2-3)
+              int ty = (maze.getItem(x, y) == ItemType::MUSHROOM) ? (tileIndex / 4) 
+                                                                  : (tileIndex / 4) + 2;
+              Rectangle sourceRect = {(float)tx * 16.0f, (float)ty * 16.0f, 16.0f, 16.0f};
+              
+              // 2 times smaller than the cell size (i.e. twice as large as before)
+              float mSize = cellSize / 2.0f;
+              Rectangle destRect = {
+                  (float)(x * cellSize) + (cellSize / 2.0f) - (mSize / 2.0f),
+                  (float)(y * cellSize) + (cellSize / 2.0f) - (mSize / 2.0f),
+                  mSize, mSize};
+                  
+              DrawTexturePro(m_mushroomTexture, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
               break;
+            }
             case ItemType::NONE:
             default:
               break;

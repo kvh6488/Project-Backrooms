@@ -1,7 +1,8 @@
 #pragma once
-#include <raylib.h>
 #include <map>
+#include <raylib.h>
 #include <vector>
+
 
 enum class AreaState { CORRIDOR, ROOM };
 
@@ -18,9 +19,11 @@ enum class AreaState { CORRIDOR, ROOM };
 // every list for every visible cell — O(items) per cell vs O(1).
 // ============================================================================
 enum class ItemType : int {
-  NONE = 0,     // Empty cell — no item present
-  BARREL = 1,   // Radiation barrel — emits BFS radiation zones
-  MUSHROOM = 2  // Mushroom — spawns only in radiated rooms (future)
+  NONE = 0,          // Empty cell — no item present
+  BARREL = 1,        // Radiation barrel — emits BFS radiation zones
+  MUSHROOM = 2,      // Mushroom — spawns only in normal rooms
+  MAGIC_MUSHROOM = 3 // Magic Mushroom — grants special ability, spawns only in
+                     // radiated rooms
 };
 
 // Forward declarations
@@ -136,8 +139,8 @@ public:
   // Wipe all items in a rectangular zone and return a count of each type
   // that was removed. Used during Tic-Tac-Toe zone regeneration so the
   // ItemSpawner knows exactly what to replenish.
-  std::map<ItemType, int> clearItemsInZone(int startX, int startY,
-                                           int width, int height);
+  std::map<ItemType, int> clearItemsInZone(int startX, int startY, int width,
+                                           int height);
 
   // --- Phase 3: Radiation Mechanics ---
   void calculateRadiationZones();

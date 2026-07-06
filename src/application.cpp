@@ -111,6 +111,29 @@ void Application::update() {
     }
   }
 
+  // --- Pickup Interaction ---
+  if (IsKeyPressed(KEY_P)) {
+    int px = static_cast<int>(std::floor(m_player.getPosition().x / m_maze.getCellSize()));
+    int py = static_cast<int>(std::floor(m_player.getPosition().y / m_maze.getCellSize()));
+    
+    bool pickedUp = false;
+    for (int y = py - 1; y <= py + 1 && !pickedUp; ++y) {
+      for (int x = px - 1; x <= px + 1 && !pickedUp; ++x) {
+        ItemType type = m_maze.getItem(x, y);
+        if (type == ItemType::MUSHROOM || type == ItemType::MAGIC_MUSHROOM) {
+          m_maze.setItem(x, y, ItemType::NONE);
+          m_popupText = (type == ItemType::MAGIC_MUSHROOM) ? "Picked up Magic Mushroom!" : "Picked up Mushroom!";
+          m_popupTimer = 3.0f;
+          pickedUp = true;
+        }
+      }
+    }
+  }
+
+  if (m_popupTimer > 0.0f) {
+    m_popupTimer -= GetFrameTime();
+  }
+
   m_player.update(m_maze);
 
   // Convert player pixel position to grid coordinates for the FOV system
@@ -248,7 +271,15 @@ void Application::render() {
 
     DrawRectangle(x - (15 * scale), y - (5 * scale), textWidth + (30 * scale),
                   40 * scale, Fade(BLACK, 0.6f));
-    DrawText(msg, x, y, 30 * scale, WHITE);
+    DrawText(msg, x, y, 30 * scale, Fade(WHITE, std::min(1.0f, m_corridorPopupTimer)));
+  }
+
+  // Draw pickup popup
+  if (m_popupTimer > 0.0f) {
+    int textWidth = MeasureText(m_popupText.c_str(), 30 * scale);
+    int x = (screenW - textWidth) / 2;
+    int y = screenH - (150 * scale); // Display slightly above hotbar/bottom
+    DrawText(m_popupText.c_str(), x, y, 30 * scale, Fade(WHITE, std::min(1.0f, m_popupTimer)));
   }
 
   // Draw radiation zone popup

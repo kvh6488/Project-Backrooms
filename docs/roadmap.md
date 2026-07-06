@@ -192,7 +192,7 @@ The mathematical heart — radiation systems spreading across the grid.
   - Magic Map (dynamically updates when maze shifts at night; fixed region, rare find, only via LSD).
 - **Advanced Chemical Lab Crafting**:
   - Speed drug (faster run, paranoid hallucinations / fake mobs).
-  - LSD / Shrooms (maze regenerates at its shifting zone every 1.5 minutes *even if player is awake*. Need to figure out what happens if player is caught in the shifting zone).
+  - Magic Mushrooms (maze regenerates at its shifting zone every 1.5 minutes *even if player is awake*. Need to figure out what happens if player is caught in the shifting zone).
   - Parasitic Syringe (crafted from rat + cockroach serum. Injected into friendly dispersers for exponential/faster and wider cure spread. Severe decay rate if unmaintained).
 - **Advanced Systems**:
   - Dog companion (Pitbull vs standard).
@@ -274,7 +274,7 @@ All items organized by category.
 | Item | Description | Level |
 |---|---|---|
 | Speed | Faster run speed. Mobs slightly faster. Increases paranoid hallucinations (fake mob spawns). | L1 (crafted) |
-| LSD / Shrooms | Maze regenerates at shifting zone every 1.5 mins even if awake. Chance to find magic map. | L1 (crafted) |
+| Magic Mushrooms | Maze regenerates at shifting zone every 1.5 mins even if awake. Chance to find magic map. | L1 (crafted) |
 | Parasitic Syringe | Crafted from rat + cockroach serum. Injected into friendly dispersers for exponential/faster and wider cure spread. Severe decay rate if unmaintained. | L1 (crafted) |
 
 ### Base Structures
