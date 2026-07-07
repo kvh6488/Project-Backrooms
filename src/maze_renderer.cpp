@@ -436,18 +436,11 @@ void MazeRenderer::initLightMask() {
 }
 
 // ============================================================================
-// renderDarknessOverlay — Screen-Space Flashlight Effect (Fixed)
+// buildLightMask — Pre-calculate screen-space flashlight effect
 // ============================================================================
-// Uses a RenderTexture "light mask":
-//   1. Render the light mask off-screen: clear to BLACK, draw directional
-//   gradient
-//   2. Draw the light mask onto the main framebuffer using BLEND_MULTIPLIED
-//   3. Where the mask is white (1.0): tiles show through unchanged
-//      Where the mask is black (0.0): tiles are multiplied to darkness
-// ============================================================================
-void MazeRenderer::renderDarknessOverlay(Vector2 playerWorldPos,
-                                         const Camera2D &camera,
-                                         AreaState state, FacingDirection dir) {
+void MazeRenderer::buildLightMask(Vector2 playerWorldPos,
+                                  const Camera2D &camera,
+                                  AreaState state, FacingDirection dir) {
   // Only draw darkness in corridors; rooms are always fully lit
   if (state != AreaState::CORRIDOR)
     return;
@@ -456,9 +449,6 @@ void MazeRenderer::renderDarknessOverlay(Vector2 playerWorldPos,
   initLightMask();
   if (!m_lightMaskReady)
     return;
-
-  int screenW = GetScreenWidth();
-  int screenH = GetScreenHeight();
 
   // Convert player's world position to screen position
   Vector2 playerScreen = GetWorldToScreen2D(playerWorldPos, camera);
@@ -505,6 +495,12 @@ void MazeRenderer::renderDarknessOverlay(Vector2 playerWorldPos,
   DrawTexturePro(m_lightGradient, srcRect, destRect, origin, rotation, WHITE);
 
   EndTextureMode();
+}
+
+void MazeRenderer::drawLightMask() {
+  if (!m_lightMaskReady) return;
+  int screenW = GetScreenWidth();
+  int screenH = GetScreenHeight();
 
   // --- Step 2: Composite the light mask onto the main framebuffer ---
   // BLEND_MULTIPLIED: finalPixel = framebufferPixel × maskPixel

@@ -16,9 +16,9 @@ ItemSpawner::ItemSpawner(std::mt19937 &rng) : m_rng(rng) {}
 // Time Complexity: O(1) — always exactly 4 neighbour checks.
 // ============================================================================
 bool ItemSpawner::isNearCorridor(const Maze &maze, int x, int y) const {
-  const int dx[] = {1, -1, 0, 0};
-  const int dy[] = {0, 0, 1, -1};
-  for (int d = 0; d < 4; ++d) {
+  const int dx[] = {1, 1, 1, 0, -1, -1, -1, 0};
+  const int dy[] = {1, 0, -1, -1, -1, 0, 1, 1};
+  for (int d = 0; d < 8; ++d) {
     if (maze.getCell(x + dx[d], y + dy[d]) == Maze::CELL_CORRIDOR) {
       return true;
     }
@@ -200,7 +200,7 @@ void ItemSpawner::spawnMushrooms(Maze &maze, ItemType type, int target,
             maze.getItem(x, y) == ItemType::NONE && isValidRad &&
             isRoomCorner(maze, x, y) && !isNearCorridor(maze, x, y)) {
 
-          if (chance(m_rng) < 0.03f) {
+          if (chance(m_rng) < 0.3f) {
             totalPlaced += spawnMushroomClump(maze, x, y, type);
           }
         }
@@ -247,11 +247,20 @@ void ItemSpawner::spawnInitialItems(Maze &maze) {
 void ItemSpawner::respawnItems(Maze &maze,
                                const std::map<ItemType, int> &itemsToSpawn,
                                int zoneX, int zoneY, int zoneW, int zoneH) {
+  // First, spawn barrels to establish radiation zones
+  auto itBarrel = itemsToSpawn.find(ItemType::TOXIC_WASTE);
+  if (itBarrel != itemsToSpawn.end()) {
+    spawnBarrels(maze, itBarrel->second, zoneX, zoneY, zoneW, zoneH);
+  }
+
+  // Recalculate radiation zones before spawning mushrooms
+  maze.calculateRadiationZones();
+
+  // Then spawn other items
   for (const auto &[type, count] : itemsToSpawn) {
+    if (type == ItemType::TOXIC_WASTE) continue;
+    
     switch (type) {
-    case ItemType::TOXIC_WASTE:
-      spawnBarrels(maze, count, zoneX, zoneY, zoneW, zoneH);
-      break;
     case ItemType::MUSHROOM:
       spawnMushrooms(maze, ItemType::MUSHROOM, count, zoneX, zoneY, zoneW,
                      zoneH);

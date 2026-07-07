@@ -13,7 +13,7 @@ Player::Player(Vector2 startPosition, AreaState startState)
 // ============================================================================
 // Update - Kinematics and Input
 // ============================================================================
-void Player::update(Maze &maze) {
+void Player::update(Maze &maze, bool canMove) {
   // 1. FRAMERATE INDEPENDENCE (Delta Time)
   // GetFrameTime() returns the seconds elapsed since the last frame (e.g.,
   // 0.016s for 60 FPS). Multiplying our speed by this ensures we move exactly
@@ -21,18 +21,80 @@ void Player::update(Maze &maze) {
   // running.
   float dt = GetFrameTime();
 
+  if (m_isPassingOut) {
+    float prevTimer = m_passOutTimer;
+    m_passOutTimer -= dt;
+    
+    if (prevTimer > 5.0f && m_passOutTimer <= 5.0f) {
+      m_eventPassOutComplete = true;
+      m_kickInTimers.clear();
+      m_tripDurationRemaining = 0.0f;
+      m_mushroomsEatenThisTrip = 0;
+      m_mushroomsKickedInThisTrip = 0;
+      m_isFadingIn = false;
+    }
+    
+    if (m_passOutTimer <= 0.0f) {
+      m_isPassingOut = false;
+    }
+  } else {
+    // Process kick in timers
+    for (int i = 0; i < (int)m_kickInTimers.size(); i++) {
+      m_kickInTimers[i] -= dt;
+      if (m_kickInTimers[i] <= 0.0f) {
+        m_tripDurationRemaining += 90.0f;
+        m_mushroomsKickedInThisTrip++;
+        
+        // Remove from list
+        m_kickInTimers.erase(m_kickInTimers.begin() + i);
+        i--;
+        
+        if (m_mushroomsKickedInThisTrip >= 5) {
+          m_isPassingOut = true;
+          m_passOutTimer = 10.0f; // 10 second blackout
+          break; // Stop processing further
+        }
+      }
+    }
+    
+    // Process trip duration
+    if (!m_isPassingOut && m_tripDurationRemaining > 0.0f) {
+      m_tripDurationRemaining -= dt;
+      if (m_tripDurationRemaining <= 0.0f) {
+        m_tripDurationRemaining = 0.0f;
+        m_eventMushroomOver = true;
+        m_mushroomsEatenThisTrip = 0;
+        m_mushroomsKickedInThisTrip = 0;
+        m_isFadingIn = false;
+      }
+    }
+    
+    // Check for fade in trigger
+    if (!m_isPassingOut && !m_isFadingIn && m_tripDurationRemaining <= 0.0f && !m_kickInTimers.empty()) {
+      float minTimer = 999.0f;
+      for (float t : m_kickInTimers) if (t < minTimer) minTimer = t;
+      
+      if (minTimer <= 20.0f) {
+        m_isFadingIn = true;
+        m_eventMushroomWeird = true;
+      }
+    }
+  }
+
   // Create a velocity vector to store how much we WANT to move this frame.
   Vector2 velocity = {0.0f, 0.0f};
 
   // WASD and Arrow Key Input
-  if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))
-    velocity.y -= m_speed;
-  if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))
-    velocity.y += m_speed;
-  if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))
-    velocity.x -= m_speed;
-  if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT))
-    velocity.x += m_speed;
+  if (canMove) {
+    if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))
+      velocity.y -= m_speed;
+    if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))
+      velocity.y += m_speed;
+    if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))
+      velocity.x -= m_speed;
+    if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT))
+      velocity.x += m_speed;
+  }
 
   // Normalize velocity if moving diagonally to prevent speed boost
   if (velocity.x != 0.0f && velocity.y != 0.0f) {
@@ -67,14 +129,16 @@ void Player::update(Maze &maze) {
 
   // 1.5 DOOR TRANSITIONS (KEY_K and KEY_L)
   int doorIndexToEnter = -1;
-  if (IsKeyPressed(KEY_K))
-    doorIndexToEnter = 0;
-  if (IsKeyPressed(KEY_L))
-    doorIndexToEnter = 1;
+  if (canMove) {
+    if (IsKeyPressed(KEY_K))
+      doorIndexToEnter = 0;
+    if (IsKeyPressed(KEY_L))
+      doorIndexToEnter = 1;
 
-  // INVENTORY PICKUP (KEY_P)
-  if (IsKeyPressed(KEY_P)) {
-    pickupItem(maze);
+    // INVENTORY PICKUP (KEY_P)
+    if (IsKeyPressed(KEY_P)) {
+      pickupItem(maze);
+    }
   }
 
   if (doorIndexToEnter != -1) {
@@ -258,6 +322,11 @@ void Player::pickupItem(Maze &maze) {
         typeToPickup = type;
         targetX = x;
         targetY = y;
+        
+        if (type == ItemType::MAGIC_MUSHROOM && !m_hasPickedUpMushroomEver) {
+          m_hasPickedUpMushroomEver = true;
+          m_eventMushroomFirstPickup = true;
+        }
       }
     }
   }
@@ -306,6 +375,29 @@ void Player::dropItem(Maze &maze, int slotIndex) {
   }
 }
 
+void Player::consumeItem(int slotIndex) {
+  if (slotIndex < 0 || slotIndex >= 20) return;
+  if (m_inventory[slotIndex].type == ItemType::NONE) return;
+
+  ItemType type = m_inventory[slotIndex].type;
+  
+  if (type == ItemType::MAGIC_MUSHROOM) {
+    m_kickInTimers.push_back(40.0f);
+    m_mushroomsEatenThisTrip++;
+    m_eventMushroomConsumed = true;
+    
+    if (m_mushroomsEatenThisTrip == 3) {
+      m_eventMushroomThree = true;
+    }
+    
+    m_inventory[slotIndex].count--;
+    if (m_inventory[slotIndex].count <= 0) {
+      m_inventory[slotIndex].type = ItemType::NONE;
+      m_inventory[slotIndex].count = 0;
+    }
+  }
+}
+
 void Player::destroyItem(int slotIndex) {
   if (slotIndex < 0 || slotIndex >= 20)
     return;
@@ -342,3 +434,34 @@ void Player::swapSlots(int slotIndex1, int slotIndex2) {
     std::swap(m_inventory[slotIndex1], m_inventory[slotIndex2]);
   }
 }
+
+float Player::getMushroomEffectStrength() const {
+  if (m_isPassingOut) {
+    if (m_passOutTimer > 5.0f) return 1.0f;
+    else return 0.0f;
+  }
+  
+  if (m_tripDurationRemaining > 0.0f) {
+    if (m_tripDurationRemaining < 20.0f && m_kickInTimers.empty()) {
+      return m_tripDurationRemaining / 20.0f; // Fade out
+    }
+    return 1.0f; // Full trip
+  }
+  
+  if (!m_kickInTimers.empty()) {
+    float minTimer = 999.0f;
+    for (float t : m_kickInTimers) if (t < minTimer) minTimer = t;
+    
+    if (minTimer <= 20.0f) {
+      return 1.0f - (minTimer / 20.0f); // Fade in
+    }
+  }
+  
+  return 0.0f;
+}
+
+void Player::teleport(Vector2 newPos, AreaState newState) {
+  m_position = newPos;
+  m_areaState = newState;
+}
+

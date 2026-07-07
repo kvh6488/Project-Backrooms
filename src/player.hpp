@@ -3,6 +3,7 @@
 #include "maze.hpp"
 #include "raylib.h"
 #include <array>
+#include <vector>
 
 // ============================================================================
 // FacingDirection Enum
@@ -44,7 +45,7 @@ public:
   // --- Core Methods ---
 
   // Updates player logic every frame (Input -> Kinematics -> Collision)
-  void update(Maze &maze);
+  void update(Maze &maze, bool canMove = true);
 
   // Getters
   Vector2 getPosition() const { return m_position; }
@@ -59,9 +60,24 @@ public:
   // --- Inventory System ---
   void pickupItem(Maze &maze);
   void dropItem(Maze &maze, int slotIndex);
+  void consumeItem(int slotIndex);
   void destroyItem(int slotIndex);
   void swapSlots(int slotIndex1, int slotIndex2);
   const std::array<InventorySlot, 20>& getInventory() const { return m_inventory; }
+  float getMushroomEffectStrength() const;
+
+  // --- Mushroom Event Polling ---
+  bool pollEventMushroomConsumed() { bool v = m_eventMushroomConsumed; m_eventMushroomConsumed = false; return v; }
+  bool pollEventMushroomThree() { bool v = m_eventMushroomThree; m_eventMushroomThree = false; return v; }
+  bool pollEventMushroomWeird() { bool v = m_eventMushroomWeird; m_eventMushroomWeird = false; return v; }
+  bool pollEventMushroomOver() { bool v = m_eventMushroomOver; m_eventMushroomOver = false; return v; }
+  bool pollEventMushroomFirstPickup() { bool v = m_eventMushroomFirstPickup; m_eventMushroomFirstPickup = false; return v; }
+  bool pollEventPassOutComplete() { bool v = m_eventPassOutComplete; m_eventPassOutComplete = false; return v; }
+
+  bool isPassingOut() const { return m_isPassingOut; }
+  float getPassOutTimer() const { return m_passOutTimer; }
+
+  void teleport(Vector2 newPos, AreaState newState);
 
 private:
   std::array<InventorySlot, 20> m_inventory;
@@ -73,6 +89,24 @@ private:
   AreaState m_areaState;
   FacingDirection m_facingDirection; // Which direction the player sprite faces
   bool m_isMoving;                   // True when velocity is non-zero this frame
+
+  // --- Magic Mushroom Mechanics ---
+  std::vector<float> m_kickInTimers;
+  float m_tripDurationRemaining = 0.0f;
+  int m_mushroomsEatenThisTrip = 0;
+  int m_mushroomsKickedInThisTrip = 0;
+  bool m_isFadingIn = false;
+  bool m_isPassingOut = false;
+  float m_passOutTimer = 0.0f;
+  bool m_hasPickedUpMushroomEver = false;
+
+  // --- Events for Application to read ---
+  bool m_eventMushroomConsumed = false;
+  bool m_eventMushroomThree = false;
+  bool m_eventMushroomWeird = false;
+  bool m_eventMushroomOver = false;
+  bool m_eventMushroomFirstPickup = false;
+  bool m_eventPassOutComplete = false;
 
 
   // --- Internal Collision Helpers ---

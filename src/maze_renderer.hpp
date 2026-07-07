@@ -25,11 +25,12 @@ public:
   void render(const Maze &maze, const Camera2D &camera, AreaState state,
               bool showGenerationZones = true) const;
 
-  // Draw the smooth darkness overlay in screen space (called AFTER EndMode2D)
-  // playerWorldPos: player's position in world coordinates
-  // camera: the active camera for world-to-screen conversion
-  void renderDarknessOverlay(Vector2 playerWorldPos, const Camera2D &camera,
-                             AreaState state, FacingDirection dir);
+  // Step 1: Builds the light mask off-screen (Call BEFORE BeginTextureMode!)
+  void buildLightMask(Vector2 playerWorldPos, const Camera2D &camera,
+                      AreaState state, FacingDirection dir);
+
+  // Step 2: Draws the built light mask (Call inside BeginTextureMode!)
+  void drawLightMask();
 
   // Updates flashlight parameters dynamically. Regenerates gradient if needed.
   void updateLightSettings(float coneAngle, float fadeStrength,

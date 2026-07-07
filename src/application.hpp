@@ -60,6 +60,13 @@ private:
   float m_popupTimer = 0.0f;
   std::string m_popupText = "";
 
+  // --- UI Popups for System Events ---
+  float m_systemPopupTimer = 0.0f;
+  std::string m_systemPopupText = "";
+  
+  float m_rainbowPopupTimer = 0.0f;
+  std::string m_rainbowPopupText = "";
+
   // --- Popups ---
   bool m_hasSeenCorridorPopup = false;
   float m_corridorPopupTimer = 0.0f;
@@ -84,4 +91,11 @@ private:
 
   // --- View Settings ---
   float m_cameraZoom = 1.2f;
+
+  // --- Visual Effects ---
+  Shader m_tripShader;
+  int m_tripTimeLoc;
+  int m_tripStrengthLoc;
+  float m_totalTime;
+  RenderTexture2D m_screenTarget;
 };
