@@ -36,16 +36,10 @@ public:
   void updateLightSettings(float coneAngle, float fadeStrength,
                            float sizeScale);
 
-  // Draws an item icon for the UI
-  void renderItemUI(ItemType type, Rectangle destRect, Color tint = WHITE) const;
-
 private:
   Texture2D m_floorTileset;
   Texture2D m_wallTileset;
   Texture2D m_propTileset;
-  Texture2D m_postApocWorkshopTextures;
-  Texture2D m_doodadsTexture;
-  Texture2D m_mushroomTexture;
 
   // --- Darkness Overlay ---
   // A pre-generated radial gradient texture: white at center, fading to

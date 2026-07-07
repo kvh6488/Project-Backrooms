@@ -24,7 +24,7 @@ void Player::update(Maze &maze, bool canMove) {
   if (m_isPassingOut) {
     float prevTimer = m_passOutTimer;
     m_passOutTimer -= dt;
-    
+
     if (prevTimer > 5.0f && m_passOutTimer <= 5.0f) {
       m_eventPassOutComplete = true;
       m_kickInTimers.clear();
@@ -33,7 +33,7 @@ void Player::update(Maze &maze, bool canMove) {
       m_mushroomsKickedInThisTrip = 0;
       m_isFadingIn = false;
     }
-    
+
     if (m_passOutTimer <= 0.0f) {
       m_isPassingOut = false;
     }
@@ -44,19 +44,19 @@ void Player::update(Maze &maze, bool canMove) {
       if (m_kickInTimers[i] <= 0.0f) {
         m_tripDurationRemaining += 90.0f;
         m_mushroomsKickedInThisTrip++;
-        
+
         // Remove from list
         m_kickInTimers.erase(m_kickInTimers.begin() + i);
         i--;
-        
+
         if (m_mushroomsKickedInThisTrip >= 5) {
           m_isPassingOut = true;
           m_passOutTimer = 10.0f; // 10 second blackout
-          break; // Stop processing further
+          break;                  // Stop processing further
         }
       }
     }
-    
+
     // Process trip duration
     if (!m_isPassingOut && m_tripDurationRemaining > 0.0f) {
       m_tripDurationRemaining -= dt;
@@ -68,12 +68,15 @@ void Player::update(Maze &maze, bool canMove) {
         m_isFadingIn = false;
       }
     }
-    
+
     // Check for fade in trigger
-    if (!m_isPassingOut && !m_isFadingIn && m_tripDurationRemaining <= 0.0f && !m_kickInTimers.empty()) {
+    if (!m_isPassingOut && !m_isFadingIn && m_tripDurationRemaining <= 0.0f &&
+        !m_kickInTimers.empty()) {
       float minTimer = 999.0f;
-      for (float t : m_kickInTimers) if (t < minTimer) minTimer = t;
-      
+      for (float t : m_kickInTimers)
+        if (t < minTimer)
+          minTimer = t;
+
       if (minTimer <= 20.0f) {
         m_isFadingIn = true;
         m_eventMushroomWeird = true;
@@ -106,20 +109,27 @@ void Player::update(Maze &maze, bool canMove) {
   // FACING DIRECTION (Velocity-based)
   // The player faces the direction they are moving the most.
   if (std::abs(velocity.x) > std::abs(velocity.y)) {
-    m_facingDirection = (velocity.x > 0.0f) ? FacingDirection::RIGHT : FacingDirection::LEFT;
+    m_facingDirection =
+        (velocity.x > 0.0f) ? FacingDirection::RIGHT : FacingDirection::LEFT;
   } else if (std::abs(velocity.y) > std::abs(velocity.x)) {
-    m_facingDirection = (velocity.y > 0.0f) ? FacingDirection::DOWN : FacingDirection::UP;
+    m_facingDirection =
+        (velocity.y > 0.0f) ? FacingDirection::DOWN : FacingDirection::UP;
   } else if (velocity.x != 0.0f || velocity.y != 0.0f) {
     // Exact diagonal movement. Keep the current facing direction if valid,
     // otherwise default to the X-axis direction.
     bool validDirection = false;
-    if (m_facingDirection == FacingDirection::RIGHT && velocity.x > 0.0f) validDirection = true;
-    if (m_facingDirection == FacingDirection::LEFT && velocity.x < 0.0f) validDirection = true;
-    if (m_facingDirection == FacingDirection::DOWN && velocity.y > 0.0f) validDirection = true;
-    if (m_facingDirection == FacingDirection::UP && velocity.y < 0.0f) validDirection = true;
+    if (m_facingDirection == FacingDirection::RIGHT && velocity.x > 0.0f)
+      validDirection = true;
+    if (m_facingDirection == FacingDirection::LEFT && velocity.x < 0.0f)
+      validDirection = true;
+    if (m_facingDirection == FacingDirection::DOWN && velocity.y > 0.0f)
+      validDirection = true;
+    if (m_facingDirection == FacingDirection::UP && velocity.y < 0.0f)
+      validDirection = true;
 
     if (!validDirection) {
-      m_facingDirection = (velocity.x > 0.0f) ? FacingDirection::RIGHT : FacingDirection::LEFT;
+      m_facingDirection =
+          (velocity.x > 0.0f) ? FacingDirection::RIGHT : FacingDirection::LEFT;
     }
   }
 
@@ -244,6 +254,27 @@ void Player::resolveCollision(const Maze &maze) {
             static_cast<float>(x * cellSize), static_cast<float>(y * cellSize),
             static_cast<float>(cellSize), static_cast<float>(cellSize)};
 
+        // Dynamically shrink the bounding box for cupboards so the player can
+        // walk closer to the front
+        if (maze.getItem(x, y) == ItemType::CUPBOARD) {
+          bool wallAbove = maze.getCell(x, y - 1) == Maze::CELL_WALL;
+          bool wallRight = maze.getCell(x + 1, y) == Maze::CELL_WALL;
+          bool wallLeft = maze.getCell(x - 1, y) == Maze::CELL_WALL;
+
+          float shrinkAmount = 10.0f;
+          if (wallAbove) {
+            // Facing down (front is bottom edge) -> shrink height
+            wallRect.height -= shrinkAmount;
+          } else if (wallRight) {
+            // Facing left (front is left edge) -> shift right, shrink width
+            wallRect.x += shrinkAmount;
+            wallRect.width -= shrinkAmount;
+          } else if (wallLeft) {
+            // Facing right (front is right edge) -> shrink width
+            wallRect.width -= shrinkAmount;
+          }
+        }
+
         // 3. CIRCLE-TO-AABB MATH (Radial Push)
         // Find the closest point on the wall's rectangle to the player's center
         float closestX =
@@ -309,7 +340,7 @@ int Player::getAvailableDoors(const Maze &maze) const {
 void Player::pickupItem(Maze &maze) {
   int px = static_cast<int>(std::floor(m_position.x / maze.getCellSize()));
   int py = static_cast<int>(std::floor(m_position.y / maze.getCellSize()));
-  
+
   ItemType typeToPickup = ItemType::NONE;
   int targetX = px;
   int targetY = py;
@@ -322,7 +353,7 @@ void Player::pickupItem(Maze &maze) {
         typeToPickup = type;
         targetX = x;
         targetY = y;
-        
+
         if (type == ItemType::MAGIC_MUSHROOM && !m_hasPickedUpMushroomEver) {
           m_hasPickedUpMushroomEver = true;
           m_eventMushroomFirstPickup = true;
@@ -330,8 +361,9 @@ void Player::pickupItem(Maze &maze) {
       }
     }
   }
-  
-  if (typeToPickup == ItemType::NONE) return;
+
+  if (typeToPickup == ItemType::NONE)
+    return;
 
   // 1. Try to find an existing stack that isn't full (limit 6)
   for (int i = 0; i < 20; ++i) {
@@ -376,20 +408,22 @@ void Player::dropItem(Maze &maze, int slotIndex) {
 }
 
 void Player::consumeItem(int slotIndex) {
-  if (slotIndex < 0 || slotIndex >= 20) return;
-  if (m_inventory[slotIndex].type == ItemType::NONE) return;
+  if (slotIndex < 0 || slotIndex >= 20)
+    return;
+  if (m_inventory[slotIndex].type == ItemType::NONE)
+    return;
 
   ItemType type = m_inventory[slotIndex].type;
-  
+
   if (type == ItemType::MAGIC_MUSHROOM) {
     m_kickInTimers.push_back(40.0f);
     m_mushroomsEatenThisTrip++;
     m_eventMushroomConsumed = true;
-    
+
     if (m_mushroomsEatenThisTrip == 3) {
       m_eventMushroomThree = true;
     }
-    
+
     m_inventory[slotIndex].count--;
     if (m_inventory[slotIndex].count <= 0) {
       m_inventory[slotIndex].type = ItemType::NONE;
@@ -437,26 +471,30 @@ void Player::swapSlots(int slotIndex1, int slotIndex2) {
 
 float Player::getMushroomEffectStrength() const {
   if (m_isPassingOut) {
-    if (m_passOutTimer > 5.0f) return 1.0f;
-    else return 0.0f;
+    if (m_passOutTimer > 5.0f)
+      return 1.0f;
+    else
+      return 0.0f;
   }
-  
+
   if (m_tripDurationRemaining > 0.0f) {
     if (m_tripDurationRemaining < 20.0f && m_kickInTimers.empty()) {
       return m_tripDurationRemaining / 20.0f; // Fade out
     }
     return 1.0f; // Full trip
   }
-  
+
   if (!m_kickInTimers.empty()) {
     float minTimer = 999.0f;
-    for (float t : m_kickInTimers) if (t < minTimer) minTimer = t;
-    
+    for (float t : m_kickInTimers)
+      if (t < minTimer)
+        minTimer = t;
+
     if (minTimer <= 20.0f) {
       return 1.0f - (minTimer / 20.0f); // Fade in
     }
   }
-  
+
   return 0.0f;
 }
 
@@ -464,4 +502,3 @@ void Player::teleport(Vector2 newPos, AreaState newState) {
   m_position = newPos;
   m_areaState = newState;
 }
-

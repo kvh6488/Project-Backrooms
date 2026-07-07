@@ -7,8 +7,6 @@ MazeRenderer::MazeRenderer() {
   m_floorTileset = {0};
   m_wallTileset = {0};
   m_propTileset = {0};
-  m_postApocWorkshopTextures = {0};
-  m_doodadsTexture = {0};
   m_lightGradient = {0};
   m_lightMask = {0};
   m_lightMaskReady = false;
@@ -19,10 +17,6 @@ void MazeRenderer::loadTextures() {
     m_floorTileset = LoadTexture("assets/BCKRMlv1_Floor_set.png");
     m_wallTileset = LoadTexture("assets/BCKRMlv1_Wall_set.png");
     m_propTileset = LoadTexture("assets/BCKRMlv1_Prop_set.png");
-    m_postApocWorkshopTextures =
-        LoadTexture("assets/PostApoc_Workshop_WithShadow.png");
-    m_doodadsTexture = LoadTexture("assets/doodads_spritesheet.png");
-    m_mushroomTexture = LoadTexture("assets/mushrooms_pixel_asset.png");
 
     // Generate the soft radial gradient for the flashlight overlay.
     // Diameter of 512px gives us a smooth, high-res gradient circle
@@ -38,9 +32,6 @@ MazeRenderer::~MazeRenderer() {
     UnloadTexture(m_floorTileset);
     UnloadTexture(m_wallTileset);
     UnloadTexture(m_propTileset);
-    UnloadTexture(m_postApocWorkshopTextures);
-    UnloadTexture(m_doodadsTexture);
-    UnloadTexture(m_mushroomTexture);
     UnloadTexture(m_lightGradient);
     if (m_lightMaskReady)
       UnloadRenderTexture(m_lightMask);
@@ -282,56 +273,6 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
                                 (float)cellSize, (float)cellSize};
           DrawTexturePro(m_floorTileset, sourceRect, destRect, {0, 0}, 0.0f,
                          drawColor);
-
-          // --- Item Rendering (Grid-Parallel Switch) ---
-          // O(1) lookup per cell. Adding a new item type means adding a
-          // new case here — no need to touch any other rendering code.
-          switch (maze.getItem(x, y)) {
-            case ItemType::TOXIC_WASTE: {
-              Rectangle sourceRectBarrel = {70.0f, 193.0f, 22.0f, 30.0f};
-              Rectangle destRectBarrel = {
-                  (float)(x * cellSize) + (cellSize / 2.0f) - 11.0f,
-                  (float)(y * cellSize) + cellSize - 30.0f, 22.0f, 30.0f};
-              DrawTexturePro(m_postApocWorkshopTextures, sourceRectBarrel,
-                             destRectBarrel, {0, 0}, 0.0f, WHITE);
-
-              // Draw radiation symbol centered over the barrel
-              Rectangle sourceRectDoodad = {3.0f * 16.0f, 1.0f * 16.0f, 16.0f,
-                                            16.0f};
-              Rectangle destRectDoodad = {
-                  (float)(x * cellSize) + (cellSize / 2.0f) - 8.0f,
-                  (float)(y * cellSize) + cellSize - 30.0f + (30.0f / 2.0f) -
-                      6.0f, // 2px down
-                  16.0f, 16.0f};
-              DrawTexturePro(m_doodadsTexture, sourceRectDoodad, destRectDoodad,
-                             {0, 0}, 0.0f, WHITE);
-              break;
-            }
-            case ItemType::MUSHROOM:
-            case ItemType::MAGIC_MUSHROOM: {
-              // Pseudo-random consistent hash to pick a tile from the top 8 (0-7)
-              int tileIndex = (x * 73 + y * 37) % 8;
-              int tx = tileIndex % 4;
-              
-              // Normal mushrooms use top half (rows 0-1), magic mushrooms use bottom half (rows 2-3)
-              int ty = (maze.getItem(x, y) == ItemType::MUSHROOM) ? (tileIndex / 4) 
-                                                                  : (tileIndex / 4) + 2;
-              Rectangle sourceRect = {(float)tx * 16.0f, (float)ty * 16.0f, 16.0f, 16.0f};
-              
-              // 2 times smaller than the cell size (i.e. twice as large as before)
-              float mSize = cellSize / 2.0f;
-              Rectangle destRect = {
-                  (float)(x * cellSize) + (cellSize / 2.0f) - (mSize / 2.0f),
-                  (float)(y * cellSize) + (cellSize / 2.0f) - (mSize / 2.0f),
-                  mSize, mSize};
-                  
-              DrawTexturePro(m_mushroomTexture, sourceRect, destRect, {0, 0}, 0.0f, WHITE);
-              break;
-            }
-            case ItemType::NONE:
-            default:
-              break;
-          }
         } else {
           DrawRectangle(x * cellSize, y * cellSize, cellSize, cellSize,
                         MAGENTA);
@@ -513,26 +454,4 @@ void MazeRenderer::drawLightMask() {
                  {0, 0, (float)screenW, (float)screenH}, {0, 0}, 0.0f, WHITE);
 
   EndBlendMode();
-}
-
-void MazeRenderer::renderItemUI(ItemType type, Rectangle destRect, Color tint) const {
-  switch (type) {
-    case ItemType::MUSHROOM:
-    case ItemType::MAGIC_MUSHROOM: {
-      Rectangle sourceRect = {
-          (type == ItemType::MUSHROOM) ? 16.0f : 0.0f,
-          (type == ItemType::MUSHROOM) ? 0.0f : 32.0f,
-          16.0f, 16.0f
-      };
-      DrawTexturePro(m_mushroomTexture, sourceRect, destRect, {0, 0}, 0.0f, tint);
-      break;
-    }
-    case ItemType::TOXIC_WASTE: {
-      DrawRectangleRec(destRect, GREEN);
-      break;
-    }
-    default:
-      DrawRectangleRec(destRect, tint);
-      break;
-  }
 }

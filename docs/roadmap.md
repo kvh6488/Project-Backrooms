@@ -120,7 +120,6 @@ The mathematical heart — radiation systems spreading across the grid.
 
 - **Magic Mushrooms & Map**
   - Visual distoation when player eats mushrooms screen fades between colours, and wavy effect applied over screen
-  - Maze regenerates at its shifting zone every minute *even if player is awake*. Need to figure out what happens if player is caught in the shifting zone
   - Eating magic mushroom allows player to find magic map randomly in maze draws/cabinents (may have to add random funiture spawns here)
   - Magic Map UI (Could include raidation points and regen zones not sure)
   - Magic map maybe also only found near spawn, (still rare to find), and is instantly set to show just up to the regen zone square border no further.
@@ -214,7 +213,7 @@ The mathematical heart — radiation systems spreading across the grid.
 *(Finalisation - most should be completed already)*
 Get Level 1 and Level 2 looking perfect.
 - Final tile textures and sprite art (Player, Mobs, Items, UI icons), maybe add carpet bitmasking.
-- HUD design (health, infection meter, inventory bar, day counter).
+- HUD design (health, infection meter, inventory bar, day counter, menus, textpop ups), ensure consistency.
 - Clean up leftover testing framework into a dedicated testing mode (hidden during normal gameplay).
 - Screen distortion effects (VHS aesthetic).
 - Audio polish: ambient buzz, flickering lights, distrusting messages, mechanical maze shifting sounds, hallucination triggers, cryptic clues.

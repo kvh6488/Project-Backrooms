@@ -31,6 +31,7 @@ Application::Application()
   // 2. Initialize ImGui and Textures
   rlImGuiSetup(true);
   m_renderer.loadTextures();
+  m_itemRenderer.loadTextures();
   m_playerRenderer.loadTextures();
 
   // 3. Generate Initial Maze
@@ -114,28 +115,40 @@ void Application::update() {
     if (!m_inventoryOpen) {
       // If closed while holding an item, put it back
       m_heldSlotIndex = -1;
-      if (m_activeHotbarSlot > 4) m_activeHotbarSlot = m_activeHotbarSlot % 5;
+      if (m_activeHotbarSlot > 4)
+        m_activeHotbarSlot = m_activeHotbarSlot % 5;
     }
   }
 
   // --- Hotbar Selection ---
   if (m_inventoryOpen) {
-    if (IsKeyPressed(KEY_RIGHT) && (m_activeHotbarSlot % 5 != 4)) m_activeHotbarSlot++;
-    if (IsKeyPressed(KEY_LEFT) && (m_activeHotbarSlot % 5 != 0)) m_activeHotbarSlot--;
+    if (IsKeyPressed(KEY_RIGHT) && (m_activeHotbarSlot % 5 != 4))
+      m_activeHotbarSlot++;
+    if (IsKeyPressed(KEY_LEFT) && (m_activeHotbarSlot % 5 != 0))
+      m_activeHotbarSlot--;
     if (IsKeyPressed(KEY_DOWN)) {
-      if (m_activeHotbarSlot >= 5 && m_activeHotbarSlot <= 14) m_activeHotbarSlot += 5;
-      else if (m_activeHotbarSlot >= 15 && m_activeHotbarSlot <= 19) m_activeHotbarSlot -= 15;
+      if (m_activeHotbarSlot >= 5 && m_activeHotbarSlot <= 14)
+        m_activeHotbarSlot += 5;
+      else if (m_activeHotbarSlot >= 15 && m_activeHotbarSlot <= 19)
+        m_activeHotbarSlot -= 15;
     }
     if (IsKeyPressed(KEY_UP)) {
-      if (m_activeHotbarSlot >= 10 && m_activeHotbarSlot <= 19) m_activeHotbarSlot -= 5;
-      else if (m_activeHotbarSlot >= 0 && m_activeHotbarSlot <= 4) m_activeHotbarSlot += 15;
+      if (m_activeHotbarSlot >= 10 && m_activeHotbarSlot <= 19)
+        m_activeHotbarSlot -= 5;
+      else if (m_activeHotbarSlot >= 0 && m_activeHotbarSlot <= 4)
+        m_activeHotbarSlot += 15;
     }
   } else {
-    if (IsKeyPressed(KEY_ONE)) m_activeHotbarSlot = 0;
-    if (IsKeyPressed(KEY_TWO)) m_activeHotbarSlot = 1;
-    if (IsKeyPressed(KEY_THREE)) m_activeHotbarSlot = 2;
-    if (IsKeyPressed(KEY_FOUR)) m_activeHotbarSlot = 3;
-    if (IsKeyPressed(KEY_FIVE)) m_activeHotbarSlot = 4;
+    if (IsKeyPressed(KEY_ONE))
+      m_activeHotbarSlot = 0;
+    if (IsKeyPressed(KEY_TWO))
+      m_activeHotbarSlot = 1;
+    if (IsKeyPressed(KEY_THREE))
+      m_activeHotbarSlot = 2;
+    if (IsKeyPressed(KEY_FOUR))
+      m_activeHotbarSlot = 3;
+    if (IsKeyPressed(KEY_FIVE))
+      m_activeHotbarSlot = 4;
   }
 
   // --- Consume Item (U Key) ---
@@ -291,14 +304,12 @@ void Application::update() {
   }
   if (m_player.pollEventPassOutComplete()) {
     // Teleport to a random room
-    const auto& rooms = m_maze.getRooms();
+    const auto &rooms = m_maze.getRooms();
     if (!rooms.empty()) {
       int randomIdx = GetRandomValue(0, rooms.size() - 1);
-      const auto& room = rooms[randomIdx];
-      Vector2 newPos = {
-        (room.x + room.width / 2.0f) * m_maze.getCellSize(),
-        (room.y + room.height / 2.0f) * m_maze.getCellSize()
-      };
+      const auto &room = rooms[randomIdx];
+      Vector2 newPos = {(room.x + room.width / 2.0f) * m_maze.getCellSize(),
+                        (room.y + room.height / 2.0f) * m_maze.getCellSize()};
       m_player.teleport(newPos, AreaState::ROOM);
     }
     m_systemPopupText = "What a trip, where am I?";
@@ -306,13 +317,15 @@ void Application::update() {
   }
 
   // Update popup timers
-  if (m_systemPopupTimer > 0.0f) m_systemPopupTimer -= GetFrameTime();
-  if (m_rainbowPopupTimer > 0.0f) m_rainbowPopupTimer -= GetFrameTime();
+  if (m_systemPopupTimer > 0.0f)
+    m_systemPopupTimer -= GetFrameTime();
+  if (m_rainbowPopupTimer > 0.0f)
+    m_rainbowPopupTimer -= GetFrameTime();
 }
 
 void Application::render() {
   // Ensure our screen target always matches the window size
-  if (m_screenTarget.texture.width != GetScreenWidth() || 
+  if (m_screenTarget.texture.width != GetScreenWidth() ||
       m_screenTarget.texture.height != GetScreenHeight()) {
     UnloadRenderTexture(m_screenTarget);
     m_screenTarget = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
@@ -334,6 +347,7 @@ void Application::render() {
   m_renderer.render(m_maze, m_camera, m_player.getAreaState(),
                     m_showGenerationZones);
   m_playerRenderer.render(m_player);
+  m_itemRenderer.render(m_maze, m_camera, m_player.getAreaState());
   EndMode2D();
 
   // --- Smooth Darkness Overlay (Screen Space) ---
@@ -348,21 +362,28 @@ void Application::render() {
   }
   EndTextureMode();
 
-  // 2. Draw the screen target to the actual window, applying the post-processing shader
+  // 2. Draw the screen target to the actual window, applying the
+  // post-processing shader
   BeginDrawing();
   ClearBackground(BLACK);
 
   float tripStrength = m_player.getMushroomEffectStrength();
   if (tripStrength > 0.0f) {
-    SetShaderValue(m_tripShader, m_tripTimeLoc, &m_totalTime, SHADER_UNIFORM_FLOAT);
-    SetShaderValue(m_tripShader, m_tripStrengthLoc, &tripStrength, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(m_tripShader, m_tripTimeLoc, &m_totalTime,
+                   SHADER_UNIFORM_FLOAT);
+    SetShaderValue(m_tripShader, m_tripStrengthLoc, &tripStrength,
+                   SHADER_UNIFORM_FLOAT);
     BeginShaderMode(m_tripShader);
   }
 
-  // Note: OpenGL textures are flipped vertically, so we use a negative height for the source rect
-  Rectangle sourceRec = { 0.0f, 0.0f, (float)m_screenTarget.texture.width, -(float)m_screenTarget.texture.height };
-  Rectangle destRec = { 0.0f, 0.0f, (float)GetScreenWidth(), (float)GetScreenHeight() };
-  DrawTexturePro(m_screenTarget.texture, sourceRec, destRec, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
+  // Note: OpenGL textures are flipped vertically, so we use a negative height
+  // for the source rect
+  Rectangle sourceRec = {0.0f, 0.0f, (float)m_screenTarget.texture.width,
+                         -(float)m_screenTarget.texture.height};
+  Rectangle destRec = {0.0f, 0.0f, (float)GetScreenWidth(),
+                       (float)GetScreenHeight()};
+  DrawTexturePro(m_screenTarget.texture, sourceRec, destRec,
+                 Vector2{0.0f, 0.0f}, 0.0f, WHITE);
 
   if (tripStrength > 0.0f) {
     EndShaderMode();
@@ -377,10 +398,13 @@ void Application::render() {
     } else {
       fadeAlpha = passOutTimer / 5.0f;
     }
-    
-    if (fadeAlpha > 1.0f) fadeAlpha = 1.0f;
-    if (fadeAlpha < 0.0f) fadeAlpha = 0.0f;
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, fadeAlpha));
+
+    if (fadeAlpha > 1.0f)
+      fadeAlpha = 1.0f;
+    if (fadeAlpha < 0.0f)
+      fadeAlpha = 0.0f;
+    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
+                  Fade(BLACK, fadeAlpha));
   }
 
   // --- Screen Space (UI Popups) ---
@@ -410,7 +434,7 @@ void Application::render() {
 
     DrawRectangle(x - (15 * scale), y - (5 * scale), textWidth + (30 * scale),
                   40 * scale, Fade(BLACK, 0.6f));
-    
+
     float alpha = std::min(1.0f, m_systemPopupTimer);
     DrawText(m_systemPopupText.c_str(), x, y, 30 * scale, Fade(WHITE, alpha));
   }
@@ -420,16 +444,19 @@ void Application::render() {
     int textWidth = MeasureText(m_rainbowPopupText.c_str(), 40 * scale);
     int x = (screenW - textWidth) / 2;
     int y = 50 * scale; // Top middle
-    
+
     // fmodf ensures the hue stays within 0-360
-    Color rainbow = ColorFromHSV(fmodf((float)GetTime() * 100.0f, 360.0f), 1.0f, 1.0f);
-    
+    Color rainbow =
+        ColorFromHSV(fmodf((float)GetTime() * 100.0f, 360.0f), 1.0f, 1.0f);
+
     float alpha = std::min(1.0f, m_rainbowPopupTimer);
-    
+
     // Shadow
-    DrawText(m_rainbowPopupText.c_str(), x + 2 * scale, y + 2 * scale, 40 * scale, Fade(BLACK, alpha * 0.7f));
+    DrawText(m_rainbowPopupText.c_str(), x + 2 * scale, y + 2 * scale,
+             40 * scale, Fade(BLACK, alpha * 0.7f));
     // Text
-    DrawText(m_rainbowPopupText.c_str(), x, y, 40 * scale, Fade(rainbow, alpha));
+    DrawText(m_rainbowPopupText.c_str(), x, y, 40 * scale,
+             Fade(rainbow, alpha));
   }
 
   // Draw one-time corridor popup
@@ -484,8 +511,6 @@ void Application::render() {
     // Text
     DrawText(msg, x, y, 60 * scale, Fade(GREEN, alpha));
   }
-
-
 
   // --- Inventory UI ---
   renderInventory();
@@ -632,7 +657,7 @@ void Application::renderInventory() {
         } else if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
           // Consume item on right click
           if (m_heldSlotIndex == -1) {
-             const_cast<Player &>(m_player).consumeItem(index);
+            const_cast<Player &>(m_player).consumeItem(index);
           }
         }
       }
@@ -643,7 +668,7 @@ void Application::renderInventory() {
     if (slot.type != ItemType::NONE && index != m_heldSlotIndex) {
       Rectangle destRect = {x + padding, y + padding, slotSize - 2 * padding,
                             slotSize - 2 * padding};
-      m_renderer.renderItemUI(slot.type, destRect, WHITE);
+      m_itemRenderer.renderItemUI(slot.type, destRect, WHITE);
 
       // Draw count
       if (slot.count > 1) {
@@ -671,7 +696,7 @@ void Application::renderInventory() {
   // 2. Draw Bag (Slots 5-19)
   if (m_inventoryOpen) {
     // Darken screen
-    DrawRectangle(0, 0, screenW, screenH, Fade(BLACK, 0.5f));
+    DrawRectangle(0, 0, screenW, screenH, Fade(BLACK, 0.75f));
 
     float bagStartX = (screenW - hotbarTotalWidth) / 2.0f;
     float bagStartY = startY - (3 * (slotSize + padding)) - (20 * scale);
@@ -692,7 +717,7 @@ void Application::renderInventory() {
       Rectangle destRect = {mousePos.x - slotSize / 2 + padding,
                             mousePos.y - slotSize / 2 + padding,
                             slotSize - 2 * padding, slotSize - 2 * padding};
-      m_renderer.renderItemUI(slot.type, destRect, Fade(WHITE, 0.8f));
+      m_itemRenderer.renderItemUI(slot.type, destRect, Fade(WHITE, 0.8f));
 
       if (slot.count > 1) {
         DrawText(TextFormat("%d", slot.count),

@@ -22,8 +22,9 @@ enum class ItemType : int {
   NONE = 0,          // Empty cell — no item present
   TOXIC_WASTE = 1,        // Radiation barrel — emits BFS radiation zones
   MUSHROOM = 2,      // Mushroom — spawns only in normal rooms
-  MAGIC_MUSHROOM = 3 // Magic Mushroom — grants special ability, spawns only in
-                     // radiated rooms
+  MAGIC_MUSHROOM = 3, // Magic Mushroom — grants special ability, spawns only in
+                      // radiated rooms
+  CUPBOARD = 4        // Furniture — decorative wall-adjacent cupboard (Phase 3)
 };
 
 // Forward declarations

@@ -2,6 +2,7 @@
 
 #include "maze.hpp"
 #include "maze_renderer.hpp"
+#include "item_renderer.hpp"
 #include "player.hpp"
 #include "player_renderer.hpp"
 #include "item_spawner.hpp"
@@ -42,6 +43,7 @@ private:
   Player m_player;
   Camera2D m_camera;
   MazeRenderer m_renderer;
+  ItemRenderer m_itemRenderer;  // Decoupled item rendering (draws ON TOP of player)
   PlayerRenderer m_playerRenderer;
   ItemSpawner m_itemSpawner; // Decoupled item placement logic
 

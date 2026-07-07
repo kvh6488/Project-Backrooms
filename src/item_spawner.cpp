@@ -6,24 +6,27 @@
 ItemSpawner::ItemSpawner(std::mt19937 &rng) : m_rng(rng) {}
 
 // ============================================================================
-// isNearCorridor — Doorway Proximity Check
+// isNearCorridor — Cardinal Doorway Proximity Check
 // ============================================================================
-// Returns true if any of the 4 cardinal neighbours of (x, y) is a corridor
-// cell. Items should never be placed on these cells because they act as
-// doorway transitions between rooms and corridors — placing a barrel here
-// would block the only entrance.
+// Returns true if any of the 4 cardinal neighbours (N, E, S, W) of (x, y)
+// is a corridor cell. Items should never be placed on these cells because
+// they act as doorway transitions between rooms and corridors — placing
+// an item here would block the entrance.
+//
+// Note: This was originally an 8-direction check (including diagonals),
+// but diagonal corridors adjacent to rooms are structurally impossible
+// in our maze — the generators enforce a no-diagonal-leak invariant
+// via hasDiagonalLeak() at every carve step. A corridor can only appear
+// diagonally to a room if it's also reachable cardinally, making the
+// diagonal checks redundant.
 //
 // Time Complexity: O(1) — always exactly 4 neighbour checks.
 // ============================================================================
 bool ItemSpawner::isNearCorridor(const Maze &maze, int x, int y) const {
-  const int dx[] = {1, 1, 1, 0, -1, -1, -1, 0};
-  const int dy[] = {1, 0, -1, -1, -1, 0, 1, 1};
-  for (int d = 0; d < 8; ++d) {
-    if (maze.getCell(x + dx[d], y + dy[d]) == Maze::CELL_CORRIDOR) {
-      return true;
-    }
-  }
-  return false;
+  return maze.getCell(x, y - 1) == Maze::CELL_CORRIDOR ||  // North
+         maze.getCell(x + 1, y) == Maze::CELL_CORRIDOR ||  // East
+         maze.getCell(x, y + 1) == Maze::CELL_CORRIDOR ||  // South
+         maze.getCell(x - 1, y) == Maze::CELL_CORRIDOR;    // West
 }
 
 // ============================================================================
@@ -200,9 +203,108 @@ void ItemSpawner::spawnMushrooms(Maze &maze, ItemType type, int target,
             maze.getItem(x, y) == ItemType::NONE && isValidRad &&
             isRoomCorner(maze, x, y) && !isNearCorridor(maze, x, y)) {
 
-          if (chance(m_rng) < 0.3f) {
+          if (chance(m_rng) < 0.03f) {
             totalPlaced += spawnMushroomClump(maze, x, y, type);
           }
+        }
+      }
+    }
+  }
+}
+
+// ============================================================================
+// spawnCupboards — Place Cupboards Against Room Walls
+// ============================================================================
+// Cupboards are wall-hugging furniture that lean against a wall on one side.
+// They introduce context-dependent rendering: the texture drawn depends on
+// which direction the adjacent wall is (above, left, or right).
+//
+// Placement rules:
+//   1. Cell must be CELL_ROOM.
+//   2. At least one of {Up, Left, Right} neighbours must be CELL_WALL.
+//   3. The cell directly BELOW must NOT be CELL_WALL (no south-wall spawns).
+//   4. No CELL_CORRIDOR in any of the 4 cardinal neighbours (doorway check).
+//   5. Cell must currently hold no item (ItemType::NONE).
+//
+// Time Complexity: O(W*H) scan of the bounding box. Each cell check is O(1).
+//
+// Alternative considered: Rejection sampling (like barrels). Rejected because
+// wall-adjacent room cells are rarer than general room cells, making the
+// rejection rate too high. A full scan with probability filtering is more
+// reliable here.
+// ============================================================================
+void ItemSpawner::spawnCupboards(Maze &maze, int target,
+                                 int boundsX, int boundsY,
+                                 int boundsW, int boundsH) {
+  if (boundsW == -1)
+    boundsW = maze.getWidth();
+  if (boundsH == -1)
+    boundsH = maze.getHeight();
+
+  std::uniform_real_distribution<float> chance(0.0f, 1.0f);
+  int totalPlaced = 0;
+
+  // Lambda encapsulating all 5 placement rules for a single cell.
+  // Returns true if (x, y) is a valid cupboard location.
+  auto isValidCupboardCell = [&](int x, int y) -> bool {
+    // Rule 1: Must be a room cell
+    if (maze.getCell(x, y) != Maze::CELL_ROOM)
+      return false;
+
+    // Rule 5: Must not already contain an item
+    if (maze.getItem(x, y) != ItemType::NONE)
+      return false;
+
+    // Rule 4: Must not be adjacent to a corridor in any cardinal direction
+    // (doorway exclusion — furniture would block passage)
+    if (isNearCorridor(maze, x, y))
+      return false;
+
+    // Rule 3: Cell directly below must NOT be a wall
+    if (maze.getCell(x, y + 1) == Maze::CELL_WALL)
+      return false;
+
+    // Rule 2: At least one wall in Up, Left, or Right direction
+    bool wallAbove = maze.getCell(x, y - 1) == Maze::CELL_WALL;
+    bool wallLeft  = maze.getCell(x - 1, y) == Maze::CELL_WALL;
+    bool wallRight = maze.getCell(x + 1, y) == Maze::CELL_WALL;
+
+    return wallAbove || wallLeft || wallRight;
+  };
+
+  // --- Target-based spawning (zone regeneration) ---
+  if (target > 0) {
+    // Collect all valid cells, then randomly pick from them
+    std::vector<std::pair<int, int>> validCells;
+    for (int y = boundsY; y < boundsY + boundsH; ++y) {
+      for (int x = boundsX; x < boundsX + boundsW; ++x) {
+        if (isValidCupboardCell(x, y)) {
+          validCells.push_back({x, y});
+        }
+      }
+    }
+
+    if (validCells.empty())
+      return;
+
+    std::uniform_int_distribution<int> cellDist(0, validCells.size() - 1);
+    int attempts = 0;
+    while (totalPlaced < target && attempts < 200) {
+      auto [cx, cy] = validCells[cellDist(m_rng)];
+      if (maze.getItem(cx, cy) == ItemType::NONE) {
+        maze.setItem(cx, cy, ItemType::CUPBOARD);
+        totalPlaced++;
+      }
+      attempts++;
+    }
+  }
+  // --- Initial generation: scan and apply 5% chance ---
+  else {
+    for (int y = boundsY; y < boundsY + boundsH; ++y) {
+      for (int x = boundsX; x < boundsX + boundsW; ++x) {
+        if (isValidCupboardCell(x, y) && chance(m_rng) < 0.05f) {
+          maze.setItem(x, y, ItemType::CUPBOARD);
+          totalPlaced++;
         }
       }
     }
@@ -232,6 +334,9 @@ void ItemSpawner::spawnInitialItems(Maze &maze) {
   // Mushrooms require radiation info
   spawnMushrooms(maze, ItemType::MAGIC_MUSHROOM);
   spawnMushrooms(maze, ItemType::MUSHROOM);
+
+  // Phase 3: Furniture spawning — cupboards lean against room walls
+  spawnCupboards(maze);
 }
 
 // ============================================================================
@@ -258,8 +363,9 @@ void ItemSpawner::respawnItems(Maze &maze,
 
   // Then spawn other items
   for (const auto &[type, count] : itemsToSpawn) {
-    if (type == ItemType::TOXIC_WASTE) continue;
-    
+    if (type == ItemType::TOXIC_WASTE)
+      continue;
+
     switch (type) {
     case ItemType::MUSHROOM:
       spawnMushrooms(maze, ItemType::MUSHROOM, count, zoneX, zoneY, zoneW,
@@ -268,6 +374,9 @@ void ItemSpawner::respawnItems(Maze &maze,
     case ItemType::MAGIC_MUSHROOM:
       spawnMushrooms(maze, ItemType::MAGIC_MUSHROOM, count, zoneX, zoneY, zoneW,
                      zoneH);
+      break;
+    case ItemType::CUPBOARD:
+      spawnCupboards(maze, count, zoneX, zoneY, zoneW, zoneH);
       break;
     default:
       break;
