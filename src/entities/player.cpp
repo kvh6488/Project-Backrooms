@@ -46,6 +46,10 @@ void Player::update(Maze &maze, bool canMove) {
         m_tripDurationRemaining += 90.0f;
         m_mushroomsKickedInThisTrip++;
 
+        if (m_mushroomsKickedInThisTrip == 1) {
+            m_eventMushroomFullTripStarted = true;
+        }
+
         // Remove from list
         m_kickInTimers.erase(m_kickInTimers.begin() + i);
         i--;
@@ -203,19 +207,7 @@ void Player::update(Maze &maze, bool canMove) {
   m_position.y += velocity.y * dt;
   resolveCollision(maze);
 
-  // Validate minimap ID
-  if (m_setMinimapId != 0) {
-    bool found = false;
-    for (const auto& slot : m_inventory) {
-      if (slot.type == ItemType::MAP && slot.instanceId == m_setMinimapId) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      m_setMinimapId = 0;
-    }
-  }
+
 }
 
 // ============================================================================
@@ -377,6 +369,37 @@ void Player::pickupItem(Maze &maze) {
     }
   }
 
+  // Check for Magic Book of Maps in front of player
+  if (typeToPickup == ItemType::NONE && maze.isMagicBookSpawned()) {
+    int faceX = px, faceY = py;
+    if (m_facingDirection == FacingDirection::UP) faceY--;
+    else if (m_facingDirection == FacingDirection::DOWN) faceY++;
+    else if (m_facingDirection == FacingDirection::LEFT) faceX--;
+    else if (m_facingDirection == FacingDirection::RIGHT) faceX++;
+    
+    int bookX = maze.getMagicBookX();
+    int bookY = maze.getMagicBookY();
+    
+    // The table occupies (bookX, bookY) and another adjacent tile.
+    // If state == 1 (Horizontal Right), the table is at (bookX-1, bookY) and (bookX, bookY)
+    // If state == 3 (Vertical Bottom), the table is at (bookX, bookY-1) and (bookX, bookY)
+    int state = maze.getItemState(bookX, bookY);
+    bool facingBook = false;
+    
+    if (faceX == bookX && faceY == bookY) {
+      facingBook = true;
+    } else if (state == 1 && faceX == bookX - 1 && faceY == bookY) {
+      facingBook = true;
+    } else if (state == 3 && faceX == bookX && faceY == bookY - 1) {
+      facingBook = true;
+    }
+    
+    if (facingBook) {
+      typeToPickup = ItemType::MAGIC_BOOK_OF_MAPS;
+      targetX = -1; // Special flag so we don't clear from m_items
+    }
+  }
+
   if (typeToPickup == ItemType::NONE)
     return;
 
@@ -385,7 +408,11 @@ void Player::pickupItem(Maze &maze) {
   for (int i = 0; i < 20; ++i) {
     if (m_inventory[i].type == typeToPickup && m_inventory[i].count < maxStack) {
       m_inventory[i].count++;
-      maze.setItem(targetX, targetY, ItemType::NONE);
+      if (targetX != -1) maze.setItem(targetX, targetY, ItemType::NONE);
+      if (typeToPickup == ItemType::MAGIC_BOOK_OF_MAPS) {
+        maze.despawnMagicBook();
+        m_hasPickedUpMagicBook = true;
+      }
       return;
     }
   }
@@ -395,7 +422,11 @@ void Player::pickupItem(Maze &maze) {
     if (m_inventory[i].type == ItemType::NONE) {
       m_inventory[i].type = typeToPickup;
       m_inventory[i].count = 1;
-      maze.setItem(targetX, targetY, ItemType::NONE);
+      if (targetX != -1) maze.setItem(targetX, targetY, ItemType::NONE);
+      if (typeToPickup == ItemType::MAGIC_BOOK_OF_MAPS) {
+        maze.despawnMagicBook();
+        m_hasPickedUpMagicBook = true;
+      }
       return;
     }
   }
@@ -447,17 +478,17 @@ void Player::consumeItem(int slotIndex) {
     }
   } else if (type == ItemType::MAP) {
     if (m_inventory[slotIndex].instanceId == 0) {
+      // It's a new map, draw it instantly
       m_inventory[slotIndex].instanceId = m_nextMapInstanceId++;
-      m_eventMapDrawingStarted = true;
       m_lastConsumedMapId = m_inventory[slotIndex].instanceId;
+      m_eventMapCrafted = true; // Use same event to trigger instant draw
     } else {
-      if (m_setMinimapId == m_inventory[slotIndex].instanceId) {
-        m_setMinimapId = 0; // Un-equip
-      } else {
-        m_setMinimapId = m_inventory[slotIndex].instanceId;
-        m_eventMapSet = true;
-      }
+      // It's already drawn, open it
+      m_lastConsumedMapId = m_inventory[slotIndex].instanceId;
+      m_eventMapOpened = true;
     }
+  } else if (type == ItemType::MAGIC_BOOK_OF_MAPS) {
+    m_eventMagicBookOpened = true;
   }
 }
 
@@ -625,6 +656,11 @@ bool Player::craftItem(const Recipe& recipe) {
         if (slot.type == ItemType::NONE) {
             slot.type = recipe.result;
             slot.count = 1;
+            if (recipe.result == ItemType::MAP) {
+                slot.instanceId = m_nextMapInstanceId++;
+                m_lastConsumedMapId = slot.instanceId;
+                m_eventMapCrafted = true; // Use event to trigger instant draw
+            }
             break;
         }
     }

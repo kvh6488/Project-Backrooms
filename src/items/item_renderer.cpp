@@ -12,10 +12,13 @@ ItemRenderer::ItemRenderer() {
 
 void ItemRenderer::loadTextures() {
   if (IsWindowReady()) {
-    m_postApocWorkshopTextures = LoadTexture("assets/PostApoc_Workshop_WithShadow.png");
+    m_postApocWorkshopTextures =
+        LoadTexture("assets/PostApoc_Workshop_WithShadow.png");
     m_doodadsTexture = LoadTexture("assets/doodads_spritesheet.png");
     m_mushroomTexture = LoadTexture("assets/mushrooms_pixel_asset.png");
     m_postApocIconsTexture = LoadTexture("assets/PostApoc_Workshop_Icons.png");
+    m_ritualTexture =
+        LoadTexture("assets/Spritesheet_TheDarkRitual_BigWander.png");
   } else {
     std::cerr << "[ERROR] Window not ready. Cannot load item textures!"
               << std::endl;
@@ -28,6 +31,7 @@ ItemRenderer::~ItemRenderer() {
     UnloadTexture(m_doodadsTexture);
     UnloadTexture(m_mushroomTexture);
     UnloadTexture(m_postApocIconsTexture);
+    UnloadTexture(m_ritualTexture);
   }
 }
 
@@ -231,22 +235,41 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
       }
       case ItemType::TABLE: {
         int state = maze.getItemState(x, y);
-        // We only draw on the "root" tiles (1 for horizontal right, 3 for vertical bottom)
+        // We only draw on the "root" tiles (1 for horizontal right, 3 for
+        // vertical bottom)
         if (state == 0 || state == 2) {
           break;
         }
 
+        bool isGrey = false;
+        unsigned int hash = (unsigned int)(x * 73856093 ^ y * 19349663);
+        if (hash % 2 == 0) {
+          isGrey = true;
+        }
+
         Rectangle tableSrc = {0};
         float tableW = 0, tableH = 0;
-        
+
         if (state == 1) { // Horizontal Right
-          tableSrc = {353.0f, 406.0f, 61.0f, 41.0f};
-          tableW = 61.0f;
-          tableH = 41.0f;
+          if (isGrey) {
+            tableSrc = {352.0f, 19.0f, 63.0f, 45.0f};
+            tableW = 63.0f;
+            tableH = 45.0f;
+          } else {
+            tableSrc = {353.0f, 406.0f, 61.0f, 41.0f};
+            tableW = 61.0f;
+            tableH = 41.0f;
+          }
         } else if (state == 3) { // Vertical Bottom
-          tableSrc = {321.0f, 385.0f, 29.0f, 62.0f};
-          tableW = 29.0f;
-          tableH = 62.0f;
+          if (isGrey) {
+            tableSrc = {416.0f, 0.0f, 31.0f, 64.0f};
+            tableW = 31.0f;
+            tableH = 64.0f;
+          } else {
+            tableSrc = {321.0f, 385.0f, 29.0f, 62.0f};
+            tableW = 29.0f;
+            tableH = 62.0f;
+          }
         }
 
         Rectangle destRectTable = {0};
@@ -256,9 +279,9 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
           float drawW = tableW * scale;
           float drawH = tableH * scale;
           // Anchor bottom of the cell, centered over x and x-1
-          destRectTable = {
-              (float)(x * cellSize) - (drawW / 2.0f),
-              (float)(y * cellSize) + cellSize - drawH, drawW, drawH};
+          destRectTable = {(float)(x * cellSize) - (drawW / 2.0f),
+                           (float)(y * cellSize) + cellSize - drawH, drawW,
+                           drawH};
         } else if (state == 3) {
           // Scale to fit width = 1 * cellSize
           float scale = (float)cellSize / tableW;
@@ -272,6 +295,58 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
 
         DrawTexturePro(m_postApocWorkshopTextures, tableSrc, destRectTable,
                        {0, 0}, 0.0f, WHITE);
+
+        // --- Render Magic Book of Maps Overlay ---
+        if (maze.isMagicBookSpawned() && maze.getMagicBookX() == x &&
+            maze.getMagicBookY() == y) {
+          Rectangle bookSrc = {48.0f, 97.0f, 16.0f, 16.0f};
+          float bookW = 16.0f;
+          float bookH = 16.0f;
+
+          float centerX, centerY;
+          if (state == 1) { // Horizontal Right
+            centerX = destRectTable.x + (destRectTable.width / 2.0f);
+            centerY = destRectTable.y + (destRectTable.height / 2.0f) - 8.0f;
+          } else { // Vertical Bottom
+            centerX = destRectTable.x + (destRectTable.width / 2.0f);
+            centerY = destRectTable.y + (destRectTable.height / 2.0f) - 8.0f;
+          }
+
+          // Adjust scale to match table's pixel-art feel
+          float bookScale =
+              (cellSize / 32.0f) * 1.5f; // Slight enlargement for visibility
+          float drawBookW = bookW * bookScale;
+          float drawBookH = bookH * bookScale;
+
+          Rectangle destRectBook = {centerX, centerY, drawBookW, drawBookH};
+          Vector2 origin = {drawBookW / 2.0f, drawBookH / 2.0f};
+
+          // --- Glow Effect ---
+          float t = (float)GetTime();
+          float pulse = (sinf(t * 5.0f) + 1.0f) * 0.5f; // Oscillates 0.0 to 1.0
+          
+          BeginBlendMode(BLEND_ADDITIVE);
+          
+          // Inner glow
+          float glowScale1 = bookScale * (1.05f + 0.05f * pulse);
+          Color glowColor1 = {255, 105, 180, (unsigned char)(120 + 80 * pulse)}; // Hot pink/red
+          Rectangle destGlow1 = {centerX, centerY, bookW * glowScale1, bookH * glowScale1};
+          Vector2 originGlow1 = {destGlow1.width / 2.0f, destGlow1.height / 2.0f};
+          DrawTexturePro(m_ritualTexture, bookSrc, destGlow1, originGlow1, 0.0f, glowColor1);
+          
+          // Outer glow
+          float glowScale2 = bookScale * (1.2f + 0.1f * pulse);
+          Color glowColor2 = {255, 50, 100, (unsigned char)(60 + 40 * pulse)}; // Deeper red/pink
+          Rectangle destGlow2 = {centerX, centerY, bookW * glowScale2, bookH * glowScale2};
+          Vector2 originGlow2 = {destGlow2.width / 2.0f, destGlow2.height / 2.0f};
+          DrawTexturePro(m_ritualTexture, bookSrc, destGlow2, originGlow2, 0.0f, glowColor2);
+          
+          EndBlendMode();
+
+          // Normal solid book on top
+          DrawTexturePro(m_ritualTexture, bookSrc, destRectBook, origin, 0.0f,
+                         WHITE);
+        }
         break;
       }
       case ItemType::NONE:
@@ -293,21 +368,24 @@ void ItemRenderer::renderItemUI(ItemType type, Rectangle destRect,
 
   if (def.uiSpriteRect.width > 0 && def.uiSpriteRect.height > 0) {
     Texture2D texToUse = m_mushroomTexture; // Fallback
-    
+
     switch (type) {
-      case ItemType::PAPER:
-      case ItemType::PENCIL:
-        texToUse = m_postApocWorkshopTextures;
-        break;
-      case ItemType::MAP:
-        texToUse = m_postApocIconsTexture;
-        break;
-      case ItemType::MUSHROOM:
-      case ItemType::MAGIC_MUSHROOM:
-        texToUse = m_mushroomTexture;
-        break;
-      default:
-        break;
+    case ItemType::PAPER:
+    case ItemType::PENCIL:
+      texToUse = m_postApocWorkshopTextures;
+      break;
+    case ItemType::MAP:
+      texToUse = m_postApocIconsTexture;
+      break;
+    case ItemType::MUSHROOM:
+    case ItemType::MAGIC_MUSHROOM:
+      texToUse = m_mushroomTexture;
+      break;
+    case ItemType::MAGIC_BOOK_OF_MAPS:
+      texToUse = m_ritualTexture;
+      break;
+    default:
+      break;
     }
 
     DrawTexturePro(texToUse, def.uiSpriteRect, destRect, {0, 0}, 0.0f, tint);

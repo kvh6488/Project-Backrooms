@@ -78,8 +78,13 @@ public:
   }
 
   // --- Map Overlay State ---
-  void toggleFullscreenMap() { m_showFullscreenMap = !m_showFullscreenMap; }
+  void openFullscreenMap(int mapId) {
+    m_showFullscreenMap = true;
+    m_openedMapId = mapId;
+  }
+  void closeFullscreenMap() { m_showFullscreenMap = false; }
   bool isFullscreenMapOpen() const { return m_showFullscreenMap; }
+  int getOpenedMapId() const { return m_openedMapId; }
   void markMapDrawn(int mapId, Maze& maze, int centerX, int centerY);
 
   // --- Debug Flags (Used by PlayingState) ---
@@ -98,14 +103,18 @@ public:
   bool triggerTicTacToeRegen() const { return m_triggerTicTacToeRegen; }
   void clearTicTacToeRegen() { m_triggerTicTacToeRegen = false; }
 
-  void markMinimapDirty() { m_minimapDirty = true; }
+  void markDebugMapDirty() { 
+    m_debugMapDirty = true;
+    m_magicBookMapDirty = true;
+  }
 
 private:
   void renderInventory(Player &player, Maze &maze, ItemRenderer &itemRenderer,
                        float scale, int screenW, int screenH);
   void renderPopups(float scale, int screenW, int screenH, float totalTime);
   void renderDebugUI(Player &player, Maze &maze, float scale);
-  void generateMinimap(Maze &maze);
+  void generateDebugMap(Maze &maze);
+  void generateMagicBookMap(Maze &maze);
 
   // Screen dimensions
   int m_screenWidth;
@@ -132,11 +141,16 @@ private:
   // Drawn Maps Cache
   std::unordered_map<int, DrawnMapData> m_drawnMaps;
   bool m_showFullscreenMap = false;
+  int m_openedMapId = 0;
 
-  // Minimap
-  RenderTexture2D m_minimapTexture;
-  bool m_minimapDirty = true;
-  bool m_showRadiationOnMinimap = true;
+  // Debug Map
+  RenderTexture2D m_debugMapTexture;
+  bool m_debugMapDirty = true;
+  bool m_showRadiationOnDebugMap = true;
+
+  // Magic Book Map
+  RenderTexture2D m_magicBookMapTexture;
+  bool m_magicBookMapDirty = true;
 
   // Debug / Toggles
   bool m_flashlightEnabled = true;

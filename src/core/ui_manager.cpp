@@ -9,12 +9,16 @@
 
 UIManager::UIManager(int screenWidth, int screenHeight)
     : m_screenWidth(screenWidth), m_screenHeight(screenHeight) {
-  m_minimapTexture.id = 0; // Initialize as empty
+  m_debugMapTexture.id = 0;
+  m_magicBookMapTexture.id = 0;
 }
 
 UIManager::~UIManager() {
-  if (m_minimapTexture.id != 0) {
-    UnloadRenderTexture(m_minimapTexture);
+  if (m_debugMapTexture.id != 0) {
+    UnloadRenderTexture(m_debugMapTexture);
+  }
+  if (m_magicBookMapTexture.id != 0) {
+    UnloadRenderTexture(m_magicBookMapTexture);
   }
   for (auto &pair : m_drawnMaps) {
     UnloadRenderTexture(pair.second.texture);
@@ -56,17 +60,26 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
   int screenW = GetScreenWidth();
   int screenH = GetScreenHeight();
 
-  // 1. Check if we need to regenerate minimap
-  if (m_minimapTexture.id == 0 ||
-      m_minimapTexture.texture.width != maze.getWidth() || m_minimapDirty) {
-    if (m_minimapTexture.id == 0 ||
-        m_minimapTexture.texture.width != maze.getWidth()) {
-      if (m_minimapTexture.id != 0)
-        UnloadRenderTexture(m_minimapTexture);
-      m_minimapTexture = LoadRenderTexture(maze.getWidth(), maze.getHeight());
+  // 1. Check if we need to regenerate debug map
+  if (m_debugMapTexture.id == 0 ||
+      m_debugMapTexture.texture.width != maze.getWidth() || m_debugMapDirty) {
+    if (m_debugMapTexture.id == 0 ||
+        m_debugMapTexture.texture.width != maze.getWidth()) {
+      if (m_debugMapTexture.id != 0)
+        UnloadRenderTexture(m_debugMapTexture);
+      m_debugMapTexture = LoadRenderTexture(maze.getWidth(), maze.getHeight());
     }
-    generateMinimap(maze);
-    m_minimapDirty = false;
+    generateDebugMap(maze);
+    m_debugMapDirty = false;
+  }
+
+  // 1.5 Check if we need to regenerate magic book map
+  if (m_magicBookMapTexture.id == 0 || m_magicBookMapDirty) {
+    if (m_magicBookMapTexture.id == 0) {
+      m_magicBookMapTexture = LoadRenderTexture(139, 89);
+    }
+    generateMagicBookMap(maze);
+    m_magicBookMapDirty = false;
   }
 
   // 2. Door prompt (special hardcoded logic for now)
@@ -102,22 +115,38 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
   renderInventory(player, maze, itemRenderer, scale, screenW, screenH);
 
   // 5.5 Map Rendering
-  int setMinimapId = player.getSetMinimapId();
-  if (setMinimapId != 0 &&
-      m_drawnMaps.find(setMinimapId) != m_drawnMaps.end()) {
-    const auto &mapData = m_drawnMaps[setMinimapId];
+  if (m_showFullscreenMap && (m_openedMapId == -1 || m_drawnMaps.find(m_openedMapId) != m_drawnMaps.end())) {
+    
+    RenderTexture2D texToDraw;
+    int texWidth, texHeight;
+    int startX, startY;
+    bool isMagicBookMap = (m_openedMapId == -1);
+
+    if (isMagicBookMap) {
+      texToDraw = m_magicBookMapTexture;
+      texWidth = 139;
+      texHeight = 89;
+      startX = 55;
+      startY = 30;
+    } else {
+      const auto &mapData = m_drawnMaps[m_openedMapId];
+      texToDraw = mapData.texture;
+      texWidth = texToDraw.texture.width;
+      texHeight = texToDraw.texture.height;
+      startX = mapData.centerX - 26;
+      startY = mapData.centerY - 17;
+    }
 
     // The texture is flipped vertically by OpenGL, so use negative height
-    Rectangle srcRec = {0, 0, (float)mapData.texture.texture.width,
-                        -(float)mapData.texture.texture.height};
+    Rectangle srcRec = {0, 0, (float)texWidth, -(float)texHeight};
 
     // Calculate relative position for player dot
     Vector2 pPos = player.getPosition();
     int gridX = (int)std::floor(pPos.x / maze.getCellSize());
     int gridY = (int)std::floor(pPos.y / maze.getCellSize());
 
-    int relX = gridX - (mapData.centerX - 26);
-    int relY = gridY - (mapData.centerY - 17);
+    int relX = gridX - startX;
+    int relY = gridY - startY;
 
     // Handle wrapping (toroidal)
     if (relX < -maze.getWidth() / 2)
@@ -129,56 +158,28 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
     else if (relY > maze.getHeight() / 2)
       relY -= maze.getHeight();
 
-    bool inBounds = (relX >= 0 && relX < 53 && relY >= 0 && relY < 35);
-
-    // Top-Right Minimap (don't show if fullscreen is open)
-    if (!m_showFullscreenMap) {
-      float minimapScale = 4.0f * scale;
-      float mmWidth = 53 * minimapScale;
-      float mmHeight = 35 * minimapScale;
-      float mmX = screenW - mmWidth - 20 * scale;
-      float mmY = 20 * scale;
-
-      DrawTexturePro(mapData.texture.texture, srcRec,
-                     Rectangle{mmX, mmY, mmWidth, mmHeight}, Vector2{0, 0},
-                     0.0f, WHITE);
-
-      if (inBounds) {
-        float px = mmX + relX * minimapScale + (minimapScale / 2.0f);
-        float py = mmY + relY * minimapScale + (minimapScale / 2.0f);
-        DrawCircle(px, py, 2.5f * scale, RED);
-      }
-      DrawRectangleLinesEx(Rectangle{mmX, mmY, mmWidth, mmHeight}, 2.0f * scale,
-                           WHITE);
-    }
+    bool inBounds = (relX >= 0 && relX < texWidth && relY >= 0 && relY < texHeight);
 
     // Fullscreen Overlay
-    if (m_showFullscreenMap) {
-      DrawRectangle(0, 0, screenW, screenH, Fade(BLACK, 0.85f));
+    DrawRectangle(0, 0, screenW, screenH, Fade(BLACK, 0.85f));
 
-      float fsScale = std::min(screenW / 65.0f, screenH / 45.0f);
-      float fsWidth = 53 * fsScale;
-      float fsHeight = 35 * fsScale;
-      float fsX = (screenW - fsWidth) / 2.0f;
-      float fsY = (screenH - fsHeight) / 2.0f;
+    float fsScale = std::min(screenW / (texWidth * 1.2f), screenH / (texHeight * 1.2f));
+    float fsWidth = texWidth * fsScale;
+    float fsHeight = texHeight * fsScale;
+    float fsX = (screenW - fsWidth) / 2.0f;
+    float fsY = (screenH - fsHeight) / 2.0f;
 
-      DrawTexturePro(mapData.texture.texture, srcRec,
-                     Rectangle{fsX, fsY, fsWidth, fsHeight}, Vector2{0, 0},
-                     0.0f, WHITE);
+    DrawTexturePro(texToDraw.texture, srcRec,
+                    Rectangle{fsX, fsY, fsWidth, fsHeight}, Vector2{0, 0},
+                    0.0f, WHITE);
 
-      if (inBounds) {
-        float px = fsX + relX * fsScale + (fsScale / 2.0f);
-        float py = fsY + relY * fsScale + (fsScale / 2.0f);
-        DrawCircle(px, py, 5.0f * scale, RED);
-      }
-      DrawRectangleLinesEx(Rectangle{fsX, fsY, fsWidth, fsHeight}, 4.0f * scale,
-                           WHITE);
-
-      const char *helpText = "Press 'M' to toggle map view";
-      int tw = MeasureText(helpText, 30 * scale);
-      DrawText(helpText, (screenW - tw) / 2, fsY + fsHeight + 30 * scale,
-               30 * scale, WHITE);
+    if (inBounds) {
+      float px = fsX + relX * fsScale + (fsScale / 2.0f);
+      float py = fsY + relY * fsScale + (fsScale / 2.0f);
+      DrawCircle(px, py, 5.0f * scale, RED);
     }
+    DrawRectangleLinesEx(Rectangle{fsX, fsY, fsWidth, fsHeight}, 4.0f * scale,
+                          WHITE);
   }
 
   // 6. ImGui Debug Overlay
@@ -558,17 +559,6 @@ void UIManager::renderInventory(Player &player, Maze &maze,
       const auto &def = ItemDatabase::getDef(hoveredItemType);
       std::string desc = def.description;
 
-      if (hoveredItemType == ItemType::MAP && !hoveredIsCrafting) {
-        if (hoveredInstanceId == 0) {
-          desc += ", Right click to draw map.";
-        } else {
-          if (player.getSetMinimapId() == hoveredInstanceId) {
-            desc += ", (minimap).";
-          } else {
-            desc += ", Right click to set as minimap.";
-          }
-        }
-      }
 
       // Simple line break measurement estimation
       int maxDescW = 0;
@@ -642,10 +632,10 @@ void UIManager::renderDebugUI(Player &player, Maze &maze, float scale) {
   ImGui::Separator();
   ImGui::Checkbox("Flashlight Torch Mode", &m_flashlightEnabled);
   if (ImGui::Checkbox("Show Regeneration Zones", &m_showGenerationZones)) {
-    m_minimapDirty = true;
+    m_debugMapDirty = true;
   }
-  if (ImGui::Checkbox("Show Radiation Zones", &m_showRadiationOnMinimap)) {
-    m_minimapDirty = true;
+  if (ImGui::Checkbox("Show Radiation Zones", &m_showRadiationOnDebugMap)) {
+    m_debugMapDirty = true;
   }
 
   ImGui::Separator();
@@ -676,13 +666,11 @@ void UIManager::renderDebugUI(Player &player, Maze &maze, float scale) {
   float availWidth = ImGui::GetContentRegionAvail().x;
   float mapRatio = (float)maze.getHeight() / (float)maze.getWidth();
   Vector2 mapDisplaySize = {availWidth, availWidth * mapRatio};
-
   ImVec2 mapScreenPos = ImGui::GetCursorScreenPos();
-
-  rlImGuiImageRect(&m_minimapTexture.texture, (int)mapDisplaySize.x,
+  rlImGuiImageRect(&m_debugMapTexture.texture, (int)mapDisplaySize.x,
                    (int)mapDisplaySize.y,
-                   Rectangle{0, 0, (float)m_minimapTexture.texture.width,
-                             -(float)m_minimapTexture.texture.height});
+                   Rectangle{0, 0, (float)m_debugMapTexture.texture.width,
+                             -(float)m_debugMapTexture.texture.height});
 
   // Draw Player Dot on Minimap
   Vector2 pPos = player.getPosition();
@@ -705,15 +693,15 @@ void UIManager::renderDebugUI(Player &player, Maze &maze, float scale) {
   ImGui::End();
 }
 
-void UIManager::generateMinimap(Maze &maze) {
-  BeginTextureMode(m_minimapTexture);
+void UIManager::generateDebugMap(Maze &maze) {
+  BeginTextureMode(m_debugMapTexture);
   ClearBackground(BLANK);
   for (int y = 0; y < maze.getHeight(); ++y) {
     for (int x = 0; x < maze.getWidth(); ++x) {
       if (maze.getCell(x, y) == Maze::CELL_WALL) {
         DrawPixel(x, y, Color{100, 100, 100, 255});
       } else {
-        if (m_showRadiationOnMinimap && maze.getRadiationLevel(x, y) > 0) {
+        if (m_showRadiationOnDebugMap && maze.getRadiationLevel(x, y) > 0) {
           DrawPixel(x, y, Color{0, 255, 0, 255});
         } else if (m_showGenerationZones && maze.isShiftingZone(x, y)) {
           DrawPixel(x, y, Color{255, 100, 100, 255});
@@ -724,7 +712,7 @@ void UIManager::generateMinimap(Maze &maze) {
     }
   }
 
-  if (m_showRadiationOnMinimap) {
+  if (m_showRadiationOnDebugMap) {
     for (int y = 0; y < maze.getHeight(); ++y) {
       for (int x = 0; x < maze.getWidth(); ++x) {
         if (maze.getItem(x, y) == ItemType::TOXIC_WASTE) {
@@ -734,6 +722,42 @@ void UIManager::generateMinimap(Maze &maze) {
     }
   }
 
+  if (maze.isMagicBookSpawned()) {
+    DrawRectangle(maze.getMagicBookX() - 1, maze.getMagicBookY() - 1, 3, 3, PURPLE);
+  }
+
+  EndTextureMode();
+}
+
+
+void UIManager::generateMagicBookMap(Maze &maze) {
+  int startX = 55;
+  int startY = 30;
+  int width = 139;
+  int height = 89;
+
+  BeginTextureMode(m_magicBookMapTexture);
+  ClearBackground(BLANK);
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      int gridX = startX + x;
+      int gridY = startY + y;
+      
+      // Handle wrapping
+      gridX = (gridX % maze.getWidth() + maze.getWidth()) % maze.getWidth();
+      gridY = (gridY % maze.getHeight() + maze.getHeight()) % maze.getHeight();
+
+      if (maze.getCell(gridX, gridY) == Maze::CELL_WALL) {
+        DrawPixel(x, y, Color{100, 100, 100, 255});
+      } else {
+        if (maze.isShiftingZone(gridX, gridY)) {
+          DrawPixel(x, y, Color{255, 100, 100, 255});
+        } else {
+          DrawPixel(x, y, Color{30, 30, 35, 255});
+        }
+      }
+    }
+  }
   EndTextureMode();
 }
 

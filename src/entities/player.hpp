@@ -72,6 +72,7 @@ public:
   bool pollEventMushroomConsumed() { bool v = m_eventMushroomConsumed; m_eventMushroomConsumed = false; return v; }
   bool pollEventMushroomThree() { bool v = m_eventMushroomThree; m_eventMushroomThree = false; return v; }
   bool pollEventMushroomWeird() { bool v = m_eventMushroomWeird; m_eventMushroomWeird = false; return v; }
+  bool pollEventMushroomFullTripStarted() { bool v = m_eventMushroomFullTripStarted; m_eventMushroomFullTripStarted = false; return v; }
   bool pollEventMushroomOver() { bool v = m_eventMushroomOver; m_eventMushroomOver = false; return v; }
   bool pollEventMushroomFirstPickup() { bool v = m_eventMushroomFirstPickup; m_eventMushroomFirstPickup = false; return v; }
   bool pollEventPassOutComplete() { bool v = m_eventPassOutComplete; m_eventPassOutComplete = false; return v; }
@@ -79,12 +80,14 @@ public:
   // --- Map Event Polling ---
   bool pollEventMapDrawingStarted() { bool v = m_eventMapDrawingStarted; m_eventMapDrawingStarted = false; return v; }
   bool pollEventMapSet() { bool v = m_eventMapSet; m_eventMapSet = false; return v; }
+  bool pollEventMagicBookOpened() { bool v = m_eventMagicBookOpened; m_eventMagicBookOpened = false; return v; }
+  bool pollEventMapCrafted() { bool v = m_eventMapCrafted; m_eventMapCrafted = false; return v; }
+  bool pollEventMapOpened() { bool v = m_eventMapOpened; m_eventMapOpened = false; return v; }
   int getLastConsumedMapId() const { return m_lastConsumedMapId; }
-  int getSetMinimapId() const { return m_setMinimapId; }
-  void setSetMinimapId(int id) { m_setMinimapId = id; }
 
   bool isPassingOut() const { return m_isPassingOut; }
   float getPassOutTimer() const { return m_passOutTimer; }
+  bool hasPickedUpMagicBook() const { return m_hasPickedUpMagicBook; }
 
   void teleport(Vector2 newPos, AreaState newState);
 
@@ -109,19 +112,24 @@ private:
   bool m_isPassingOut = false;
   float m_passOutTimer = 0.0f;
   bool m_hasPickedUpMushroomEver = false;
+  bool m_hasPickedUpMagicBook = false;
+
 
   // --- Events for Application to read ---
   bool m_eventMushroomConsumed = false;
   bool m_eventMushroomThree = false;
   bool m_eventMushroomWeird = false;
+  bool m_eventMushroomFullTripStarted = false;
   bool m_eventMushroomOver = false;
   bool m_eventMushroomFirstPickup = false;
   bool m_eventPassOutComplete = false;
   
   bool m_eventMapDrawingStarted = false;
   bool m_eventMapSet = false;
+  bool m_eventMagicBookOpened = false;
+  bool m_eventMapCrafted = false;
+  bool m_eventMapOpened = false;
   int m_lastConsumedMapId = 0;
-  int m_setMinimapId = 0;
   int m_nextMapInstanceId = 1;
 
 

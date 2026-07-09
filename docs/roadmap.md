@@ -184,6 +184,9 @@ The mathematical heart — radiation systems spreading across the grid.
   - Geiger Counter *(Likely to be removed)*.
   - Gas Mask / Hazmat Suit (merged item: protects from infection/gases, uses gas mask icon, turns player into gas suit man, upgradble).
 
+-**Basic audio implementation and testing**
+  - Add directional based trippy audio while under the influence of shrooms to help find the location of Magic book of Maps
+
 
 ### Phase 6 — Advanced Mechanics & The Level 2 Descent *(Days 73–85)*
 - **Level Transitions**: Screwdriver (found) required to access Level 2 vents.
@@ -199,9 +202,8 @@ The mathematical heart — radiation systems spreading across the grid.
   - Pulsar Radar Gun (tracks base, frontal shield; built using L2 crystals).
   - Glitched VHS Tape (circular ring buffer, O(1) state rewind; found in L2. *Possible mechanic*).
   - Potential toxic waste destoyer?
-  - Infected Map, requires having a normal map, and a screwdriver and puncturing a radiation barrel (texture), to get liquid onto map, temporary increase radiation effects (no health regen). 
-  - Computer Map, provides full debug map, uses computer texture (fixed to base location)
-  - Only one map at a time can be set as minimap, until computer is upgraded to its final level, modular computer (requires communication base computer).
+  - Infected Map, requires having a normal map, and a screwdriver and puncturing a radiation barrel (texture), to get liquid onto map, temporary increase radiation effects (no health regen), (may be removed)
+  - Computer Map, provides full debug map, uses computer texture (fixed to base location), could also be and/or a portable computer (requires communication base computer), that is a live player tracking  minimap?
 - **Advanced Chemical Lab Crafting**:
   - Speed drug (faster run, paranoid hallucinations / fake mobs).
   - Parasitic Syringe (crafted from rat + cockroach serum. Injected into friendly dispersers for exponential/faster and wider cure spread. Severe decay rate if unmaintained).

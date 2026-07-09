@@ -25,22 +25,26 @@ class ItemSpawner {
 public:
   // Constructor takes a reference to the application-wide RNG.
   // This ensures deterministic item placement from a given seed.
-  explicit ItemSpawner(std::mt19937& rng);
+  explicit ItemSpawner(std::mt19937 &rng);
 
   // --- Initial Spawning ---
   // Called once after maze generation to populate the world with items.
   // Internally decides how many of each item to spawn (e.g., 3-5 barrels).
-  void spawnInitialItems(Maze& maze);
+  void spawnInitialItems(Maze &maze);
 
   // --- Zone Regeneration Support ---
   // After a shifting zone regenerates, this method replaces destroyed items
   // inside the newly carved zone. The itemsToSpawn map comes from
   // Maze::clearItemsInZone(), telling us exactly what was lost.
-  void respawnItems(Maze& maze, const std::map<ItemType, int>& itemsToSpawn,
+  void respawnItems(Maze &maze, const std::map<ItemType, int> &itemsToSpawn,
                     int zoneX, int zoneY, int zoneW, int zoneH);
 
+  // Spawns the magic book of maps on a random table within a 20 tile radius of
+  // origin.
+  void spawnMagicBookOfMaps(Maze &maze, int originX, int originY);
+
 private:
-  std::mt19937& m_rng;
+  std::mt19937 &m_rng;
 
   // --- Per-Item-Type Spawn Logic ---
   // Each method encapsulates the unique placement rules for its item type.
@@ -48,36 +52,34 @@ private:
   // Spawn 'count' barrels anywhere in the maze (or within a bounding box).
   // Rules: Must be CELL_ROOM, must NOT have an adjacent CELL_CORRIDOR
   // (avoids doorway cells), must have NONE item currently.
-  void spawnBarrels(Maze& maze, int count,
-                    int boundsX, int boundsY, int boundsW, int boundsH);
+  void spawnBarrels(Maze &maze, int count, int boundsX, int boundsY,
+                    int boundsW, int boundsH);
 
-  // Spawn mushrooms (normal or magic) in room corners across the maze or bounding box.
-  // Target parameter tells us exactly how many to spawn during respawning
-  // (target = -1 means normal generation based on 6% chance).
-  void spawnMushrooms(Maze& maze, ItemType type, int target = -1,
-                      int boundsX = 0, int boundsY = 0,
-                      int boundsW = -1, int boundsH = -1);
+  // Spawn mushrooms (normal or magic) in room corners across the maze or
+  // bounding box. Target parameter tells us exactly how many to spawn during
+  // respawning (target = -1 means normal generation based on 6% chance).
+  void spawnMushrooms(Maze &maze, ItemType type, int target = -1,
+                      int boundsX = 0, int boundsY = 0, int boundsW = -1,
+                      int boundsH = -1);
 
   // Grows a single clump of 2-5 mushrooms starting at (startX, startY).
   // Returns the actual number of mushrooms placed.
-  int spawnMushroomClump(Maze& maze, int startX, int startY, ItemType type);
+  int spawnMushroomClump(Maze &maze, int startX, int startY, ItemType type);
 
   // Spawn cupboards along wall edges in rooms across the maze or bounding box.
   // Target parameter tells us exactly how many to spawn during respawning
   // (target = -1 means normal generation based on 5% chance per valid cell).
-  void spawnCupboards(Maze& maze, int target = -1,
-                      int boundsX = 0, int boundsY = 0,
-                      int boundsW = -1, int boundsH = -1);
+  void spawnCupboards(Maze &maze, int target = -1, int boundsX = 0,
+                      int boundsY = 0, int boundsW = -1, int boundsH = -1);
 
   // Spawn tables on two adjacent room tiles.
-  void spawnTables(Maze& maze, int target = -1,
-                   int boundsX = 0, int boundsY = 0,
-                   int boundsW = -1, int boundsH = -1);
+  void spawnTables(Maze &maze, int target = -1, int boundsX = 0,
+                   int boundsY = 0, int boundsW = -1, int boundsH = -1);
 
   // Helper: Check if a room cell is adjacent to any corridor cell in the
   // 4 cardinal directions (doorway transition — items should not go here).
-  bool isNearCorridor(const Maze& maze, int x, int y) const;
+  bool isNearCorridor(const Maze &maze, int x, int y) const;
 
   // Helper: Check if a room cell is in a corner (walls on two adjacent sides).
-  bool isRoomCorner(const Maze& maze, int x, int y) const;
+  bool isRoomCorner(const Maze &maze, int x, int y) const;
 };

@@ -57,11 +57,6 @@ private:
   float m_radiationDarknessAlpha = 0.0f;
   float m_radiationNextFlickerTime = 4.0f;
 
-  // Map drawing state
-  bool m_isMapDrawing = false;
-  float m_mapDrawingTimer = 0.0f;
-  int m_drawingMapId = 0;
-
   // --- State flags for Popups ---
   bool m_hasSeenCorridorPopup = false;
   bool m_hasSeenRadiationPopup = false;

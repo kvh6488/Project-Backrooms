@@ -39,4 +39,5 @@ private:
   Texture2D m_doodadsTexture;
   Texture2D m_mushroomTexture;
   Texture2D m_postApocIconsTexture;
+  Texture2D m_ritualTexture;
 };

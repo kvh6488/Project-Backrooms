@@ -23,7 +23,8 @@ enum class ItemType : int {
   // Inventory Only
   PAPER = 5,
   PENCIL = 6,
-  MAP = 7
+  MAP = 7,
+  MAGIC_BOOK_OF_MAPS = 9
 };
 
 // ============================================================================

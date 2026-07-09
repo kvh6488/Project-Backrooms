@@ -7,7 +7,7 @@ ItemDefinition ItemDatabase::m_fallbackDef = {
 
 void ItemDatabase::init() {
   // Determine the max enum value we need to store.
-  m_definitions.resize(9); // NONE = 0, up to TABLE = 8
+  m_definitions.resize(10); // NONE = 0, up to MAGIC_BOOK_OF_MAPS = 9
 
   // NONE
   m_definitions[(int)ItemType::NONE] = {"None", "", false,       false,
@@ -74,6 +74,16 @@ void ItemDatabase::init() {
   // TABLE
   m_definitions[(int)ItemType::TABLE] = {
       "Table", "A simple wooden table.", true, false, false, 1, {0, 0, 16, 16}};
+
+  // MAGIC_BOOK_OF_MAPS
+  m_definitions[(int)ItemType::MAGIC_BOOK_OF_MAPS] = {
+      "Magic book of maps",
+      "Every day is a new chapter",
+      false,
+      true,
+      false,
+      1,
+      {48.0f, 97.0f, 16.0f, 16.0f}};
 }
 
 const ItemDefinition &ItemDatabase::getDef(ItemType type) {

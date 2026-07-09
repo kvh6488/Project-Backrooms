@@ -144,6 +144,13 @@ public:
   bool hasCupboardInventory(int x, int y) const;
   bool isCupboardEmpty(int x, int y) const;
 
+  // --- Magic Book of Maps Overlay ---
+  bool isMagicBookSpawned() const { return m_isMagicBookSpawned; }
+  void spawnMagicBook(int x, int y) { m_isMagicBookSpawned = true; m_magicBookTableX = x; m_magicBookTableY = y; }
+  void despawnMagicBook() { m_isMagicBookSpawned = false; m_magicBookTableX = -1; m_magicBookTableY = -1; }
+  int getMagicBookX() const { return m_magicBookTableX; }
+  int getMagicBookY() const { return m_magicBookTableY; }
+
 private:
   int m_width;    // Number of cells horizontally
   int m_height;   // Number of cells vertically
@@ -178,4 +185,9 @@ private:
 
   // Item states map (Key: 1D grid index, Value: state integer)
   std::map<int, int> m_itemStates;
+
+  // Magic book of maps overlay state
+  bool m_isMagicBookSpawned = false;
+  int m_magicBookTableX = -1;
+  int m_magicBookTableY = -1;
 };
