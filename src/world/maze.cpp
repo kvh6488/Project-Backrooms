@@ -1,4 +1,4 @@
-#include "maze.hpp"
+#include "world/maze.hpp"
 #include <algorithm>
 #include <deque>
 #include <queue>

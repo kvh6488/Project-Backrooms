@@ -1,5 +1,5 @@
 #pragma once
-#include "maze.hpp"
+#include "world/maze.hpp"
 #include <raylib.h>
 
 // ============================================================================

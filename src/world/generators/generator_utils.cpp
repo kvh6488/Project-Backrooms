@@ -1,4 +1,4 @@
-#include "generator_utils.hpp"
+#include "world/generators/generator_utils.hpp"
 
 namespace GeneratorUtils {
 

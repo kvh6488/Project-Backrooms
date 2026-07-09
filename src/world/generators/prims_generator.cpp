@@ -1,5 +1,5 @@
-#include "prims_generator.hpp"
-#include "generator_utils.hpp"
+#include "world/generators/prims_generator.hpp"
+#include "world/generators/generator_utils.hpp"
 #include <queue>
 #include <set>
 

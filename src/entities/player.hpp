@@ -1,6 +1,6 @@
 #pragma once
 
-#include "maze.hpp"
+#include "world/maze.hpp"
 #include "raylib.h"
 #include <array>
 #include <vector>

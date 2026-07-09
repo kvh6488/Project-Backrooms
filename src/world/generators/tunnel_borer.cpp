@@ -1,5 +1,5 @@
-#include "tunnel_borer.hpp"
-#include "generator_utils.hpp"
+#include "world/generators/tunnel_borer.hpp"
+#include "world/generators/generator_utils.hpp"
 #include <queue>
 #include <vector>
 

@@ -50,19 +50,21 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_
 
 # 4. Define our executable and include the external source files directly
 add_executable(Backrooms 
-    src/main.cpp 
-    src/application.cpp
-    src/maze.cpp
-    src/maze_renderer.cpp
-    src/generators/bsp_generator.cpp
-    src/generators/loop_generator.cpp
-    src/generators/prims_generator.cpp
-    src/generators/tunnel_borer.cpp
-    src/generators/generator_utils.cpp
-    src/player.cpp
-    src/player_renderer.cpp
-    src/item_spawner.cpp
-    src/item_renderer.cpp
+    src/core/main.cpp 
+    src/core/application.cpp
+    src/world/maze.cpp
+    src/world/maze_renderer.cpp
+    src/world/generators/bsp_generator.cpp
+    src/world/generators/loop_generator.cpp
+    src/world/generators/prims_generator.cpp
+    src/world/generators/tunnel_borer.cpp
+    src/world/generators/generator_utils.cpp
+    src/entities/player.cpp
+    src/entities/player_renderer.cpp
+    src/world/item_spawner.cpp
+    src/world/item_renderer.cpp
+    src/states/playing_state.cpp
+    src/core/ui_manager.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -73,6 +75,7 @@ add_executable(Backrooms
 
 # Tell the compiler where to find the header files (.h files)
 target_include_directories(Backrooms PRIVATE
+    src
     ${imgui_SOURCE_DIR}
     ${rlimhui_SOURCE_DIR}
 )
@@ -102,17 +105,19 @@ enable_testing()
 # Notice we do NOT include main.cpp here, because gtest_main provides its own main()!
 add_executable(BackroomsTests
     tests/test_maze.cpp
-    src/maze.cpp
-    src/maze_renderer.cpp
-    src/generators/bsp_generator.cpp
-    src/generators/loop_generator.cpp
-    src/generators/prims_generator.cpp
-    src/generators/tunnel_borer.cpp
-    src/generators/generator_utils.cpp
-    src/player.cpp
-    src/player_renderer.cpp
-    src/item_spawner.cpp
-    src/item_renderer.cpp
+    src/world/maze.cpp
+    src/world/maze_renderer.cpp
+    src/world/generators/bsp_generator.cpp
+    src/world/generators/loop_generator.cpp
+    src/world/generators/prims_generator.cpp
+    src/world/generators/tunnel_borer.cpp
+    src/world/generators/generator_utils.cpp
+    src/entities/player.cpp
+    src/entities/player_renderer.cpp
+    src/world/item_spawner.cpp
+    src/world/item_renderer.cpp
+    src/states/playing_state.cpp
+    src/core/ui_manager.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp

@@ -1,4 +1,4 @@
-#include "bsp_generator.hpp"
+#include "world/generators/bsp_generator.hpp"
 #include <algorithm>
 #include <queue>
 #include <vector>

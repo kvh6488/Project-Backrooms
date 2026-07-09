@@ -1,4 +1,4 @@
-#include "item_spawner.hpp"
+#include "world/item_spawner.hpp"
 
 // ============================================================================
 // Constructor
@@ -23,10 +23,10 @@ ItemSpawner::ItemSpawner(std::mt19937 &rng) : m_rng(rng) {}
 // Time Complexity: O(1) — always exactly 4 neighbour checks.
 // ============================================================================
 bool ItemSpawner::isNearCorridor(const Maze &maze, int x, int y) const {
-  return maze.getCell(x, y - 1) == Maze::CELL_CORRIDOR ||  // North
-         maze.getCell(x + 1, y) == Maze::CELL_CORRIDOR ||  // East
-         maze.getCell(x, y + 1) == Maze::CELL_CORRIDOR ||  // South
-         maze.getCell(x - 1, y) == Maze::CELL_CORRIDOR;    // West
+  return maze.getCell(x, y - 1) == Maze::CELL_CORRIDOR || // North
+         maze.getCell(x + 1, y) == Maze::CELL_CORRIDOR || // East
+         maze.getCell(x, y + 1) == Maze::CELL_CORRIDOR || // South
+         maze.getCell(x - 1, y) == Maze::CELL_CORRIDOR;   // West
 }
 
 // ============================================================================
@@ -233,9 +233,8 @@ void ItemSpawner::spawnMushrooms(Maze &maze, ItemType type, int target,
 // rejection rate too high. A full scan with probability filtering is more
 // reliable here.
 // ============================================================================
-void ItemSpawner::spawnCupboards(Maze &maze, int target,
-                                 int boundsX, int boundsY,
-                                 int boundsW, int boundsH) {
+void ItemSpawner::spawnCupboards(Maze &maze, int target, int boundsX,
+                                 int boundsY, int boundsW, int boundsH) {
   if (boundsW == -1)
     boundsW = maze.getWidth();
   if (boundsH == -1)
@@ -266,7 +265,7 @@ void ItemSpawner::spawnCupboards(Maze &maze, int target,
 
     // Rule 2: At least one wall in Up, Left, or Right direction
     bool wallAbove = maze.getCell(x, y - 1) == Maze::CELL_WALL;
-    bool wallLeft  = maze.getCell(x - 1, y) == Maze::CELL_WALL;
+    bool wallLeft = maze.getCell(x - 1, y) == Maze::CELL_WALL;
     bool wallRight = maze.getCell(x + 1, y) == Maze::CELL_WALL;
 
     return wallAbove || wallLeft || wallRight;

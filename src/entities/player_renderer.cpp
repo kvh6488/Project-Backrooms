@@ -1,4 +1,4 @@
-#include "player_renderer.hpp"
+#include "entities/player_renderer.hpp"
 #include <iostream>
 
 PlayerRenderer::PlayerRenderer()

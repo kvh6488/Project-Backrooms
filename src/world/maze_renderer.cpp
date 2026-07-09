@@ -1,5 +1,5 @@
-#include "maze_renderer.hpp"
-#include "player.hpp"
+#include "world/maze_renderer.hpp"
+#include "entities/player.hpp"
 #include <cmath>
 #include <iostream>
 

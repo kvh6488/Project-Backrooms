@@ -1,9 +1,9 @@
-#include "generators/bsp_generator.hpp"
-#include "generators/loop_generator.hpp"
-#include "generators/prims_generator.hpp"
-#include "generators/tunnel_borer.hpp"
-#include "item_spawner.hpp"
-#include "maze.hpp"
+#include "world/generators/bsp_generator.hpp"
+#include "world/generators/loop_generator.hpp"
+#include "world/generators/prims_generator.hpp"
+#include "world/generators/tunnel_borer.hpp"
+#include "world/item_spawner.hpp"
+#include "world/maze.hpp"
 #include <ctime>
 #include <gtest/gtest.h>
 #include <queue>

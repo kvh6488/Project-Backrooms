@@ -1,5 +1,5 @@
-#include "loop_generator.hpp"
-#include "generator_utils.hpp"
+#include "world/generators/loop_generator.hpp"
+#include "world/generators/generator_utils.hpp"
 
 // ============================================================================
 // LOOP GENERATION — Breaking the Perfect Maze
