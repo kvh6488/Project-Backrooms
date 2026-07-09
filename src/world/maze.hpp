@@ -6,34 +6,7 @@
 
 enum class AreaState { CORRIDOR, ROOM };
 
-// ============================================================================
-// ItemType Enum — Grid-Parallel Item Layer
-// ============================================================================
-// Each cell in the maze can hold at most one item. This enum encodes the
-// item type using integer codes stored in a flat 1D array (m_items) that
-// mirrors m_grid. This gives us O(1) lookup for rendering and collision:
-//   maze.getItem(x, y)  →  instant answer, no list scanning.
-//
-// Alternative considered: Separate std::vector per item type (m_barrels,
-// m_mushrooms, etc.). Rejected because rendering would require iterating
-// every list for every visible cell — O(items) per cell vs O(1).
-// ============================================================================
-enum class ItemType : int {
-  NONE = 0,          // Empty cell — no item present
-  TOXIC_WASTE = 1,        // Radiation barrel — emits BFS radiation zones
-  MUSHROOM = 2,      // Mushroom — spawns only in normal rooms
-  MAGIC_MUSHROOM = 3, // Magic Mushroom — grants special ability, spawns only in
-                      // radiated rooms
-  CUPBOARD = 4        // Furniture — decorative wall-adjacent cupboard (Phase 3)
-};
-
-// ============================================================================
-// Inventory System
-// ============================================================================
-struct InventorySlot {
-  ItemType type = ItemType::NONE;
-  int count = 0;
-};
+#include "items/item.hpp"
 
 
 // Forward declarations
@@ -159,7 +132,6 @@ public:
   bool isBarrelNear(int x, int y, int radius = 1) const;
 
   // --- Phase 5: Inventory System ---
-  static bool isPickupable(ItemType type);
   bool findNearestEmptyItemCell(int startX, int startY, int maxRadius, int& outX, int& outY) const;
   
   // --- Generic Item States ---

@@ -3,7 +3,7 @@
 #include "states/game_state.hpp"
 #include "world/maze.hpp"
 #include "world/maze_renderer.hpp"
-#include "world/item_renderer.hpp"
+#include "items/item_renderer.hpp"
 #include "entities/player.hpp"
 #include "entities/player_renderer.hpp"
 #include "world/item_spawner.hpp"

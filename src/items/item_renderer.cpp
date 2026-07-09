@@ -1,4 +1,5 @@
-#include "world/item_renderer.hpp"
+#include "items/item_renderer.hpp"
+#include "items/item_database.hpp"
 #include <cmath>
 #include <iostream>
 
@@ -69,7 +70,8 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
         continue;
 
       if (state == AreaState::CORRIDOR && cell == Maze::CELL_ROOM) {
-        // Strictly no room items should render while the player is in the corridors.
+        // Strictly no room items should render while the player is in the
+        // corridors.
         continue;
       }
 
@@ -233,26 +235,19 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
   }
 }
 
-// ============================================================================
-// renderItemUI — Screen-Space Inventory Icon Drawing
-// ============================================================================
 void ItemRenderer::renderItemUI(ItemType type, Rectangle destRect,
                                 Color tint) const {
-  switch (type) {
-  case ItemType::MUSHROOM:
-  case ItemType::MAGIC_MUSHROOM: {
-    Rectangle sourceRect = {(type == ItemType::MUSHROOM) ? 16.0f : 0.0f,
-                            (type == ItemType::MUSHROOM) ? 0.0f : 32.0f, 16.0f,
-                            16.0f};
-    DrawTexturePro(m_mushroomTexture, sourceRect, destRect, {0, 0}, 0.0f, tint);
-    break;
-  }
-  case ItemType::TOXIC_WASTE: {
+  const auto &def = ItemDatabase::getDef(type);
+
+  if (type == ItemType::TOXIC_WASTE) {
     DrawRectangleRec(destRect, GREEN);
-    break;
+    return;
   }
-  default:
+
+  if (def.uiSpriteRect.width > 0 && def.uiSpriteRect.height > 0) {
+    DrawTexturePro(m_mushroomTexture, def.uiSpriteRect, destRect, {0, 0}, 0.0f,
+                   tint);
+  } else {
     DrawRectangleRec(destRect, tint);
-    break;
   }
 }

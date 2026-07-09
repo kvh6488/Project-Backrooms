@@ -1,4 +1,5 @@
 #include "core/application.hpp"
+#include "items/item_database.hpp"
 #include "rlImGui.h"
 #include "states/playing_state.hpp"
 
@@ -20,6 +21,9 @@ Application::Application() : m_uiManager(m_screenWidth, m_screenHeight) {
 
   // 2. Initialize ImGui and Textures
   rlImGuiSetup(true);
+
+  // 2.5 Initialize Item Database
+  ItemDatabase::init();
 
   // 3. Set Initial State
   m_currentState = std::make_unique<PlayingState>(m_uiManager);

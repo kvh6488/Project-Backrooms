@@ -1,4 +1,5 @@
 #include "core/ui_manager.hpp"
+#include "items/item_database.hpp"
 #include "imgui.h"
 #include "rlImGui.h"
 #include <cmath>
@@ -138,6 +139,8 @@ void UIManager::renderInventory(Player& player, Maze& maze, ItemRenderer& itemRe
     float slotSize = 60 * scale;
     float padding = 10 * scale;
 
+    ItemType hoveredItemType = ItemType::NONE;
+
     auto drawSlot = [&](int index, float x, float y, bool isHotbar, bool isCupboardSlot) {
         Rectangle slotRect = {x, y, slotSize, slotSize};
 
@@ -196,6 +199,10 @@ void UIManager::renderInventory(Player& player, Maze& maze, ItemRenderer& itemRe
                         player.consumeItem(index);
                     }
                 }
+            }
+
+            if (currentInv[index].type != ItemType::NONE && !isHeldSlot) {
+                hoveredItemType = currentInv[index].type;
             }
         }
 
@@ -275,6 +282,20 @@ void UIManager::renderInventory(Player& player, Maze& maze, ItemRenderer& itemRe
                          mousePos.x + slotSize / 2 - 20 * scale,
                          mousePos.y + slotSize / 2 - 20 * scale, 20 * scale, WHITE);
             }
+        }
+
+        if (hoveredItemType != ItemType::NONE && m_heldSlotIndex == -1) {
+            const auto& def = ItemDatabase::getDef(hoveredItemType);
+            int nameW = MeasureText(def.name.c_str(), 20 * scale);
+            int descW = MeasureText(def.description.c_str(), 15 * scale);
+            int boxW = std::max(nameW, descW) + 20 * scale;
+            int boxH = 50 * scale;
+            
+            Vector2 mousePos = GetMousePosition();
+            DrawRectangle(mousePos.x + 10 * scale, mousePos.y + 10 * scale, boxW, boxH, Fade(BLACK, 0.9f));
+            DrawRectangleLines(mousePos.x + 10 * scale, mousePos.y + 10 * scale, boxW, boxH, GRAY);
+            DrawText(def.name.c_str(), mousePos.x + 20 * scale, mousePos.y + 15 * scale, 20 * scale, YELLOW);
+            DrawText(def.description.c_str(), mousePos.x + 20 * scale, mousePos.y + 35 * scale, 15 * scale, LIGHTGRAY);
         }
     }
 }

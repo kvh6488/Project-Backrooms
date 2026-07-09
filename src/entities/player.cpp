@@ -1,4 +1,5 @@
 #include "entities/player.hpp"
+#include "items/item_database.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -349,7 +350,7 @@ void Player::pickupItem(Maze &maze) {
   for (int y = py - 1; y <= py + 1 && typeToPickup == ItemType::NONE; ++y) {
     for (int x = px - 1; x <= px + 1 && typeToPickup == ItemType::NONE; ++x) {
       ItemType type = maze.getItem(x, y);
-      if (type != ItemType::NONE && Maze::isPickupable(type)) {
+      if (type != ItemType::NONE && ItemDatabase::getDef(type).isPickable) {
         typeToPickup = type;
         targetX = x;
         targetY = y;

@@ -212,7 +212,7 @@ The mathematical heart — radiation systems spreading across the grid.
 ### Phase 7 — GUI & Graphical Polish *(Days 86–90)*
 *(Finalisation - most should be completed already)*
 Get Level 1 and Level 2 looking perfect.
-- Final tile textures and sprite art (Player, Mobs, Items, UI icons), maybe add carpet bitmasking.
+- Final tile textures and sprite art (Player, Mobs, Items, UI icons), maybe add carpet bitmasking, maybe add ritual candles and lighting spawns.
 - HUD design (health, infection meter, inventory bar, day counter, menus, textpop ups), ensure consistency.
 - Clean up leftover testing framework into a dedicated testing mode (hidden during normal gameplay).
 - Screen distortion effects (VHS aesthetic).

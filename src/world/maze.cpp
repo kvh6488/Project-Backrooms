@@ -425,9 +425,7 @@ bool Maze::isBarrelNear(int x, int y, int radius) const {
 // PHASE 5: INVENTORY SYSTEM
 // ============================================================================
 
-bool Maze::isPickupable(ItemType type) {
-  return type == ItemType::MUSHROOM || type == ItemType::MAGIC_MUSHROOM;
-}
+
 
 bool Maze::findNearestEmptyItemCell(int startX, int startY, int maxRadius, int& outX, int& outY) const {
   struct BFSNode { int x, y, depth; };

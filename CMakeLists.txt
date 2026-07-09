@@ -62,9 +62,10 @@ add_executable(Backrooms
     src/entities/player.cpp
     src/entities/player_renderer.cpp
     src/world/item_spawner.cpp
-    src/world/item_renderer.cpp
+    src/items/item_renderer.cpp
     src/states/playing_state.cpp
     src/core/ui_manager.cpp
+    src/items/item_database.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -115,9 +116,10 @@ add_executable(BackroomsTests
     src/entities/player.cpp
     src/entities/player_renderer.cpp
     src/world/item_spawner.cpp
-    src/world/item_renderer.cpp
+    src/items/item_renderer.cpp
     src/states/playing_state.cpp
     src/core/ui_manager.cpp
+    src/items/item_database.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
