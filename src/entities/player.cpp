@@ -202,6 +202,20 @@ void Player::update(Maze &maze, bool canMove) {
   // Step 2: Move on the Y axis, then check if we hit a wall and resolve it.
   m_position.y += velocity.y * dt;
   resolveCollision(maze);
+
+  // Validate minimap ID
+  if (m_setMinimapId != 0) {
+    bool found = false;
+    for (const auto& slot : m_inventory) {
+      if (slot.type == ItemType::MAP && slot.instanceId == m_setMinimapId) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      m_setMinimapId = 0;
+    }
+  }
 }
 
 // ============================================================================
@@ -430,6 +444,19 @@ void Player::consumeItem(int slotIndex) {
     if (m_inventory[slotIndex].count <= 0) {
       m_inventory[slotIndex].type = ItemType::NONE;
       m_inventory[slotIndex].count = 0;
+    }
+  } else if (type == ItemType::MAP) {
+    if (m_inventory[slotIndex].instanceId == 0) {
+      m_inventory[slotIndex].instanceId = m_nextMapInstanceId++;
+      m_eventMapDrawingStarted = true;
+      m_lastConsumedMapId = m_inventory[slotIndex].instanceId;
+    } else {
+      if (m_setMinimapId == m_inventory[slotIndex].instanceId) {
+        m_setMinimapId = 0; // Un-equip
+      } else {
+        m_setMinimapId = m_inventory[slotIndex].instanceId;
+        m_eventMapSet = true;
+      }
     }
   }
 }

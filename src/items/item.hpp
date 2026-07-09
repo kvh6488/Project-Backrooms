@@ -48,4 +48,5 @@ struct ItemDefinition {
 struct InventorySlot {
   ItemType type = ItemType::NONE;
   int count = 0;
+  int instanceId = 0;
 };

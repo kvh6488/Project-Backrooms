@@ -1,13 +1,19 @@
 #pragma once
 
 #include "entities/player.hpp"
-#include "raylib.h"
 #include "items/item_renderer.hpp"
+#include "raylib.h"
 #include "world/maze.hpp"
-#include "items/crafting_system.hpp"
 #include <string>
 #include <vector>
+#include <unordered_map>
 
+struct DrawnMapData {
+  int id;
+  int centerX;
+  int centerY;
+  RenderTexture2D texture;
+};
 
 enum class PopupType {
   BOXED_BOTTOM, // Black box, white text (e.g., "Press K to use door", "Dam it's
@@ -71,6 +77,11 @@ public:
     m_openedCupboardY = -1;
   }
 
+  // --- Map Overlay State ---
+  void toggleFullscreenMap() { m_showFullscreenMap = !m_showFullscreenMap; }
+  bool isFullscreenMapOpen() const { return m_showFullscreenMap; }
+  void markMapDrawn(int mapId, Maze& maze, int centerX, int centerY);
+
   // --- Debug Flags (Used by PlayingState) ---
   bool isFlashlightEnabled() const { return m_flashlightEnabled; }
   bool showGenerationZones() const { return m_showGenerationZones; }
@@ -117,6 +128,10 @@ private:
   // Crafting State
   int m_selectedCraftingRecipeIdx = -1;
   float m_craftFlashEndTime = 0.0f;
+
+  // Drawn Maps Cache
+  std::unordered_map<int, DrawnMapData> m_drawnMaps;
+  bool m_showFullscreenMap = false;
 
   // Minimap
   RenderTexture2D m_minimapTexture;

@@ -184,6 +184,7 @@ The mathematical heart — radiation systems spreading across the grid.
   - Geiger Counter *(Likely to be removed)*.
   - Gas Mask / Hazmat Suit (merged item: protects from infection/gases, uses gas mask icon, turns player into gas suit man, upgradble).
 
+
 ### Phase 6 — Advanced Mechanics & The Level 2 Descent *(Days 73–85)*
 - **Level Transitions**: Screwdriver (found) required to access Level 2 vents.
 - **Level 2 Architecture**:
@@ -198,7 +199,9 @@ The mathematical heart — radiation systems spreading across the grid.
   - Pulsar Radar Gun (tracks base, frontal shield; built using L2 crystals).
   - Glitched VHS Tape (circular ring buffer, O(1) state rewind; found in L2. *Possible mechanic*).
   - Potential toxic waste destoyer?
-  - Potential Computer/Computer map - current full debug map, advanced item only at highest level.
+  - Infected Map, requires having a normal map, and a screwdriver and puncturing a radiation barrel (texture), to get liquid onto map, temporary increase radiation effects (no health regen). 
+  - Computer Map, provides full debug map, uses computer texture (fixed to base location)
+  - Only one map at a time can be set as minimap, until computer is upgraded to its final level, modular computer (requires communication base computer).
 - **Advanced Chemical Lab Crafting**:
   - Speed drug (faster run, paranoid hallucinations / fake mobs).
   - Parasitic Syringe (crafted from rat + cockroach serum. Injected into friendly dispersers for exponential/faster and wider cure spread. Severe decay rate if unmaintained).
@@ -251,6 +254,7 @@ All items organized by category.
 | Classic Map | Crafted with pen & paper. Upgradeable (one time only) to increase its range. May be a fullscreen overlay or a minimap. Unreliable due to maze shifting. | L1 |
 | Magic Map | Dynamically updates to reflect maze changes at night. Rare — only found when under the effects of Magic Mushrooms. Fixed region. | L1 (rare) |
 | Infected Map | (Potential) Shows radiation zones on map. | L1 |
+| Computer Map | Final map all maps combined.
 | Rope | Physical link between locations. Can be severed by direct mob attacks. | L1+ |
 | Pulsar Radar Gun | Tracks base signals through shifting walls. Pings enemies from afar. Frontal shield. Built using crystals. | L2 (crafted) |
 | Geiger Counter | Passive belt item. Clicks near un-destroyed Radiators. *(Likely to be removed)*. | L1 |

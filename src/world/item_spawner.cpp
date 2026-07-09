@@ -355,7 +355,7 @@ void ItemSpawner::spawnCupboards(Maze &maze, int target, int boundsX,
   else {
     for (int y = boundsY; y < boundsY + boundsH; ++y) {
       for (int x = boundsX; x < boundsX + boundsW; ++x) {
-        if (isValidCupboardCell(x, y) && chance(m_rng) < 0.03f) {
+        if (isValidCupboardCell(x, y) && chance(m_rng) < 0.5f) {
           maze.setItem(x, y, ItemType::CUPBOARD);
           initCupboard(x, y);
           totalPlaced++;

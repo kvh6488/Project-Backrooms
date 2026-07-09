@@ -76,6 +76,13 @@ public:
   bool pollEventMushroomFirstPickup() { bool v = m_eventMushroomFirstPickup; m_eventMushroomFirstPickup = false; return v; }
   bool pollEventPassOutComplete() { bool v = m_eventPassOutComplete; m_eventPassOutComplete = false; return v; }
 
+  // --- Map Event Polling ---
+  bool pollEventMapDrawingStarted() { bool v = m_eventMapDrawingStarted; m_eventMapDrawingStarted = false; return v; }
+  bool pollEventMapSet() { bool v = m_eventMapSet; m_eventMapSet = false; return v; }
+  int getLastConsumedMapId() const { return m_lastConsumedMapId; }
+  int getSetMinimapId() const { return m_setMinimapId; }
+  void setSetMinimapId(int id) { m_setMinimapId = id; }
+
   bool isPassingOut() const { return m_isPassingOut; }
   float getPassOutTimer() const { return m_passOutTimer; }
 
@@ -110,6 +117,12 @@ private:
   bool m_eventMushroomOver = false;
   bool m_eventMushroomFirstPickup = false;
   bool m_eventPassOutComplete = false;
+  
+  bool m_eventMapDrawingStarted = false;
+  bool m_eventMapSet = false;
+  int m_lastConsumedMapId = 0;
+  int m_setMinimapId = 0;
+  int m_nextMapInstanceId = 1;
 
 
   // --- Internal Collision Helpers ---

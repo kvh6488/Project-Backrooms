@@ -63,9 +63,13 @@ void ItemDatabase::init() {
       1,        {114, 305, 13, 12}};
 
   // MAP
-  m_definitions[(int)ItemType::MAP] = {
-      "Map", "A handmade map of the area.", false, true, true,
-      1,     {160, 96, 16, 16}};
+  m_definitions[(int)ItemType::MAP] = {"Map",
+                                       "A handmade map of the area",
+                                       false,
+                                       true,
+                                       true,
+                                       1,
+                                       {160, 96, 16, 16}};
 }
 
 const ItemDefinition &ItemDatabase::getDef(ItemType type) {

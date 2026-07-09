@@ -91,7 +91,7 @@ void PlayingState::update(float dt) {
 
     handleInput();
 
-    m_player.update(m_maze, !m_uiManager.isInventoryOpen());
+    m_player.update(m_maze, !m_uiManager.isInventoryOpen() && !m_isMapDrawing);
 
     int playerGridX = static_cast<int>(std::floor(m_player.getPosition().x / m_maze.getCellSize()));
     int playerGridY = static_cast<int>(std::floor(m_player.getPosition().y / m_maze.getCellSize()));
@@ -219,6 +219,31 @@ void PlayingState::update(float dt) {
         m_uiManager.showPopup("What a trip, where am I?", PopupType::BOXED_BOTTOM, 4.0f);
     }
 
+    // --- Map Drawing Sequence ---
+    if (m_isMapDrawing) {
+        m_mapDrawingTimer -= dt;
+        if (m_mapDrawingTimer <= 0.0f) {
+            m_isMapDrawing = false;
+            
+            int gridX = static_cast<int>(std::floor(m_player.getPosition().x / m_maze.getCellSize()));
+            int gridY = static_cast<int>(std::floor(m_player.getPosition().y / m_maze.getCellSize()));
+            m_uiManager.markMapDrawn(m_drawingMapId, m_maze, gridX, gridY);
+            
+            // Auto equip if it's the first map and we have none equipped
+            if (m_player.getSetMinimapId() == 0) {
+                m_player.setSetMinimapId(m_drawingMapId);
+            }
+            if (!m_uiManager.isFullscreenMapOpen()) m_uiManager.toggleFullscreenMap();
+        }
+    }
+
+    if (m_player.pollEventMapDrawingStarted()) {
+        m_isMapDrawing = true;
+        m_mapDrawingTimer = 3.0f; // few seconds
+        m_drawingMapId = m_player.getLastConsumedMapId();
+        if (m_uiManager.isInventoryOpen()) m_uiManager.toggleInventory();
+    }
+
     m_totalTime += dt;
     m_uiManager.update(dt);
 }
@@ -236,6 +261,10 @@ void PlayingState::handleInput() {
                 m_uiManager.closeCupboard();
             }
         }
+    }
+
+    if (IsKeyPressed(KEY_M) && !m_uiManager.isInventoryOpen()) {
+        m_uiManager.toggleFullscreenMap();
     }
 
     if (IsKeyPressed(KEY_O) && m_focusedCupboardX != -1) {
@@ -375,6 +404,16 @@ void PlayingState::render() {
         if (fadeAlpha > 1.0f) fadeAlpha = 1.0f;
         if (fadeAlpha < 0.0f) fadeAlpha = 0.0f;
         DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, fadeAlpha));
+    }
+
+    if (m_isMapDrawing) {
+        float alpha = 1.0f;
+        // Fade in and fade out slightly or just solid black? User requested: "screen fades to black, and the popup ... appears"
+        // Let's just make it mostly black so the "Drawing map..." is visible.
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.95f));
+        
+        int textW = MeasureText("Drawing map...", 40);
+        DrawText("Drawing map...", (GetScreenWidth() - textW)/2, GetScreenHeight()/2 - 20, 40, WHITE);
     }
 
     // Hand off UI rendering to UIManager
