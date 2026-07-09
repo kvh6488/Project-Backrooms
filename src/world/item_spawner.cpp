@@ -192,7 +192,7 @@ void ItemSpawner::spawnMushrooms(Maze &maze, ItemType type, int target,
       attempts++;
     }
   }
-  // Initial generation: scan all bounds and apply 6% chance to each corner
+  // Initial generation: scan all bounds and apply 3% chance to each corner
   else {
     for (int y = boundsY; y < boundsY + boundsH; ++y) {
       for (int x = boundsX; x < boundsX + boundsW; ++x) {
@@ -295,31 +295,32 @@ void ItemSpawner::spawnCupboards(Maze &maze, int target, int boundsX,
     inv.fill(InventorySlot{ItemType::NONE, 0});
 
     auto getEmptySlot = [&]() -> int {
-        std::vector<int> emptySlots;
-        for (int i = 0; i < inv.size(); ++i) {
-            if (inv[i].type == ItemType::NONE) emptySlots.push_back(i);
-        }
-        if (emptySlots.empty()) return -1;
-        std::uniform_int_distribution<int> dist(0, emptySlots.size() - 1);
-        return emptySlots[dist(m_rng)];
+      std::vector<int> emptySlots;
+      for (int i = 0; i < inv.size(); ++i) {
+        if (inv[i].type == ItemType::NONE)
+          emptySlots.push_back(i);
+      }
+      if (emptySlots.empty())
+        return -1;
+      std::uniform_int_distribution<int> dist(0, emptySlots.size() - 1);
+      return emptySlots[dist(m_rng)];
     };
 
-
     if (chance(m_rng) < 0.5f) {
-        int slot = getEmptySlot();
-        if (slot != -1) {
-            std::uniform_int_distribution<int> countDist(1, 2);
-            inv[slot].type = ItemType::PAPER;
-            inv[slot].count = countDist(m_rng);
-        }
+      int slot = getEmptySlot();
+      if (slot != -1) {
+        std::uniform_int_distribution<int> countDist(1, 2);
+        inv[slot].type = ItemType::PAPER;
+        inv[slot].count = countDist(m_rng);
+      }
     }
 
     if (chance(m_rng) < 0.35f) {
-        int slot = getEmptySlot();
-        if (slot != -1) {
-            inv[slot].type = ItemType::PENCIL;
-            inv[slot].count = 1;
-        }
+      int slot = getEmptySlot();
+      if (slot != -1) {
+        inv[slot].type = ItemType::PENCIL;
+        inv[slot].count = 1;
+      }
     }
   };
 
@@ -350,7 +351,7 @@ void ItemSpawner::spawnCupboards(Maze &maze, int target, int boundsX,
       attempts++;
     }
   }
-  // --- Initial generation: scan and apply 5% chance ---
+  // --- Initial generation: scan and apply 3% chance ---
   else {
     for (int y = boundsY; y < boundsY + boundsH; ++y) {
       for (int x = boundsX; x < boundsX + boundsW; ++x) {

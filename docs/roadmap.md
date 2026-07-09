@@ -124,8 +124,8 @@ The mathematical heart — radiation systems spreading across the grid.
   - Magic Map UI (Could include raidation points and regen zones not sure)
   - Magic map maybe also only found near spawn, (still rare to find), and is instantly set to show just up to the regen zone square border no further.
 - **Add pens and paper spawns in draw and basic crafting system for classic map spawn now to, shows the maze as it is now for a given rectangle radius when opened, permenatly fixed, at that spot.
-  - **Furniture spawns**: Searching desks, chairs, filing cabinets for raw materials and lore.
-  - **Fundamental materials**: Scrap metal, wires, wood, cloth, chemicals, electronic components.
+-   **Base Furniture spawns & fundamental materials**: Searching desks, chairs, filing cabinets for raw materials and lore.
+  - **Base Crafting System**: Basic crafting system developed
   - **Classic Map**: Crafted with pen and paper. Upgradeable (one time only) to increase its range. *Conflict note: May remain a fullscreen overlay (leaving player vulnerable) OR change to a minimap.*
 
 ### Phase 4 — Mobs, Death, Progression & Main menu *(Days 35–52)*
@@ -170,7 +170,8 @@ The mathematical heart — radiation systems spreading across the grid.
 - Potentail spreading radiation drives maze chaos — shifting walls, increasing mob spawns.
 
 ### Phase 5 — Full Arsenal & Crafting  *(Days 53–72)*
-- **Full Crafting system**: inventory → recipe → item, potential crafting table vs no crafting, all required items now have a crafting recipe.
+- **Finalised Crafting system**: inventory → recipe → item, potential crafting table vs no crafting table, all required items now have a crafting recipe.
+- -**Add all fundamental materials & funinture spawns**: Add all remaining fundamental materials required for crafting - Scrap metal, wires, wood, cloth, chemicals, electronic components, etc. Also add some more funiture spawns. 
 - Barricades/Door upgrades (modify BFS map and radition spread).
 - Potential Cure Spreaders (Chemical Dispersers): Alters differential equation variables in a sector, slowing/halting enemy spawn and radtion spread. Upgradeable. Strategy: few heavily upgraded (large radar, reduced mob spawns) vs. dozens of weak ones ( easily destroyed).
 - **Weapons & Gear**:

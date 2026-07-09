@@ -1,5 +1,6 @@
 #include "core/ui_manager.hpp"
 #include "items/item_database.hpp"
+#include "items/crafting_system.hpp"
 #include "imgui.h"
 #include "rlImGui.h"
 #include <cmath>
@@ -264,6 +265,139 @@ void UIManager::renderInventory(Player& player, Maze& maze, ItemRenderer& itemRe
                 for (int col = 0; col < 10; ++col) {
                     int index = (row * 10) + col;
                     drawSlot(index, cupboardStartX + col * (slotSize + padding), cupboardStartY + row * (slotSize + padding), false, true);
+                }
+            }
+        }
+
+        // 4. Draw Crafting Menu
+        if (m_inventoryOpen && !m_cupboardInventoryOpen) {
+            float craftingStartY = bagStartY - (260 * scale); // Up a lot higher to fit details menu
+            DrawText("Crafting", bagStartX, craftingStartY - 25 * scale, 20 * scale, WHITE);
+
+            const auto& recipes = CraftingSystem::getRecipes();
+            int visibleIdx = 0;
+            
+            for (size_t i = 0; i < recipes.size(); ++i) {
+                const auto& recipe = recipes[i];
+                
+                // Check visibility: Has unlocked OR has at least one ingredient
+                bool isVisible = player.hasUnlockedRecipe(recipe.result);
+                if (!isVisible) {
+                    for (const auto& ing : recipe.ingredients) {
+                        if (player.hasIngredient(ing.type, 1)) {
+                            isVisible = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (isVisible) {
+                    float x = bagStartX + visibleIdx * (slotSize + padding);
+                    float y = craftingStartY;
+                    Rectangle slotRect = {x, y, slotSize, slotSize};
+                    
+                    // Draw background
+                    bool isSelected = (m_selectedCraftingRecipeIdx == (int)i);
+                    Color bgColor = isSelected ? Fade(YELLOW, 0.3f) : Fade(BLACK, 0.7f);
+                    DrawRectangleRec(slotRect, bgColor);
+                    DrawRectangleLinesEx(slotRect, 2.0f * scale, isSelected ? WHITE : GRAY);
+
+                    // Mouse Interaction
+                    if (CheckCollisionPointRec(GetMousePosition(), slotRect)) {
+                        DrawRectangleLinesEx(slotRect, 3.0f * scale, WHITE);
+                        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                            if (m_selectedCraftingRecipeIdx == (int)i) {
+                                m_selectedCraftingRecipeIdx = -1; // Toggle off
+                            } else {
+                                m_selectedCraftingRecipeIdx = (int)i; // Select
+                            }
+                        }
+                        hoveredItemType = recipe.result;
+                    }
+
+                    // Draw icon
+                    Rectangle destRect = {x + padding, y + padding, slotSize - 2 * padding, slotSize - 2 * padding};
+                    itemRenderer.renderItemUI(recipe.result, destRect, WHITE);
+
+                    visibleIdx++;
+                }
+            }
+
+            if (visibleIdx == 0) {
+                DrawText("Go get yourself some items", bagStartX, craftingStartY, 20 * scale, GRAY);
+            }
+
+            // Draw Selected Recipe Details
+            if (m_selectedCraftingRecipeIdx >= 0 && m_selectedCraftingRecipeIdx < recipes.size()) {
+                const auto& recipe = recipes[m_selectedCraftingRecipeIdx];
+                const auto& resultDef = ItemDatabase::getDef(recipe.result);
+                
+                float detailsX = bagStartX;
+                float detailsY = craftingStartY + slotSize + (10 * scale); // Below the crafting icons
+                
+                // Draw title
+                DrawText(TextFormat("Recipe: %s", resultDef.name.c_str()), detailsX, detailsY, 20 * scale, WHITE);
+                
+                // Draw ingredients
+                float ingX = detailsX;
+                float ingY = detailsY + 25 * scale;
+                for (size_t i = 0; i < recipe.ingredients.size(); ++i) {
+                    const auto& ing = recipe.ingredients[i];
+                    Rectangle ingSlotRect = {ingX, ingY, slotSize * 0.8f, slotSize * 0.8f};
+                    
+                    DrawRectangleRec(ingSlotRect, Fade(BLACK, 0.7f));
+                    DrawRectangleLinesEx(ingSlotRect, 2.0f * scale, GRAY);
+                    
+                    Rectangle ingDestRect = {ingX + padding*0.8f, ingY + padding*0.8f, (slotSize - 2 * padding) * 0.8f, (slotSize - 2 * padding) * 0.8f};
+                    itemRenderer.renderItemUI(ing.type, ingDestRect, WHITE);
+                    
+                    // Count text
+                    int playerHas = 0;
+                    for(auto slot : player.getInventory()) if(slot.type == ing.type) playerHas += slot.count;
+                    
+                    bool hasEnough = playerHas >= ing.count;
+                    Color textColor = hasEnough ? GREEN : RED;
+                    
+                    if (!hasEnough && GetTime() < m_craftFlashEndTime) {
+                        if ((int)(GetTime() * 15) % 2 == 0) {
+                            textColor = WHITE;
+                        }
+                    }
+                    
+                    DrawText(TextFormat("%d/%d", playerHas, ing.count), ingX + slotSize*0.8f + 5*scale, ingY + slotSize*0.3f, 20 * scale, textColor);
+                    
+                    // Mouse Hover on ingredient
+                    if (CheckCollisionPointRec(GetMousePosition(), ingSlotRect)) {
+                        hoveredItemType = ing.type;
+                    }
+                    
+                    
+                    ingX += slotSize * 0.8f + 60 * scale;
+                }
+                
+                // Draw Craft Button
+                bool canCraft = player.canCraft(recipe);
+                float btnW = 100 * scale;
+                float btnH = 40 * scale;
+                float btnX = bagStartX + (5 * slotSize + 4 * padding) - btnW;
+                float btnY = detailsY + 15 * scale;
+                
+                Rectangle btnRect = {btnX, btnY, btnW, btnH};
+                DrawRectangleRec(btnRect, canCraft ? Fade(GREEN, 0.6f) : Fade(RED, 0.6f));
+                DrawRectangleLinesEx(btnRect, 2.0f * scale, WHITE);
+                
+                int textW = MeasureText("Craft", 20 * scale);
+                DrawText("Craft", btnX + (btnW - textW)/2, btnY + (btnH - 20*scale)/2, 20 * scale, WHITE);
+                
+                if (CheckCollisionPointRec(GetMousePosition(), btnRect)) {
+                    DrawRectangleLinesEx(btnRect, 3.0f * scale, YELLOW);
+                    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                        if (canCraft) {
+                            player.craftItem(recipe);
+                        } else {
+                            m_craftFlashEndTime = GetTime() + 0.5f; // Flash for 0.5 seconds
+                        }
+                    }
                 }
             }
         }

@@ -1,5 +1,6 @@
 #include "core/application.hpp"
 #include "items/item_database.hpp"
+#include "items/crafting_system.hpp"
 #include "rlImGui.h"
 #include "states/playing_state.hpp"
 
@@ -24,6 +25,7 @@ Application::Application() : m_uiManager(m_screenWidth, m_screenHeight) {
 
   // 2.5 Initialize Item Database
   ItemDatabase::init();
+  CraftingSystem::init();
 
   // 3. Set Initial State
   m_currentState = std::make_unique<PlayingState>(m_uiManager);

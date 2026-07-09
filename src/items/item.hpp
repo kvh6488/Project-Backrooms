@@ -21,7 +21,8 @@ enum class ItemType : int {
 
   // Inventory Only
   PAPER = 5,
-  PENCIL = 6
+  PENCIL = 6,
+  MAP = 7
 };
 
 // ============================================================================

@@ -2,6 +2,7 @@
 
 #include "world/maze.hpp"
 #include "raylib.h"
+#include "items/crafting_system.hpp"
 #include <array>
 #include <vector>
 
@@ -60,6 +61,13 @@ public:
   std::array<InventorySlot, 20>& getInventoryRef() { return m_inventory; }
   float getMushroomEffectStrength() const;
 
+  // --- Crafting System ---
+  bool hasUnlockedRecipe(ItemType type) const;
+  void unlockRecipe(ItemType type);
+  bool hasIngredient(ItemType type, int count = 1) const;
+  bool canCraft(const Recipe& recipe) const;
+  bool craftItem(const Recipe& recipe);
+
   // --- Mushroom Event Polling ---
   bool pollEventMushroomConsumed() { bool v = m_eventMushroomConsumed; m_eventMushroomConsumed = false; return v; }
   bool pollEventMushroomThree() { bool v = m_eventMushroomThree; m_eventMushroomThree = false; return v; }
@@ -75,6 +83,7 @@ public:
 
 private:
   std::array<InventorySlot, 20> m_inventory;
+  std::vector<ItemType> m_unlockedRecipes;
 
   Vector2 m_position; // Center of the player in world space (pixels)
   float m_speed;      // Movement speed in pixels per second

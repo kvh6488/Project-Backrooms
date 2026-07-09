@@ -508,3 +508,100 @@ void Player::teleport(Vector2 newPos, AreaState newState) {
   m_position = newPos;
   m_areaState = newState;
 }
+
+// ============================================================================
+// Crafting System Methods
+// ============================================================================
+
+bool Player::hasUnlockedRecipe(ItemType type) const {
+    for (auto rt : m_unlockedRecipes) {
+        if (rt == type) return true;
+    }
+    return false;
+}
+
+void Player::unlockRecipe(ItemType type) {
+    if (!hasUnlockedRecipe(type)) {
+        m_unlockedRecipes.push_back(type);
+    }
+}
+
+bool Player::hasIngredient(ItemType type, int count) const {
+    int totalFound = 0;
+    for (const auto& slot : m_inventory) {
+        if (slot.type == type) {
+            totalFound += slot.count;
+            if (totalFound >= count) return true;
+        }
+    }
+    return false;
+}
+
+bool Player::canCraft(const Recipe& recipe) const {
+    for (const auto& req : recipe.ingredients) {
+        if (!hasIngredient(req.type, req.count)) {
+            return false;
+        }
+    }
+    
+    // Check if there's an empty slot in inventory.
+    // If not, the craft should fail.
+    bool hasSpace = false;
+    for (const auto& slot : m_inventory) {
+        if (slot.type == ItemType::NONE) {
+            hasSpace = true;
+            break;
+        }
+    }
+    if (!hasSpace) {
+        // Also check if consuming ingredients frees up an entire slot.
+        int freedSlots = 0;
+        for (const auto& req : recipe.ingredients) {
+            int needed = req.count;
+            for (const auto& slot : m_inventory) {
+                if (slot.type == req.type && slot.count == needed) {
+                    freedSlots++;
+                    break;
+                }
+            }
+        }
+        if (freedSlots == 0) return false;
+    }
+
+    return true;
+}
+
+bool Player::craftItem(const Recipe& recipe) {
+    if (!canCraft(recipe)) return false;
+
+    // Consume ingredients
+    for (const auto& req : recipe.ingredients) {
+        int remainingToConsume = req.count;
+        for (auto& slot : m_inventory) {
+            if (slot.type == req.type) {
+                if (slot.count >= remainingToConsume) {
+                    slot.count -= remainingToConsume;
+                    if (slot.count == 0) slot.type = ItemType::NONE;
+                    remainingToConsume = 0;
+                    break;
+                } else {
+                    remainingToConsume -= slot.count;
+                    slot.count = 0;
+                    slot.type = ItemType::NONE;
+                }
+            }
+        }
+    }
+
+    // Give result
+    for (auto& slot : m_inventory) {
+        if (slot.type == ItemType::NONE) {
+            slot.type = recipe.result;
+            slot.count = 1;
+            break;
+        }
+    }
+
+    unlockRecipe(recipe.result);
+    return true;
+}

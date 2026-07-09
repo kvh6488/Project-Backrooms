@@ -4,6 +4,7 @@
 #include "raylib.h"
 #include "items/item_renderer.hpp"
 #include "world/maze.hpp"
+#include "items/crafting_system.hpp"
 #include <string>
 #include <vector>
 
@@ -112,6 +113,10 @@ private:
   bool m_cupboardInventoryOpen = false;
   int m_openedCupboardX = -1;
   int m_openedCupboardY = -1;
+
+  // Crafting State
+  int m_selectedCraftingRecipeIdx = -1;
+  float m_craftFlashEndTime = 0.0f;
 
   // Minimap
   RenderTexture2D m_minimapTexture;

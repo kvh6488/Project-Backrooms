@@ -7,14 +7,15 @@ ItemRenderer::ItemRenderer() {
   m_postApocWorkshopTextures = {0};
   m_doodadsTexture = {0};
   m_mushroomTexture = {0};
+  m_postApocIconsTexture = {0};
 }
 
 void ItemRenderer::loadTextures() {
   if (IsWindowReady()) {
-    m_postApocWorkshopTextures =
-        LoadTexture("assets/PostApoc_Workshop_WithShadow.png");
+    m_postApocWorkshopTextures = LoadTexture("assets/PostApoc_Workshop_WithShadow.png");
     m_doodadsTexture = LoadTexture("assets/doodads_spritesheet.png");
     m_mushroomTexture = LoadTexture("assets/mushrooms_pixel_asset.png");
+    m_postApocIconsTexture = LoadTexture("assets/PostApoc_Workshop_Icons.png");
   } else {
     std::cerr << "[ERROR] Window not ready. Cannot load item textures!"
               << std::endl;
@@ -26,6 +27,7 @@ ItemRenderer::~ItemRenderer() {
     UnloadTexture(m_postApocWorkshopTextures);
     UnloadTexture(m_doodadsTexture);
     UnloadTexture(m_mushroomTexture);
+    UnloadTexture(m_postApocIconsTexture);
   }
 }
 
@@ -245,10 +247,24 @@ void ItemRenderer::renderItemUI(ItemType type, Rectangle destRect,
   }
 
   if (def.uiSpriteRect.width > 0 && def.uiSpriteRect.height > 0) {
-    Texture2D texToUse = m_mushroomTexture;
-    if (type == ItemType::PAPER || type == ItemType::PENCIL) {
+    Texture2D texToUse = m_mushroomTexture; // Fallback
+    
+    switch (type) {
+      case ItemType::PAPER:
+      case ItemType::PENCIL:
         texToUse = m_postApocWorkshopTextures;
+        break;
+      case ItemType::MAP:
+        texToUse = m_postApocIconsTexture;
+        break;
+      case ItemType::MUSHROOM:
+      case ItemType::MAGIC_MUSHROOM:
+        texToUse = m_mushroomTexture;
+        break;
+      default:
+        break;
     }
+
     DrawTexturePro(texToUse, def.uiSpriteRect, destRect, {0, 0}, 0.0f, tint);
   } else {
     DrawRectangleRec(destRect, tint);
