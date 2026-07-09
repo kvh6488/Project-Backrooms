@@ -268,19 +268,38 @@ void ItemSpawner::spawnCupboards(Maze &maze, int target, int boundsX,
     bool wallLeft = maze.getCell(x - 1, y) == Maze::CELL_WALL;
     bool wallRight = maze.getCell(x + 1, y) == Maze::CELL_WALL;
 
-    return wallAbove || wallLeft || wallRight;
+    if (!wallAbove && !wallLeft && !wallRight) {
+      return false;
+    }
+
+    // Rule 6: No items directly one tile in front of where it is facing
+    int frontX = x;
+    int frontY = y;
+    if (wallAbove) {
+      frontY = y + 1; // Faces down
+    } else if (wallRight) {
+      frontX = x - 1; // Faces left
+    } else if (wallLeft) {
+      frontX = x + 1; // Faces right
+    }
+
+    if (maze.getItem(frontX, frontY) != ItemType::NONE) {
+      return false;
+    }
+
+    return true;
   };
 
   auto initCupboard = [&](int cx, int cy) {
-      auto& inv = maze.getCupboardInventory(cx, cy);
-      inv.fill(InventorySlot{ItemType::NONE, 0});
-      if (chance(m_rng) < 0.5f) {
-          std::uniform_int_distribution<int> countDist(2, 5);
-          std::uniform_int_distribution<std::size_t> slotDist(0, inv.size() - 1);
-          std::size_t randomSlot = slotDist(m_rng);
-          inv[randomSlot].type = ItemType::MAGIC_MUSHROOM;
-          inv[randomSlot].count = countDist(m_rng);
-      }
+    auto &inv = maze.getCupboardInventory(cx, cy);
+    inv.fill(InventorySlot{ItemType::NONE, 0});
+    if (chance(m_rng) < 0.5f) {
+      std::uniform_int_distribution<int> countDist(2, 5);
+      std::uniform_int_distribution<std::size_t> slotDist(0, inv.size() - 1);
+      std::size_t randomSlot = slotDist(m_rng);
+      inv[randomSlot].type = ItemType::MAGIC_MUSHROOM;
+      inv[randomSlot].count = countDist(m_rng);
+    }
   };
 
   // --- Target-based spawning (zone regeneration) ---
@@ -314,7 +333,7 @@ void ItemSpawner::spawnCupboards(Maze &maze, int target, int boundsX,
   else {
     for (int y = boundsY; y < boundsY + boundsH; ++y) {
       for (int x = boundsX; x < boundsX + boundsW; ++x) {
-        if (isValidCupboardCell(x, y) && chance(m_rng) < 0.05f) {
+        if (isValidCupboardCell(x, y) && chance(m_rng) < 0.03f) {
           maze.setItem(x, y, ItemType::CUPBOARD);
           initCupboard(x, y);
           totalPlaced++;

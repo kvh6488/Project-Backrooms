@@ -69,13 +69,8 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
         continue;
 
       if (state == AreaState::CORRIDOR && cell == Maze::CELL_ROOM) {
-        // Don't render items in rooms that aren't touching the corridor
-        bool touchesCorridor = maze.getCell(x + 1, y) == Maze::CELL_CORRIDOR ||
-                               maze.getCell(x - 1, y) == Maze::CELL_CORRIDOR ||
-                               maze.getCell(x, y + 1) == Maze::CELL_CORRIDOR ||
-                               maze.getCell(x, y - 1) == Maze::CELL_CORRIDOR;
-        if (!touchesCorridor)
-          continue;
+        // Strictly no room items should render while the player is in the corridors.
+        continue;
       }
 
       // --- Item Rendering (Grid-Parallel Switch) ---
@@ -178,8 +173,6 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
         // Deterministically pick red or blue based on coordinates
         bool isRed = false;
         unsigned int hash = (unsigned int)(x * 73856093 ^ y * 19349663);
-        if (maze.getTestSwapCupboardColors())
-          hash += 1; // Toggle color for testing
         if (hash % 2 == 0) {
           isRed = true;
           cupSrc.y += 128.0f; // Red variant is 128px below blue

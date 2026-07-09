@@ -249,22 +249,6 @@ void UIManager::renderInventory(Player& player, Maze& maze, ItemRenderer& itemRe
             
             DrawText("Cupboard", cupboardStartX, cupboardStartY - 30 * scale, 20 * scale, WHITE);
 
-            // Add test toggle button
-            float btnW = 140 * scale;
-            float btnH = 25 * scale;
-            float btnX = cupboardStartX + cupboardTotalWidth - btnW;
-            float btnY = cupboardStartY - 35 * scale;
-            Rectangle btnRect = {btnX, btnY, btnW, btnH};
-            
-            bool isHovered = CheckCollisionPointRec(GetMousePosition(), btnRect);
-            if (isHovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                maze.toggleTestCupboardColors();
-            }
-            
-            DrawRectangleRec(btnRect, isHovered ? LIGHTGRAY : GRAY);
-            DrawRectangleLinesEx(btnRect, 2, DARKGRAY);
-            DrawText("Toggle Color", btnX + 15 * scale, btnY + 5 * scale, 15 * scale, BLACK);
-
             for (int row = 0; row < 2; ++row) {
                 for (int col = 0; col < 10; ++col) {
                     int index = (row * 10) + col;

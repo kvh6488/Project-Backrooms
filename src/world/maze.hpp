@@ -167,10 +167,6 @@ public:
   int getItemState(int x, int y) const;
   void setItemState(int x, int y, int state);
 
-  // --- Testing Flags ---
-  bool getTestSwapCupboardColors() const { return m_testSwapCupboardColors; }
-  void toggleTestCupboardColors() { m_testSwapCupboardColors = !m_testSwapCupboardColors; }
-
   // --- Cupboard Inventories ---
   std::array<InventorySlot, 20>& getCupboardInventory(int x, int y);
   bool hasCupboardInventory(int x, int y) const;
@@ -210,6 +206,4 @@ private:
 
   // Item states map (Key: 1D grid index, Value: state integer)
   std::map<int, int> m_itemStates;
-
-  bool m_testSwapCupboardColors = false;
 };

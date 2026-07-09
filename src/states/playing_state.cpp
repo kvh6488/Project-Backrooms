@@ -392,7 +392,11 @@ void PlayingState::regenerateTicTacToeZones() {
     std::vector<std::map<ItemType, int>> removedPerZone(zones.size());
     for (size_t i = 0; i < zones.size(); ++i) {
         const auto &z = zones[i];
-        removedPerZone[i] = m_maze.clearItemsInZone(z.x, z.y, z.width, z.height);
+        int startX = std::max(0, z.x - 1);
+        int startY = std::max(0, z.y - 1);
+        int w = std::min(m_maze.getWidth() - startX, z.width + 2);
+        int h = std::min(m_maze.getHeight() - startY, z.height + 2);
+        removedPerZone[i] = m_maze.clearItemsInZone(startX, startY, w, h);
     }
 
     m_maze.clearShiftingZones();
@@ -422,7 +426,11 @@ void PlayingState::regenerateTicTacToeZones() {
 
     for (size_t i = 0; i < zones.size(); ++i) {
         const auto &z = zones[i];
-        m_itemSpawner.respawnItems(m_maze, removedPerZone[i], z.x, z.y, z.width, z.height);
+        int startX = std::max(0, z.x - 1);
+        int startY = std::max(0, z.y - 1);
+        int w = std::min(m_maze.getWidth() - startX, z.width + 2);
+        int h = std::min(m_maze.getHeight() - startY, z.height + 2);
+        m_itemSpawner.respawnItems(m_maze, removedPerZone[i], startX, startY, w, h);
     }
 
     m_maze.calculateRadiationZones();
