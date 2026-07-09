@@ -366,9 +366,10 @@ void Player::pickupItem(Maze &maze) {
   if (typeToPickup == ItemType::NONE)
     return;
 
-  // 1. Try to find an existing stack that isn't full (limit 6)
+  int maxStack = ItemDatabase::getDef(typeToPickup).maxStackSize;
+  // 1. Try to find an existing stack that isn't full
   for (int i = 0; i < 20; ++i) {
-    if (m_inventory[i].type == typeToPickup && m_inventory[i].count < 6) {
+    if (m_inventory[i].type == typeToPickup && m_inventory[i].count < maxStack) {
       m_inventory[i].count++;
       maze.setItem(targetX, targetY, ItemType::NONE);
       return;
@@ -454,15 +455,19 @@ void Player::swapSlots(int slotIndex1, int slotIndex2) {
   if (m_inventory[slotIndex1].type != ItemType::NONE &&
       m_inventory[slotIndex1].type == m_inventory[slotIndex2].type) {
 
-    int spaceInSlot2 = 6 - m_inventory[slotIndex2].count;
-    int amountToMove = std::min(m_inventory[slotIndex1].count, spaceInSlot2);
+    int maxStack = ItemDatabase::getDef(m_inventory[slotIndex2].type).maxStackSize;
+    int spaceInSlot2 = maxStack - m_inventory[slotIndex2].count;
+    
+    if (spaceInSlot2 > 0) {
+        int amountToMove = std::min(m_inventory[slotIndex1].count, spaceInSlot2);
 
-    m_inventory[slotIndex2].count += amountToMove;
-    m_inventory[slotIndex1].count -= amountToMove;
+        m_inventory[slotIndex2].count += amountToMove;
+        m_inventory[slotIndex1].count -= amountToMove;
 
-    if (m_inventory[slotIndex1].count <= 0) {
-      m_inventory[slotIndex1].type = ItemType::NONE;
-      m_inventory[slotIndex1].count = 0;
+        if (m_inventory[slotIndex1].count <= 0) {
+          m_inventory[slotIndex1].type = ItemType::NONE;
+          m_inventory[slotIndex1].count = 0;
+        }
     }
   } else {
     // Standard swap

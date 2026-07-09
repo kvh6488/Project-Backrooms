@@ -1,4 +1,5 @@
 #include "states/playing_state.hpp"
+#include "items/item_database.hpp"
 #include "world/generators/bsp_generator.hpp"
 #include "world/generators/loop_generator.hpp"
 #include "world/generators/prims_generator.hpp"
@@ -278,12 +279,17 @@ void PlayingState::handleInput() {
         m_player.consumeItem(m_uiManager.getActiveHotbarSlot());
     }
 
-    if (IsKeyPressed(KEY_Q)) {
+    if (IsKeyPressed(KEY_Q) && !m_uiManager.isInventoryOpen()) {
         if (m_isDroppingItem) {
             m_isDroppingItem = false;
         } else {
-            if (m_player.getInventory()[m_uiManager.getActiveHotbarSlot()].type != ItemType::NONE) {
-                m_isDroppingItem = true;
+            ItemType activeType = m_player.getInventory()[m_uiManager.getActiveHotbarSlot()].type;
+            if (activeType != ItemType::NONE) {
+                if (ItemDatabase::getDef(activeType).isPlaceable) {
+                    m_isDroppingItem = true;
+                } else {
+                    m_uiManager.showPopup("Item cannot be placed", PopupType::SUBTLE_BOTTOM, 2.0f);
+                }
             }
         }
     }

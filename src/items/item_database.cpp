@@ -10,7 +10,7 @@ ItemDefinition ItemDatabase::m_fallbackDef = {
 
 void ItemDatabase::init() {
     // Determine the max enum value we need to store.
-    m_definitions.resize(5); // NONE = 0, up to MAGIC_MUSHROOM = 4
+    m_definitions.resize(7); // NONE = 0, up to PENCIL = 6
 
     // NONE
     m_definitions[(int)ItemType::NONE] = {
@@ -45,6 +45,20 @@ void ItemDatabase::init() {
         "Magic Mushroom", "It glows slightly. Eating it might show you the way...", 
         true, true, true, 
         5, {0, 32, 16, 16} // MAGIC_MUSHROOM UI Rect
+    };
+
+    // PAPER
+    m_definitions[(int)ItemType::PAPER] = {
+        "Paper", "A blank piece of paper. Could be useful for mapping.", 
+        false, true, false, 
+        4, {96, 339, 14, 10} 
+    };
+
+    // PENCIL
+    m_definitions[(int)ItemType::PENCIL] = {
+        "Pencil", "A simple wooden pencil.", 
+        false, true, false, 
+        1, {114, 305, 13, 12} 
     };
 }
 

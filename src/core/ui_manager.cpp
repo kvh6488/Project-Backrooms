@@ -177,8 +177,12 @@ void UIManager::renderInventory(Player& player, Maze& maze, ItemRenderer& itemRe
                         
                         // Merge stacks if same type
                         if (heldInv[m_heldSlotIndex].type != ItemType::NONE && heldInv[m_heldSlotIndex].type == currentInv[index].type) {
-                            int spaceInDest = 6 - currentInv[index].count;
-                            int amountToMove = std::min(heldInv[m_heldSlotIndex].count, spaceInDest);
+                            int maxStack = ItemDatabase::getDef(currentInv[index].type).maxStackSize;
+                            int spaceInDest = maxStack - currentInv[index].count;
+                            int amountToMove = 0;
+                            if (spaceInDest > 0) {
+                                amountToMove = std::min(heldInv[m_heldSlotIndex].count, spaceInDest);
+                            }
                             currentInv[index].count += amountToMove;
                             heldInv[m_heldSlotIndex].count -= amountToMove;
                             if (heldInv[m_heldSlotIndex].count <= 0) {

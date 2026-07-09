@@ -17,7 +17,11 @@ enum class ItemType : int {
   
   // World & Inventory 
   MUSHROOM = 3,
-  MAGIC_MUSHROOM = 4
+  MAGIC_MUSHROOM = 4,
+
+  // Inventory Only
+  PAPER = 5,
+  PENCIL = 6
 };
 
 // ============================================================================

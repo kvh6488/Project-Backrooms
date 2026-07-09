@@ -245,8 +245,11 @@ void ItemRenderer::renderItemUI(ItemType type, Rectangle destRect,
   }
 
   if (def.uiSpriteRect.width > 0 && def.uiSpriteRect.height > 0) {
-    DrawTexturePro(m_mushroomTexture, def.uiSpriteRect, destRect, {0, 0}, 0.0f,
-                   tint);
+    Texture2D texToUse = m_mushroomTexture;
+    if (type == ItemType::PAPER || type == ItemType::PENCIL) {
+        texToUse = m_postApocWorkshopTextures;
+    }
+    DrawTexturePro(texToUse, def.uiSpriteRect, destRect, {0, 0}, 0.0f, tint);
   } else {
     DrawRectangleRec(destRect, tint);
   }

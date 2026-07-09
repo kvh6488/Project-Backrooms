@@ -293,12 +293,33 @@ void ItemSpawner::spawnCupboards(Maze &maze, int target, int boundsX,
   auto initCupboard = [&](int cx, int cy) {
     auto &inv = maze.getCupboardInventory(cx, cy);
     inv.fill(InventorySlot{ItemType::NONE, 0});
+
+    auto getEmptySlot = [&]() -> int {
+        std::vector<int> emptySlots;
+        for (int i = 0; i < inv.size(); ++i) {
+            if (inv[i].type == ItemType::NONE) emptySlots.push_back(i);
+        }
+        if (emptySlots.empty()) return -1;
+        std::uniform_int_distribution<int> dist(0, emptySlots.size() - 1);
+        return emptySlots[dist(m_rng)];
+    };
+
+
     if (chance(m_rng) < 0.5f) {
-      std::uniform_int_distribution<int> countDist(2, 5);
-      std::uniform_int_distribution<std::size_t> slotDist(0, inv.size() - 1);
-      std::size_t randomSlot = slotDist(m_rng);
-      inv[randomSlot].type = ItemType::MAGIC_MUSHROOM;
-      inv[randomSlot].count = countDist(m_rng);
+        int slot = getEmptySlot();
+        if (slot != -1) {
+            std::uniform_int_distribution<int> countDist(1, 2);
+            inv[slot].type = ItemType::PAPER;
+            inv[slot].count = countDist(m_rng);
+        }
+    }
+
+    if (chance(m_rng) < 0.35f) {
+        int slot = getEmptySlot();
+        if (slot != -1) {
+            inv[slot].type = ItemType::PENCIL;
+            inv[slot].count = 1;
+        }
     }
   };
 
