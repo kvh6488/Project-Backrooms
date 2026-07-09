@@ -261,7 +261,7 @@ void Player::resolveCollision(const Maze &maze) {
           bool wallRight = maze.getCell(x + 1, y) == Maze::CELL_WALL;
           bool wallLeft = maze.getCell(x - 1, y) == Maze::CELL_WALL;
 
-          float shrinkAmount = 10.0f;
+          float shrinkAmount = 14.0f;
           if (wallAbove) {
             // Facing down (front is bottom edge) -> shrink height
             wallRect.height -= shrinkAmount;

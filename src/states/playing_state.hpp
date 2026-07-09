@@ -47,6 +47,10 @@ private:
     float m_totalTime;
     RenderTexture2D m_screenTarget;
 
+    // Interaction State
+    int m_focusedCupboardX = -1;
+    int m_focusedCupboardY = -1;
+
     // --- Radiation Flicker ---
     float m_radiationFlickerTimer = 0.0f;
     float m_radiationNextFlickerTime = 4.0f;

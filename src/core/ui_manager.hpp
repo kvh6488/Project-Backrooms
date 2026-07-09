@@ -44,7 +44,14 @@ public:
     void setActiveHotbarSlot(int slot) { m_activeHotbarSlot = slot; }
 
     int getHeldSlotIndex() const { return m_heldSlotIndex; }
-    void setHeldSlotIndex(int index) { m_heldSlotIndex = index; }
+    void setHeldSlotIndex(int index) { m_heldSlotIndex = index; m_heldFromCupboard = false; }
+
+    // --- Cupboard State ---
+    bool isCupboardInventoryOpen() const { return m_cupboardInventoryOpen; }
+    int getOpenedCupboardX() const { return m_openedCupboardX; }
+    int getOpenedCupboardY() const { return m_openedCupboardY; }
+    void openCupboard(int x, int y) { m_cupboardInventoryOpen = true; m_openedCupboardX = x; m_openedCupboardY = y; }
+    void closeCupboard() { m_cupboardInventoryOpen = false; m_openedCupboardX = -1; m_openedCupboardY = -1; }
 
     // --- Debug Flags (Used by PlayingState) ---
     bool isFlashlightEnabled() const { return m_flashlightEnabled; }
@@ -65,7 +72,7 @@ public:
     void markMinimapDirty() { m_minimapDirty = true; }
 
 private:
-    void renderInventory(Player& player, ItemRenderer& itemRenderer, float scale, int screenW, int screenH);
+    void renderInventory(Player& player, Maze& maze, ItemRenderer& itemRenderer, float scale, int screenW, int screenH);
     void renderPopups(float scale, int screenW, int screenH, float totalTime);
     void renderDebugUI(Player& player, Maze& maze, float scale);
     void generateMinimap(Maze& maze);
@@ -80,7 +87,13 @@ private:
     // Inventory State
     bool m_inventoryOpen = false;
     int m_heldSlotIndex = -1; // -1 if no item is held
+    bool m_heldFromCupboard = false;
     int m_activeHotbarSlot = 0;
+    
+    // Cupboard State
+    bool m_cupboardInventoryOpen = false;
+    int m_openedCupboardX = -1;
+    int m_openedCupboardY = -1;
 
     // Minimap
     RenderTexture2D m_minimapTexture;

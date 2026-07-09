@@ -2,7 +2,7 @@
 #include <map>
 #include <raylib.h>
 #include <vector>
-
+#include <array>
 
 enum class AreaState { CORRIDOR, ROOM };
 
@@ -26,6 +26,15 @@ enum class ItemType : int {
                       // radiated rooms
   CUPBOARD = 4        // Furniture — decorative wall-adjacent cupboard (Phase 3)
 };
+
+// ============================================================================
+// Inventory System
+// ============================================================================
+struct InventorySlot {
+  ItemType type = ItemType::NONE;
+  int count = 0;
+};
+
 
 // Forward declarations
 class Player;
@@ -152,6 +161,20 @@ public:
   // --- Phase 5: Inventory System ---
   static bool isPickupable(ItemType type);
   bool findNearestEmptyItemCell(int startX, int startY, int maxRadius, int& outX, int& outY) const;
+  
+  // --- Generic Item States ---
+  // 0 = default, 1 = open, 2 = broken, etc.
+  int getItemState(int x, int y) const;
+  void setItemState(int x, int y, int state);
+
+  // --- Testing Flags ---
+  bool getTestSwapCupboardColors() const { return m_testSwapCupboardColors; }
+  void toggleTestCupboardColors() { m_testSwapCupboardColors = !m_testSwapCupboardColors; }
+
+  // --- Cupboard Inventories ---
+  std::array<InventorySlot, 20>& getCupboardInventory(int x, int y);
+  bool hasCupboardInventory(int x, int y) const;
+  bool isCupboardEmpty(int x, int y) const;
 
 private:
   int m_width;    // Number of cells horizontally
@@ -181,4 +204,12 @@ private:
 
   // List of shifting zones for Minimap rendering
   std::vector<Room> m_shiftingZones;
+
+  // Cupboard inventories map (Key: 1D grid index)
+  std::map<int, std::array<InventorySlot, 20>> m_cupboardInventories;
+
+  // Item states map (Key: 1D grid index, Value: state integer)
+  std::map<int, int> m_itemStates;
+
+  bool m_testSwapCupboardColors = false;
 };

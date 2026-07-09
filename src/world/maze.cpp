@@ -469,3 +469,43 @@ bool Maze::findNearestEmptyItemCell(int startX, int startY, int maxRadius, int& 
   return false;
 }
 
+
+// ============================================================================
+// PHASE 6: CUPBOARD INVENTORIES & ITEM STATES
+// ============================================================================
+
+int Maze::getItemState(int x, int y) const {
+  int idx = getIndex(x, y);
+  auto it = m_itemStates.find(idx);
+  return (it != m_itemStates.end()) ? it->second : 0;
+}
+
+void Maze::setItemState(int x, int y, int state) {
+  int idx = getIndex(x, y);
+  if (state == 0) {
+      m_itemStates.erase(idx);
+  } else {
+      m_itemStates[idx] = state;
+  }
+}
+
+std::array<InventorySlot, 20>& Maze::getCupboardInventory(int x, int y) {
+  int idx = getIndex(x, y);
+  return m_cupboardInventories[idx];
+}
+
+bool Maze::hasCupboardInventory(int x, int y) const {
+  int idx = getIndex(x, y);
+  return m_cupboardInventories.count(idx) > 0;
+}
+
+bool Maze::isCupboardEmpty(int x, int y) const {
+  int idx = getIndex(x, y);
+  auto it = m_cupboardInventories.find(idx);
+  if (it != m_cupboardInventories.end()) {
+      for (const auto& slot : it->second) {
+          if (slot.type != ItemType::NONE) return false;
+      }
+  }
+  return true;
+}

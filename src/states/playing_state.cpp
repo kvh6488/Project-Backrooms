@@ -98,6 +98,53 @@ void PlayingState::update(float dt) {
     m_maze.updateVisibility(playerGridX, playerGridY, m_player.getAreaState());
     m_playerRenderer.update(dt, m_player);
 
+    // --- Cupboard Interaction Logic ---
+    m_focusedCupboardX = -1;
+    m_focusedCupboardY = -1;
+    
+    Vector2 lookPos = m_player.getPosition();
+    switch (m_player.getFacingDirection()) {
+        case FacingDirection::UP:    lookPos.y -= 20.0f; break;
+        case FacingDirection::DOWN:  lookPos.y += 20.0f; break;
+        case FacingDirection::LEFT:  lookPos.x -= 20.0f; break;
+        case FacingDirection::RIGHT: lookPos.x += 20.0f; break;
+    }
+    
+    int lookGridX = static_cast<int>(std::floor(lookPos.x / m_maze.getCellSize()));
+    int lookGridY = static_cast<int>(std::floor(lookPos.y / m_maze.getCellSize()));
+    
+    if (m_maze.getItem(lookGridX, lookGridY) == ItemType::CUPBOARD) {
+        bool wallAbove = m_maze.getCell(lookGridX, lookGridY - 1) == Maze::CELL_WALL;
+        bool wallRight = m_maze.getCell(lookGridX + 1, lookGridY) == Maze::CELL_WALL;
+        bool wallLeft = m_maze.getCell(lookGridX - 1, lookGridY) == Maze::CELL_WALL;
+
+        bool canAccess = false;
+        if (wallAbove) {
+            canAccess = (m_player.getFacingDirection() == FacingDirection::UP);
+        } else if (wallRight) {
+            canAccess = (m_player.getFacingDirection() == FacingDirection::RIGHT);
+        } else if (wallLeft) {
+            canAccess = (m_player.getFacingDirection() == FacingDirection::LEFT);
+        }
+
+        if (canAccess) {
+            m_focusedCupboardX = lookGridX;
+            m_focusedCupboardY = lookGridY;
+            if (!m_uiManager.isCupboardInventoryOpen()) {
+                m_uiManager.showPopup("Press 'o' to search cupboard", PopupType::SUBTLE_BOTTOM, 0.5f);
+            }
+        }
+    }
+
+    if (m_focusedCupboardX == -1 && m_uiManager.isCupboardInventoryOpen()) {
+        m_maze.setItemState(m_uiManager.getOpenedCupboardX(), m_uiManager.getOpenedCupboardY(), 0);
+        m_uiManager.closeCupboard();
+        if (m_uiManager.isInventoryOpen()) {
+            m_uiManager.toggleInventory();
+        }
+    }
+
+
     float scale = std::min((float)GetScreenWidth() / 1280, (float)GetScreenHeight() / 720);
     m_camera.target = {std::round(m_player.getPosition().x), std::round(m_player.getPosition().y)};
     m_camera.zoom = m_uiManager.getCameraZoom() * scale;
@@ -182,6 +229,26 @@ void PlayingState::handleInput() {
             m_uiManager.setHeldSlotIndex(-1);
             if (m_uiManager.getActiveHotbarSlot() > 4) {
                 m_uiManager.setActiveHotbarSlot(m_uiManager.getActiveHotbarSlot() % 5);
+            }
+            if (m_uiManager.isCupboardInventoryOpen()) {
+                m_maze.setItemState(m_uiManager.getOpenedCupboardX(), m_uiManager.getOpenedCupboardY(), 0);
+                m_uiManager.closeCupboard();
+            }
+        }
+    }
+
+    if (IsKeyPressed(KEY_O) && m_focusedCupboardX != -1) {
+        if (m_uiManager.isCupboardInventoryOpen()) {
+            m_maze.setItemState(m_focusedCupboardX, m_focusedCupboardY, 0);
+            m_uiManager.closeCupboard();
+            if (m_uiManager.isInventoryOpen()) {
+                m_uiManager.toggleInventory();
+            }
+        } else {
+            m_maze.setItemState(m_focusedCupboardX, m_focusedCupboardY, 1);
+            m_uiManager.openCupboard(m_focusedCupboardX, m_focusedCupboardY);
+            if (!m_uiManager.isInventoryOpen()) {
+                m_uiManager.toggleInventory();
             }
         }
     }

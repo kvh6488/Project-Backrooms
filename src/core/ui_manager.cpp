@@ -84,7 +84,7 @@ void UIManager::render(Player& player, Maze& maze, ItemRenderer& itemRenderer, b
     renderPopups(scale, screenW, screenH, totalTime);
 
     // 5. Inventory
-    renderInventory(player, itemRenderer, scale, screenW, screenH);
+    renderInventory(player, maze, itemRenderer, scale, screenW, screenH);
 
     // 6. ImGui Debug Overlay
     rlImGuiBegin();
@@ -95,7 +95,8 @@ void UIManager::render(Player& player, Maze& maze, ItemRenderer& itemRenderer, b
 
 void UIManager::renderPopups(float scale, int screenW, int screenH, float totalTime) {
     for (const auto& popup : m_activePopups) {
-        float alpha = std::min(1.0f, popup.timer);
+        float alpha = std::min(1.0f, popup.timer * 2.0f);
+
 
         if (popup.type == PopupType::BOXED_BOTTOM) {
             int textWidth = MeasureText(popup.text.c_str(), 30 * scale);
@@ -133,40 +134,65 @@ void UIManager::renderPopups(float scale, int screenW, int screenH, float totalT
     }
 }
 
-void UIManager::renderInventory(Player& player, ItemRenderer& itemRenderer, float scale, int screenW, int screenH) {
+void UIManager::renderInventory(Player& player, Maze& maze, ItemRenderer& itemRenderer, float scale, int screenW, int screenH) {
     float slotSize = 60 * scale;
     float padding = 10 * scale;
 
-    auto drawSlot = [&](int index, float x, float y, bool isHotbar) {
+    auto drawSlot = [&](int index, float x, float y, bool isHotbar, bool isCupboardSlot) {
         Rectangle slotRect = {x, y, slotSize, slotSize};
 
+
         // Draw slot background
-        Color bgColor = (index == m_heldSlotIndex) ? Fade(YELLOW, 0.3f) : Fade(BLACK, 0.7f);
+        bool isHeldSlot = (index == m_heldSlotIndex) && (m_heldFromCupboard == isCupboardSlot);
+        Color bgColor = isHeldSlot ? Fade(YELLOW, 0.3f) : Fade(BLACK, 0.7f);
         DrawRectangleRec(slotRect, bgColor);
 
-        if (index == m_activeHotbarSlot) {
+        if (!isCupboardSlot && index == m_activeHotbarSlot) {
             DrawRectangleLinesEx(slotRect, 4.0f * scale, WHITE);
         } else {
             DrawRectangleLinesEx(slotRect, 2.0f * scale, GRAY);
         }
 
+        auto& pInv = player.getInventoryRef();
+        auto* cInvPtr = m_cupboardInventoryOpen ? &maze.getCupboardInventory(m_openedCupboardX, m_openedCupboardY) : nullptr;
+        
+        auto& currentInv = isCupboardSlot ? (*cInvPtr) : pInv;
+
         // Mouse Interaction
         if (CheckCollisionPointRec(GetMousePosition(), slotRect)) {
             DrawRectangleLinesEx(slotRect, 3.0f * scale, WHITE);
 
-            if (m_inventoryOpen) {
+            if (m_inventoryOpen || m_cupboardInventoryOpen) {
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     if (m_heldSlotIndex == -1) { // Pick up item
-                        if (player.getInventory()[index].type != ItemType::NONE) {
+                        if (currentInv[index].type != ItemType::NONE) {
                             m_heldSlotIndex = index;
+                            m_heldFromCupboard = isCupboardSlot;
                         }
                     } else { // Swap or place item
-                        player.swapSlots(m_heldSlotIndex, index);
+                        auto& heldInv = m_heldFromCupboard ? (*cInvPtr) : pInv;
+                        
+                        // Merge stacks if same type
+                        if (heldInv[m_heldSlotIndex].type != ItemType::NONE && heldInv[m_heldSlotIndex].type == currentInv[index].type) {
+                            int spaceInDest = 6 - currentInv[index].count;
+                            int amountToMove = std::min(heldInv[m_heldSlotIndex].count, spaceInDest);
+                            currentInv[index].count += amountToMove;
+                            heldInv[m_heldSlotIndex].count -= amountToMove;
+                            if (heldInv[m_heldSlotIndex].count <= 0) {
+                                heldInv[m_heldSlotIndex].type = ItemType::NONE;
+                                heldInv[m_heldSlotIndex].count = 0;
+                            }
+                        } else {
+                            // Swap
+                            std::swap(heldInv[m_heldSlotIndex], currentInv[index]);
+                        }
+                        
                         m_heldSlotIndex = -1;
+                        m_heldFromCupboard = false;
                     }
                 } else if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-                    // Consume item on right click
-                    if (m_heldSlotIndex == -1) {
+                    // Consume item on right click (only player can consume)
+                    if (m_heldSlotIndex == -1 && !isCupboardSlot) {
                         player.consumeItem(index);
                     }
                 }
@@ -174,8 +200,8 @@ void UIManager::renderInventory(Player& player, ItemRenderer& itemRenderer, floa
         }
 
         // Draw item icon using the renderer
-        auto slot = player.getInventory()[index];
-        if (slot.type != ItemType::NONE && index != m_heldSlotIndex) {
+        auto slot = currentInv[index];
+        if (slot.type != ItemType::NONE && !isHeldSlot) {
             Rectangle destRect = {x + padding, y + padding, slotSize - 2 * padding, slotSize - 2 * padding};
             itemRenderer.renderItemUI(slot.type, destRect, WHITE);
 
@@ -190,32 +216,70 @@ void UIManager::renderInventory(Player& player, ItemRenderer& itemRenderer, floa
         }
     };
 
+    if (m_inventoryOpen || m_cupboardInventoryOpen) {
+        DrawRectangle(0, 0, screenW, screenH, Fade(BLACK, 0.75f));
+    }
+
     // 1. Draw Hotbar (Slots 0-4)
     float hotbarTotalWidth = (5 * slotSize) + (4 * padding);
     float startX = (screenW - hotbarTotalWidth) / 2.0f;
     float startY = screenH - slotSize - (20 * scale);
 
     for (int i = 0; i < 5; ++i) {
-        drawSlot(i, startX + i * (slotSize + padding), startY, true);
+        drawSlot(i, startX + i * (slotSize + padding), startY, true, false);
     }
 
     // 2. Draw Bag (Slots 5-19)
-    if (m_inventoryOpen) {
-        DrawRectangle(0, 0, screenW, screenH, Fade(BLACK, 0.75f));
-
+    if (m_inventoryOpen || m_cupboardInventoryOpen) {
         float bagStartX = (screenW - hotbarTotalWidth) / 2.0f;
         float bagStartY = startY - (3 * (slotSize + padding)) - (20 * scale);
 
         for (int row = 0; row < 3; ++row) {
             for (int col = 0; col < 5; ++col) {
                 int index = 5 + (row * 5) + col;
-                drawSlot(index, bagStartX + col * (slotSize + padding), bagStartY + row * (slotSize + padding), false);
+                drawSlot(index, bagStartX + col * (slotSize + padding), bagStartY + row * (slotSize + padding), false, false);
+            }
+        }
+
+        // 3. Draw Cupboard Inventory
+        if (m_cupboardInventoryOpen) {
+            float cupboardTotalWidth = (10 * slotSize) + (9 * padding);
+            float cupboardStartX = (screenW - cupboardTotalWidth) / 2.0f;
+            float cupboardStartY = bagStartY - (2 * (slotSize + padding)) - (40 * scale); // 40px gap
+            
+            DrawText("Cupboard", cupboardStartX, cupboardStartY - 30 * scale, 20 * scale, WHITE);
+
+            // Add test toggle button
+            float btnW = 140 * scale;
+            float btnH = 25 * scale;
+            float btnX = cupboardStartX + cupboardTotalWidth - btnW;
+            float btnY = cupboardStartY - 35 * scale;
+            Rectangle btnRect = {btnX, btnY, btnW, btnH};
+            
+            bool isHovered = CheckCollisionPointRec(GetMousePosition(), btnRect);
+            if (isHovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                maze.toggleTestCupboardColors();
+            }
+            
+            DrawRectangleRec(btnRect, isHovered ? LIGHTGRAY : GRAY);
+            DrawRectangleLinesEx(btnRect, 2, DARKGRAY);
+            DrawText("Toggle Color", btnX + 15 * scale, btnY + 5 * scale, 15 * scale, BLACK);
+
+            for (int row = 0; row < 2; ++row) {
+                for (int col = 0; col < 10; ++col) {
+                    int index = (row * 10) + col;
+                    drawSlot(index, cupboardStartX + col * (slotSize + padding), cupboardStartY + row * (slotSize + padding), false, true);
+                }
             }
         }
 
         if (m_heldSlotIndex != -1) {
             Vector2 mousePos = GetMousePosition();
-            auto slot = player.getInventory()[m_heldSlotIndex];
+            
+            auto& pInv = player.getInventoryRef();
+            auto* cInvPtr = m_cupboardInventoryOpen ? &maze.getCupboardInventory(m_openedCupboardX, m_openedCupboardY) : nullptr;
+            auto& heldInv = m_heldFromCupboard ? (*cInvPtr) : pInv;
+            auto slot = heldInv[m_heldSlotIndex];
 
             Rectangle destRect = {mousePos.x - slotSize / 2 + padding,
                                   mousePos.y - slotSize / 2 + padding,

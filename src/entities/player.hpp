@@ -26,13 +26,6 @@ enum class FacingDirection {
 // against the Maze's grid cells.
 // ============================================================================
 
-// ============================================================================
-// Inventory System
-// ============================================================================
-struct InventorySlot {
-  ItemType type = ItemType::NONE;
-  int count = 0;
-};
 
 
 class Player {
@@ -64,6 +57,7 @@ public:
   void destroyItem(int slotIndex);
   void swapSlots(int slotIndex1, int slotIndex2);
   const std::array<InventorySlot, 20>& getInventory() const { return m_inventory; }
+  std::array<InventorySlot, 20>& getInventoryRef() { return m_inventory; }
   float getMushroomEffectStrength() const;
 
   // --- Mushroom Event Polling ---

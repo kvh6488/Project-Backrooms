@@ -148,7 +148,7 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
         if (wallAbove) {
           // Front-facing cupboard (viewed from the south)
           // Sprite rect: top-left (449, 198) to bottom-right (479, 255)
-          cupSrc = {449.0f, 198.0f, 30.0f, 57.0f};
+          cupSrc = {449.0f, 197.0f, 32.0f, 60.0f};
           cupW = 30.0f;
           cupH = 57.0f;
           yOffset = -14.0f; // Nudge upward to sit flush against wall face
@@ -172,6 +172,36 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
           cupSrc = {449.0f, 198.0f, 30.0f, 57.0f};
           cupW = 30.0f;
           cupH = 57.0f;
+        }
+
+        // --- Color Variant Logic ---
+        // Deterministically pick red or blue based on coordinates
+        bool isRed = false;
+        unsigned int hash = (unsigned int)(x * 73856093 ^ y * 19349663);
+        if (maze.getTestSwapCupboardColors())
+          hash += 1; // Toggle color for testing
+        if (hash % 2 == 0) {
+          isRed = true;
+          cupSrc.y += 128.0f; // Red variant is 128px below blue
+        }
+
+        // --- Open Cupboard Logic ---
+        if (maze.getItemState(x, y) == 1) { // 1 = open
+          bool isSideways = !wallAbove && (wallRight || wallLeft);
+          if (isSideways) {
+            // Sideways cupboards render the same open texture regardless of
+            // contents
+            cupSrc.x += 32.0f;
+          } else {
+            if (maze.isCupboardEmpty(x, y)) {
+              cupSrc.x += 63.0f; // Open, no items,
+            } else {
+              cupSrc.x += 32.0f; // Open, with items
+              if (isRed) {
+                cupSrc.x -= 1.0f; // Shift red variant 1px left
+              }
+            }
+          }
         }
 
         // Scale the sprite to fit within the cell while preserving aspect

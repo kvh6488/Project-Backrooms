@@ -271,6 +271,18 @@ void ItemSpawner::spawnCupboards(Maze &maze, int target, int boundsX,
     return wallAbove || wallLeft || wallRight;
   };
 
+  auto initCupboard = [&](int cx, int cy) {
+      auto& inv = maze.getCupboardInventory(cx, cy);
+      inv.fill(InventorySlot{ItemType::NONE, 0});
+      if (chance(m_rng) < 0.5f) {
+          std::uniform_int_distribution<int> countDist(2, 5);
+          std::uniform_int_distribution<std::size_t> slotDist(0, inv.size() - 1);
+          std::size_t randomSlot = slotDist(m_rng);
+          inv[randomSlot].type = ItemType::MAGIC_MUSHROOM;
+          inv[randomSlot].count = countDist(m_rng);
+      }
+  };
+
   // --- Target-based spawning (zone regeneration) ---
   if (target > 0) {
     // Collect all valid cells, then randomly pick from them
@@ -292,6 +304,7 @@ void ItemSpawner::spawnCupboards(Maze &maze, int target, int boundsX,
       auto [cx, cy] = validCells[cellDist(m_rng)];
       if (maze.getItem(cx, cy) == ItemType::NONE) {
         maze.setItem(cx, cy, ItemType::CUPBOARD);
+        initCupboard(cx, cy);
         totalPlaced++;
       }
       attempts++;
@@ -303,6 +316,7 @@ void ItemSpawner::spawnCupboards(Maze &maze, int target, int boundsX,
       for (int x = boundsX; x < boundsX + boundsW; ++x) {
         if (isValidCupboardCell(x, y) && chance(m_rng) < 0.05f) {
           maze.setItem(x, y, ItemType::CUPBOARD);
+          initCupboard(x, y);
           totalPlaced++;
         }
       }
