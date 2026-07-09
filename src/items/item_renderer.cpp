@@ -229,6 +229,51 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
                        {0, 0}, 0.0f, WHITE);
         break;
       }
+      case ItemType::TABLE: {
+        int state = maze.getItemState(x, y);
+        // We only draw on the "root" tiles (1 for horizontal right, 3 for vertical bottom)
+        if (state == 0 || state == 2) {
+          break;
+        }
+
+        Rectangle tableSrc = {0};
+        float tableW = 0, tableH = 0;
+        
+        if (state == 1) { // Horizontal Right
+          tableSrc = {353.0f, 406.0f, 61.0f, 41.0f};
+          tableW = 61.0f;
+          tableH = 41.0f;
+        } else if (state == 3) { // Vertical Bottom
+          tableSrc = {321.0f, 385.0f, 29.0f, 62.0f};
+          tableW = 29.0f;
+          tableH = 62.0f;
+        }
+
+        Rectangle destRectTable = {0};
+        if (state == 1) {
+          // Scale to fit width = 2 * cellSize
+          float scale = (cellSize * 2.0f) / tableW;
+          float drawW = tableW * scale;
+          float drawH = tableH * scale;
+          // Anchor bottom of the cell, centered over x and x-1
+          destRectTable = {
+              (float)(x * cellSize) - (drawW / 2.0f),
+              (float)(y * cellSize) + cellSize - drawH, drawW, drawH};
+        } else if (state == 3) {
+          // Scale to fit width = 1 * cellSize
+          float scale = (float)cellSize / tableW;
+          float drawW = tableW * scale;
+          float drawH = tableH * scale;
+          // Anchor bottom of the cell, centered horizontally
+          destRectTable = {
+              (float)(x * cellSize) + (cellSize / 2.0f) - (drawW / 2.0f),
+              (float)(y * cellSize) + cellSize - drawH, drawW, drawH};
+        }
+
+        DrawTexturePro(m_postApocWorkshopTextures, tableSrc, destRectTable,
+                       {0, 0}, 0.0f, WHITE);
+        break;
+      }
       case ItemType::NONE:
       default:
         break;

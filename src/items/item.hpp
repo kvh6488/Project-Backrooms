@@ -14,6 +14,7 @@ enum class ItemType : int {
   // World Features (Grid only)
   TOXIC_WASTE = 1,
   CUPBOARD = 2,
+  TABLE = 8,
   
   // World & Inventory 
   MUSHROOM = 3,

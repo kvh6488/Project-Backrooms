@@ -226,6 +226,51 @@ bool Maze::isValidDoorPlacement(int x, int y) const {
       }
     }
   }
+
+  // Rule 3: Prevents more than 2 contiguous doors from forming.
+  // A cell is considered a door if it is a corridor and borders a room.
+  if (roomNeighbors > 0) {
+    auto isDoor = [this](int cx, int cy) {
+      if (getCell(cx, cy) != CELL_CORRIDOR) return false;
+      const int ddx[] = {1, -1, 0, 0};
+      const int ddy[] = {0, 0, 1, -1};
+      for (int i = 0; i < 4; ++i) {
+        int nx = cx + ddx[i];
+        int ny = cy + ddy[i];
+        if (nx >= 0 && nx < m_width && ny >= 0 && ny < m_height) {
+          if (getCell(nx, ny) == CELL_ROOM) return true;
+        }
+      }
+      return false;
+    };
+
+    std::vector<std::pair<int, int>> doorNeighbors;
+    for (int d = 0; d < 4; ++d) {
+      int nx = x + dx[d];
+      int ny = y + dy[d];
+      if (nx >= 0 && nx < m_width && ny >= 0 && ny < m_height) {
+        if (isDoor(nx, ny)) {
+          doorNeighbors.push_back({nx, ny});
+        }
+      }
+    }
+
+    if (doorNeighbors.size() >= 2) return false;
+
+    if (doorNeighbors.size() == 1) {
+      int nx = doorNeighbors[0].first;
+      int ny = doorNeighbors[0].second;
+      for (int d = 0; d < 4; ++d) {
+        int nnx = nx + dx[d];
+        int nny = ny + dy[d];
+        if (nnx == x && nny == y) continue;
+        if (nnx >= 0 && nnx < m_width && nny >= 0 && nny < m_height) {
+          if (isDoor(nnx, nny)) return false;
+        }
+      }
+    }
+  }
+
   return true;
 }
 

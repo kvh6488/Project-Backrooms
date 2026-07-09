@@ -7,7 +7,7 @@ ItemDefinition ItemDatabase::m_fallbackDef = {
 
 void ItemDatabase::init() {
   // Determine the max enum value we need to store.
-  m_definitions.resize(8); // NONE = 0, up to MAP = 7
+  m_definitions.resize(9); // NONE = 0, up to TABLE = 8
 
   // NONE
   m_definitions[(int)ItemType::NONE] = {"None", "", false,       false,
@@ -70,6 +70,10 @@ void ItemDatabase::init() {
                                        true,
                                        1,
                                        {160, 96, 16, 16}};
+
+  // TABLE
+  m_definitions[(int)ItemType::TABLE] = {
+      "Table", "A simple wooden table.", true, false, false, 1, {0, 0, 16, 16}};
 }
 
 const ItemDefinition &ItemDatabase::getDef(ItemType type) {

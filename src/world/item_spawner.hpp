@@ -69,6 +69,11 @@ private:
                       int boundsX = 0, int boundsY = 0,
                       int boundsW = -1, int boundsH = -1);
 
+  // Spawn tables on two adjacent room tiles.
+  void spawnTables(Maze& maze, int target = -1,
+                   int boundsX = 0, int boundsY = 0,
+                   int boundsW = -1, int boundsH = -1);
+
   // Helper: Check if a room cell is adjacent to any corridor cell in the
   // 4 cardinal directions (doorway transition — items should not go here).
   bool isNearCorridor(const Maze& maze, int x, int y) const;

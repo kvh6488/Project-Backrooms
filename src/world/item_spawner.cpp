@@ -355,9 +355,126 @@ void ItemSpawner::spawnCupboards(Maze &maze, int target, int boundsX,
   else {
     for (int y = boundsY; y < boundsY + boundsH; ++y) {
       for (int x = boundsX; x < boundsX + boundsW; ++x) {
-        if (isValidCupboardCell(x, y) && chance(m_rng) < 0.5f) {
+        if (isValidCupboardCell(x, y) && chance(m_rng) < 0.03f) {
           maze.setItem(x, y, ItemType::CUPBOARD);
           initCupboard(x, y);
+          totalPlaced++;
+        }
+      }
+    }
+  }
+}
+
+// ============================================================================
+// spawnTables — Place Tables
+// ============================================================================
+void ItemSpawner::spawnTables(Maze &maze, int target, int boundsX,
+                              int boundsY, int boundsW, int boundsH) {
+  if (boundsW == -1)
+    boundsW = maze.getWidth();
+  if (boundsH == -1)
+    boundsH = maze.getHeight();
+
+  std::uniform_real_distribution<float> chance(0.0f, 1.0f);
+  int totalPlaced = 0;
+
+  auto isValidTablePair = [&](int x1, int y1, int x2, int y2) -> bool {
+    if (x1 < 0 || x1 >= maze.getWidth() || y1 < 0 || y1 >= maze.getHeight()) return false;
+    if (x2 < 0 || x2 >= maze.getWidth() || y2 < 0 || y2 >= maze.getHeight()) return false;
+    if (maze.getCell(x1, y1) != Maze::CELL_ROOM || maze.getCell(x2, y2) != Maze::CELL_ROOM) return false;
+    if (isNearCorridor(maze, x1, y1) || isNearCorridor(maze, x2, y2)) return false;
+    
+    // Check for any items within 1-cell radius
+    int minX = std::min(x1, x2);
+    int maxX = std::max(x1, x2);
+    int minY = std::min(y1, y2);
+    int maxY = std::max(y1, y2);
+    for (int ny = minY - 1; ny <= maxY + 1; ++ny) {
+      for (int nx = minX - 1; nx <= maxX + 1; ++nx) {
+        if (nx >= 0 && nx < maze.getWidth() && ny >= 0 && ny < maze.getHeight()) {
+          if (maze.getItem(nx, ny) != ItemType::NONE) return false;
+        }
+      }
+    }
+    
+    return true;
+  };
+
+  if (target > 0) {
+    std::vector<std::pair<int, int>> validHorizontal;
+    std::vector<std::pair<int, int>> validVertical;
+    for (int y = boundsY; y < boundsY + boundsH; ++y) {
+      for (int x = boundsX; x < boundsX + boundsW; ++x) {
+        if (isValidTablePair(x, y, x + 1, y)) validHorizontal.push_back({x, y});
+        if (isValidTablePair(x, y, x, y + 1)) validVertical.push_back({x, y});
+      }
+    }
+
+    if (validHorizontal.empty() && validVertical.empty()) return;
+
+    int attempts = 0;
+    while (totalPlaced < target && attempts < 200) {
+      bool pickHorizontal = !validHorizontal.empty() && (validVertical.empty() || chance(m_rng) < 0.5f);
+
+      if (pickHorizontal) {
+        std::uniform_int_distribution<int> dist(0, validHorizontal.size() - 1);
+        auto [cx, cy] = validHorizontal[dist(m_rng)];
+        if (isValidTablePair(cx, cy, cx + 1, cy)) {
+          maze.setItem(cx, cy, ItemType::TABLE);
+          maze.setItemState(cx, cy, 0); // Horizontal Left
+          maze.setItem(cx + 1, cy, ItemType::TABLE);
+          maze.setItemState(cx + 1, cy, 1); // Horizontal Right (Root)
+          totalPlaced++;
+        }
+      } else {
+        std::uniform_int_distribution<int> dist(0, validVertical.size() - 1);
+        auto [cx, cy] = validVertical[dist(m_rng)];
+        if (isValidTablePair(cx, cy, cx, cy + 1)) {
+          maze.setItem(cx, cy, ItemType::TABLE);
+          maze.setItemState(cx, cy, 2); // Vertical Top
+          maze.setItem(cx, cy + 1, ItemType::TABLE);
+          maze.setItemState(cx, cy + 1, 3); // Vertical Bottom (Root)
+          totalPlaced++;
+        }
+      }
+      attempts++;
+    }
+  } else {
+    for (int y = boundsY; y < boundsY + boundsH; ++y) {
+      for (int x = boundsX; x < boundsX + boundsW; ++x) {
+        bool tryHorizontalFirst = chance(m_rng) < 0.5f;
+        bool placed = false;
+
+        if (tryHorizontalFirst) {
+          if (isValidTablePair(x, y, x + 1, y) && chance(m_rng) < 0.007f) {
+            maze.setItem(x, y, ItemType::TABLE);
+            maze.setItemState(x, y, 0);
+            maze.setItem(x + 1, y, ItemType::TABLE);
+            maze.setItemState(x + 1, y, 1);
+            placed = true;
+          } else if (!placed && isValidTablePair(x, y, x, y + 1) && chance(m_rng) < 0.007f) {
+            maze.setItem(x, y, ItemType::TABLE);
+            maze.setItemState(x, y, 2);
+            maze.setItem(x, y + 1, ItemType::TABLE);
+            maze.setItemState(x, y + 1, 3);
+            placed = true;
+          }
+        } else {
+          if (isValidTablePair(x, y, x, y + 1) && chance(m_rng) < 0.007f) {
+            maze.setItem(x, y, ItemType::TABLE);
+            maze.setItemState(x, y, 2);
+            maze.setItem(x, y + 1, ItemType::TABLE);
+            maze.setItemState(x, y + 1, 3);
+            placed = true;
+          } else if (!placed && isValidTablePair(x, y, x + 1, y) && chance(m_rng) < 0.007f) {
+            maze.setItem(x, y, ItemType::TABLE);
+            maze.setItemState(x, y, 0);
+            maze.setItem(x + 1, y, ItemType::TABLE);
+            maze.setItemState(x + 1, y, 1);
+            placed = true;
+          }
+        }
+        if (placed) {
           totalPlaced++;
         }
       }
@@ -391,6 +508,9 @@ void ItemSpawner::spawnInitialItems(Maze &maze) {
 
   // Phase 3: Furniture spawning — cupboards lean against room walls
   spawnCupboards(maze);
+
+  // Tables
+  spawnTables(maze);
 }
 
 // ============================================================================
@@ -431,6 +551,9 @@ void ItemSpawner::respawnItems(Maze &maze,
       break;
     case ItemType::CUPBOARD:
       spawnCupboards(maze, count, zoneX, zoneY, zoneW, zoneH);
+      break;
+    case ItemType::TABLE:
+      spawnTables(maze, count / 2, zoneX, zoneY, zoneW, zoneH);
       break;
     default:
       break;
