@@ -460,3 +460,63 @@ TEST(MazeTest, UniformRoomRadiation) {
     }
   }
 }
+
+// ============================================================================
+// Zone-regeneration item bookkeeping
+// ============================================================================
+// PlayingState::regenerateTicTacToeZones erases eight strips of the world and
+// asks the ItemSpawner to replenish exactly what was destroyed. That contract
+// is only as good as clearItemsInZone's report — an undercount silently thins
+// the world out a little more on every regeneration.
+// ============================================================================
+
+TEST(MazeItemLayerTest, ClearItemsInZoneReportsExactlyWhatItRemoved) {
+  Maze maze(20, 20, 32, 12345);
+
+  maze.setItem(5, 5, ItemType::TOXIC_WASTE);
+  maze.setItem(6, 5, ItemType::MUSHROOM);
+  maze.setItem(7, 5, ItemType::MUSHROOM);
+  maze.setItem(5, 6, ItemType::CUPBOARD);
+
+  auto removed = maze.clearItemsInZone(4, 4, 5, 5);
+
+  EXPECT_EQ(removed[ItemType::MUSHROOM], 2);
+  EXPECT_EQ(removed[ItemType::TOXIC_WASTE], 1);
+  EXPECT_EQ(removed[ItemType::CUPBOARD], 1);
+  EXPECT_EQ(removed.count(ItemType::NONE), 0u)
+      << "empty cells are not items and must not be replenished";
+
+  EXPECT_EQ(maze.getItem(5, 5), ItemType::NONE);
+  EXPECT_EQ(maze.getItem(6, 5), ItemType::NONE);
+  EXPECT_EQ(maze.getItem(7, 5), ItemType::NONE);
+  EXPECT_EQ(maze.getItem(5, 6), ItemType::NONE);
+}
+
+TEST(MazeItemLayerTest, ClearItemsInZoneLeavesItemsOutsideTheZoneAlone) {
+  Maze maze(20, 20, 32, 12345);
+
+  maze.setItem(5, 5, ItemType::MUSHROOM);  // inside
+  maze.setItem(10, 10, ItemType::MUSHROOM); // outside
+
+  auto removed = maze.clearItemsInZone(4, 4, 5, 5);
+
+  EXPECT_EQ(removed[ItemType::MUSHROOM], 1);
+  EXPECT_EQ(maze.getItem(10, 10), ItemType::MUSHROOM);
+}
+
+// m_itemStates is keyed by the same 1D index as m_items, so clearing one and
+// not the other leaves an orphaned state behind. The next item to occupy that
+// index inherits it: a cupboard landing on a former table root reads as
+// state 1 = open, and ItemRenderer draws it permanently ajar.
+TEST(MazeItemLayerTest, ClearItemsInZoneAlsoResetsItemState) {
+  Maze maze(20, 20, 32, 12345);
+
+  maze.setItem(5, 5, ItemType::TABLE);
+  maze.setItemState(5, 5, 1); // horizontal-right table root
+
+  maze.clearItemsInZone(4, 4, 5, 5);
+
+  EXPECT_EQ(maze.getItem(5, 5), ItemType::NONE);
+  EXPECT_EQ(maze.getItemState(5, 5), 0)
+      << "a cleared cell must not hand its old state to the next occupant";
+}

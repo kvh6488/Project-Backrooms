@@ -16,6 +16,8 @@
 // Header-only so no CMakeLists.txt source-list edits are needed.
 // ============================================================================
 
+#include "core/debug_log.hpp"
+
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -74,6 +76,19 @@ inline unsigned int resolveFromArgs(int argc, char **argv,
         *outNote = "explicit numeric seed";
       return (unsigned int)parsed;
     }
+
+    // Neither a fixture name nor a number. Falling through quietly would hand
+    // back a clock seed while the caller believes they pinned a world, so the
+    // next bug report would name a seed that never generated it.
+    debuglog::log("SEED", "unrecognised --seed \"%s\" - using a random seed",
+                  value);
+    break;
+  }
+
+  // "--seed" as the final argument never enters the loop above (it has no
+  // value to read), so it needs the same warning.
+  if (argc >= 2 && std::strcmp(argv[argc - 1], "--seed") == 0) {
+    debuglog::log("SEED", "--seed given with no value - using a random seed");
   }
 
   if (outNote)

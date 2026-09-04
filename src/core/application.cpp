@@ -9,8 +9,7 @@
 Application::Application(unsigned int seed, const char *seedNote, bool devMode)
     : m_seed(seed), m_uiManager(m_screenWidth, m_screenHeight),
       m_debugOverlay(devMode) {
-  // 0. Logging first, so everything below is readable.
-  debuglog::enableAnsiColors();
+  // 0. main() has already armed the logger (it logs before we exist).
   // Raylib's own chatter is also tagged "[INFO]", which drowns our messages.
   // Warnings and errors still come through, so real failures (a texture that
   // did not load) remain visible.

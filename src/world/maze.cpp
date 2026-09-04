@@ -311,6 +311,10 @@ std::map<ItemType, int> Maze::clearItemsInZone(int startX, int startY,
       if (item != ItemType::NONE) {
         removed[item]++;
         m_items[idx] = ItemType::NONE;
+        // m_itemStates is keyed by the same index. Leaving an entry behind
+        // hands it to whatever spawns here next — a cupboard inheriting a
+        // table root's state 1 renders permanently open.
+        m_itemStates.erase(idx);
       }
     }
   }
