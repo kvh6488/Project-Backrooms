@@ -128,6 +128,11 @@ The mathematical heart — radiation systems spreading across the grid.
   - **Base Crafting System**: Basic crafting system developed
   - **Classic Map**: Crafted with pen and paper. Upgradeable (one time only) to increase its range. *Conflict note: May remain a fullscreen overlay (leaving player vulnerable) OR change to a minimap.*
 
+> **Deferred from the Phase 3 code review (04-09-2026) — to be sorted at a later date:**
+>
+> - **UI input runs inside the render pass.** `UIManager::render` mutates game state directly — slot pickup/swap/merge, `player.consumeItem`, `player.craftItem` all fire from inside `drawSlot` and the crafting panel. This contradicts the rule in CLAUDE.md that UIManager is *"a state holder and mailbox, not a caller"*. Clicks resolve in draw order rather than topmost-first, and none of the UI is testable. Should be split into an input pass (`UIManager::update` hit-tests into a request queue) and a draw pass, **one panel at a time** — crafting first, as the most self-contained. Not a big-bang rewrite.
+> - **Draw order is three fixed layers.** `PlayingState::render` draws maze → player → items, with items last on purpose so tall furniture occludes the player. Mobs break that: a mob north of the player must draw behind it, one to the south in front. Needs the Y-sorted render queue already specced in [the_wilderness_update.md](the_wilderness_update.md) §15.6 — one drawable queue sorted by base Y in world pixels, bucket-sorted since baseY is bounded by screen height (O(k)). **Do not add a fourth fixed layer in the meantime.**
+
 ### Phase 4 — Mobs, Death, Progression & Main menu *(Days 35–52)*
 - **Main menu:** Allows player to start game and see stats like longest day surived (no saves)
 - **Death mechanics:**
