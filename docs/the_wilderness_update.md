@@ -1,6 +1,6 @@
 # The Wilderness — Overworld / Underworld Integration Design
 
-> **Living document** — the design for merging the wilderness survival game into Project Backrooms as a single, coherent title. Last updated: **03-09-2026**.
+> **Living document** — the design for merging the wilderness survival game into Project Backrooms as a single, coherent title. Last updated: **04-09-2026**.
 >
 > This document does **not** replace [roadmap.md](roadmap.md). It defines the combined game's structure and lists, at the end, exactly which existing roadmap items it changes. Phase numbering and re-planning will follow separately.
 
@@ -284,119 +284,39 @@ Keep the wife thread as a slow, sparse drip. It should never become a fetch ques
 
 ---
 
-## 15. Terrain Generation & Rendering the Overworld
+## 15. Terrain, Water & Visual Polish for the Overworld
 
-> **Exploratory — nothing here is a committed decision.** This section records the current thinking on how the wilderness is generated and drawn, the specific problems that surfaced while working through it, and the candidate fixes, so the reasoning does not have to be rediscovered later. The only thing treated as settled is **a new world seed per run** (§15.3). Everything else is options with a leaning.
+> **Exploratory — nothing here is fully committed except what's marked settled.** Earlier drafts of this section explored terrain **height** as a rendered field — a heightmap, hydraulic/thermal erosion, quantised cliff bands with footprint accounting, ramps for connectivity, and a posterised hillshade shader to light it in a way that didn't muddy pixel art. **That whole track has been cut.** Height was never a gameplay input (§15.5's old "overhang test" already showed it could only ever be a scalar shading field, not real 3D — no overhangs, no traversal freedom, nothing an inventory or a recipe could touch), and the cost of doing it convincingly — a global erosion pass, cliff-footprint generation, connectivity-guaranteeing ramps, a bespoke lighting shader — was large for a purely visual, non-load-bearing payoff. **The overworld is flat, the same way the maze is flat.** Depth comes from mixed-projection sprites (§15.4) and lighting/animation polish (§15.6), not from geometry.
 
-### 15.1 The generation pipeline
+What survives from the original plan is the part that was always gameplay, not geometry: water needs to exist for drinking, fishing, orientation and seasonal freeze/thaw (§8, §13); biomes need to place vegetation and animals sensibly; and the flat world still deserves the rendering effects that don't depend on height at all.
 
-Layered. Each layer reads the one above it, which is what makes the world feel *governed* rather than noisy. Search terms are given so the visual output of each algorithm can be looked up directly.
+### 15.1 Water bodies: rivers & lakes
 
-**Layer 1 — Base elevation.** Plain fBm (fractal Brownian motion over Perlin/Simplex noise) gives rolling hills, but it is soft and samey — no ridgelines, no drainage, a lumpy duvet. Two corrections:
+Rivers and lakes are staying in the game — they're too load-bearing to cut (drinking water, fishing sites, crossings as route decisions, frozen rivers as winter roads, spring melt as a hazard, and §13's "follow the water downstream" as free orientation in a world where maps are a scarce crafted good).
 
-- **Ridged multifractal noise** — `1 - abs(noise)` accumulated per octave. Creases become sharp ridges instead of round bumps. → search `ridged multifractal noise terrain`
-- **Domain warping** — offset the sample coordinates by a second noise field before sampling. Turns symmetric blobs into organic meanders, very cheaply. → search `domain warping inigo quilez`
-- **Radial falloff mask** multiplied against the height, giving a natural world boundary instead of an invisible wall. → search `island falloff map procedural generation`
+What's genuinely open is **whether rivers need a simulated flow direction**, and that's worth deciding deliberately rather than defaulting into it:
 
-*Gameplay effect:* ridgelines are barriers, so passes and valleys become the only ways through. Travel turns into route-finding rather than walking in a straight line.
+| Approach | What it is | Trade |
+|---|---|---|
+| **A — Authored, directional** | River paths generated as domain-warped curves running from a source region to a lake or the map edge, with an implied downstream direction carried for animation (current, foam drifting one way) and possibly gameplay (freezing solid, a future raft or current push). | Gives back the orientation payoff and the "frozen river as a road" beat. Costs more: a river is then a *connected, planned* object, not a chunk-local decoration (see §15.5). |
+| **B — Non-directional** | Lakes and river-*shaped* noise features (Poisson-seeded blobs, meandering bands) with no consistent flow. | Cheapest — chunk-local, no global planning needed. Reads as scenery you cross rather than geography you navigate by; this is the Minecraft model the original draft dismissed, but in a 2D top-down game with no boats or current-based traversal, "does it actually need to flow" is a fair question, not a concession. |
 
-**Layer 2 — Erosion.** The biggest single visual upgrade, and what makes terrain read as real rather than generated.
+Flagged as an open question in §18: does anything in this game actually *consume* flow direction (a raft, a current that pushes the player, water-powered crafting), or is it purely a visual/orientation cue? If the latter, Option A can be faked cheaply — author the path once, animate the texture along it — without ever computing true flow accumulation.
 
-- **Hydraulic erosion (droplet simulation)** — drop hundreds of thousands of virtual raindrops; each rolls downhill, erodes on steep slopes, deposits where it flattens, dies after ~30 steps. Channels carve themselves because droplets converge into the same low paths. → search `Sebastian Lague hydraulic erosion`
-- **Thermal erosion** — material above a talus angle slides downhill, softening peaks and building scree. → search `thermal erosion terrain talus angle`
+Lakes: Poisson-disc-seeded blob shapes, either standalone or fed by a river's endpoint.
 
-*Gameplay effect:* erosion generates the interesting places for free. Valleys are where water is, where game concentrates, where travel is easy, and where camps get sited.
+### 15.2 Biomes & moisture
 
-**Layer 3 — Hydrology.** Rivers and lakes.
+Keep the **Whittaker diagram** approach — a 2D lookup of temperature × moisture → biome type (grass, forest, scrub, wetland, tundra…) → search `Whittaker biome diagram`. Without a height field there's no orographic rain shadow to drive moisture, so it comes from a simpler, still-legible model: latitude for temperature, a coarse moisture noise field plus a bonus near rivers/lakes/coast for wetness. Cruder than the elevation-driven version, but still gives a world where biome placement feels governed rather than random, which is the actual payoff — a veteran player learns that grasslands cluster round water and reads an unfamiliar map faster for it.
 
-- **D8 flow direction + flow accumulation** — each cell drains to its steepest lower neighbour; accumulate upstream cell counts; cells above a threshold are streams, higher still are rivers. One sort plus one linear pass. → search `D8 flow accumulation algorithm`
-- **Priority-flood depression filling** — resolves sinks so water has somewhere to go; the filled basins become lakes. → search `priority flood depression filling DEM`
+### 15.3 Distribution: resources & set pieces
 
-*Gameplay effect:* the strongest landmark type available. Drinking water, fishing sites, crossings and fords as route decisions, frozen rivers as winter roads, spring melt as a hazard. Critically, rivers give the map **direction** — "follow the water downstream" is orientation without an item, which matters because maps are a scarce crafted good (§13).
+- **Poisson-disc sampling (Bridson's algorithm)** for resources and landmarks — random placement with a guaranteed minimum spacing, so the world reads as naturally uneven (blue noise) rather than clumped-with-dead-zones (white noise). → search `Poisson disc sampling Bridson`. This is the exploration-pacing lever: it guarantees "something worth finding within N minutes of walking" without a visible grid.
+- **Hand-authored prefabs** (ruins, standing stones, abandoned cabins, **maze entrances**) placed at sites passing constraint checks: correct biome, minimum distance from siblings, near or far from water. Noise produces variety; authored set pieces produce *memory* — nobody remembers a hill, everybody remembers the lightning-split tree by the ford.
 
-**Layer 4 — Climate.** Temperature from latitude plus an **environmental lapse rate** (~-6.5 °C per 1000 m). Moisture from a prevailing wind traced across the map, dumping rain as air rises over ridges and arriving dry on the lee side — **orographic rain shadow**. → search `rain shadow effect diagram`
+### 15.4 The current maze rendering approach, and why it carries over
 
-*Gameplay effect:* dry scrub appears behind mountain ranges and wet forest on the windward side, with nothing placed by hand. Players cannot articulate the rule but feel that the world obeys one. Feeds the temperature survival system (§8) directly.
-
-**Layer 5 — Biomes.** **Whittaker diagram** — a 2D lookup of temperature × precipitation → biome type. → search `Whittaker biome diagram`
-
-*Gameplay effect:* biome placement becomes predictable in the good way. A veteran reads a ridgeline and knows roughly what is on the other side.
-
-**Layer 6 — Distribution.** **Poisson-disc sampling (Bridson's algorithm)** for resources and landmarks — random placement with a guaranteed minimum spacing. Blue noise spreads evenly but irregularly, which is what nature looks like; white noise clumps and leaves dead zones. → search `Poisson disc sampling Bridson`, `blue noise vs white noise distribution`
-
-*Gameplay effect:* this is the exploration pacing lever. It lets us guarantee "something worth finding within N minutes of walking" without the result feeling gridded.
-
-**Layer 7 — Set pieces.** Hand-authored prefabs (ruins, standing stones, abandoned cabins, **maze entrances**) placed at sites that pass constraint checks: flat enough, correct biome, minimum distance from siblings, near or far from water.
-
-**Wave Function Collapse** will come up in any search on this (→ `wave function collapse algorithm`, lots of illustrative gifs) but is probably the **wrong tool here** — slow, hard to art-direct, better suited to structured interiors than open terrain. Constrained prefab placement is simpler and more controllable.
-
-*Gameplay effect:* noise produces variety; authored set pieces produce **memory**. Nobody remembers a hill. Everybody remembers the lightning-split tree by the ford.
-
-### 15.2 Resolution decoupling — why the world can still be large
-
-The global algorithms (erosion, flow accumulation, rain shadow) are expensive and cannot be chunked. The naive conclusion is that the world must therefore be small. It does not, if the world is generated at **two resolutions**:
-
-**Coarse grid — global systems.** ~2048 × 2048 cells, where **1 coarse cell = 8 game tiles**. Erosion, flow accumulation, depression filling, rain shadow and biome assignment all run here. That is ~4M cells, roughly 16 MB, and erosion takes a second or two. Generated once at world creation and stored in the save.
-
-**Fine detail — per chunk, on demand.** When the player approaches a chunk, bicubically interpolate the coarse heightmap and add a couple of octaves of detail noise, then scatter trees, rocks and resources. Never stored — regenerated deterministically from `hash(seed, chunkX, chunkY)`, with only player modifications persisted as diffs.
-
-**Resulting scale.** 2048 coarse cells × 8 tiles = **16,384 tiles across**. At the current player speed (130 px/s over 32 px cells ≈ **4 tiles/second**) that is roughly a **67-minute walk** edge to edge. Halving it to ~8,000 tiles gives ~33 minutes. The full ~268M fine tiles never exist in memory at once; the expensive global work only ever sees 4M cells.
-
-Rivers computed at coarse resolution come out ~8 tiles wide, which then meander within that corridor using detail noise rather than running as a straight 8-wide band.
-
-**Note:** this is a different world representation from the maze. The maze's implicit grid (`y * width + x` over a fixed toroidal 250×150) does not extend to a chunked world; the overworld needs a hash map of chunk coordinate → chunk with LRU eviction. The two halves share almost no world-storage code.
-
-### 15.3 Why the world is not infinite
-
-Two of the layers above are **mathematically global**, not local:
-
-- **Erosion** — droplets do not respect chunk boundaries. Eroding one chunk requires its neighbours, which require theirs, transitively the entire map. Chunk-local erosion produces visible seams and physically wrong drainage.
-- **Flow accumulation** — a river's size is a function of every cell upstream of it. In an infinite world that basin is unbounded, so discharge is not computable.
-
-Everything else chunks fine: height from noise is samplable at any coordinate, hillshade needs only four neighbours, cliffs are local, climate-noise biomes are local. So the honest trade is precisely:
-
-> **an infinite world, OR eroded terrain with real rivers — not both.**
-
-The middle option is fake rivers from ridged, domain-warped noise. They look like rivers but do not flow — no consistent downhill, no confluences, no source-to-mouth. This is what Minecraft does, and it is why its rivers are scenery you cross rather than geography you navigate by. It costs the "follow the water downstream" payoff entirely.
-
-**The design argument is stronger than the engineering one.** Infinity is anti-thetical to this game. Nomadic seasonal camps (§9), a maze that spawns near you (§5), a wife to find, and ~90 days of surviving in one place all depend on the world being *knowable*. Valheim, Don't Starve and Unreal World all use large finite worlds for exactly this reason.
-
-**Settled: a new world seed per run.** Permadeath rerolls the world. This keeps discovery fresh and stops run #20 from being a memorised optimal route, which matters when the score is days survived.
-
-The consequence is worth stating explicitly, because it shapes how the generator should be tuned: **what carries across runs is not the map, it is literacy.** Ridges mean passes. Water runs downhill. The lee side of a range is dry. A veteran reads an unfamiliar map quickly because they understand the generator's physics. That skill curve only exists because the generation is physically grounded rather than arbitrary noise — which is the real argument for doing hydrology properly.
-
-### 15.4 What happens at the edge of the map
-
-Not cliffs — an abrupt drop reads as an artificial wall. Two natural options:
-
-- **A ring of impassable mountains.** Multiply the heightmap by a radial falloff that *rises* toward the edge, with **the falloff radius perturbed by low-frequency noise** so the basin is irregular and lopsided rather than a circle. A perfect circle is instantly legible as generated.
-- **A coastline.** The same falloff inverted, land fading to sea. Prettier, adds a beach biome and sea fishing, but needs an answer for boats and for players swimming out.
-
-**Leaning: the mountain ring.** It is thematically exact — you live in an enclosed valley, the mountains are why nobody leaves and why the search for your wife stays local, and it is structurally the Glade. It also avoids the "swim around the edge" problem.
-
-Either way the edge should be something most players never reach. At half an hour or more of walking, the boundary becomes soft knowledge ("the mountains ring the valley") rather than a barrier that gets bumped into.
-
-### 15.5 Height is a field, not a third dimension
-
-Worth stating plainly because it affects how the code is structured: **adding terrain height does not make this a 3D game.**
-
-A heightmap is a **scalar field over 2D space** — `h(x, y)`, one number per tile. Entities keep an `(x, y)` position and their z is *derived*: `z = h(x, y)`. z is not an independent degree of freedom, so it is not a coordinate.
-
-**The overhang test.** In a genuinely 3D world you can have two different things at two different z values over the same `(x, y)` — a bridge with a road under it, a cave beneath a hill. A heightmap physically cannot represent that, because there is exactly one height per column. That impossibility is the definition of 2.5D.
-
-So the height field buys exactly three things, none of which is a coordinate:
-
-1. **Shading input** — hillshade reads the gradient (§15.9).
-2. **A traversal rule** — cannot climb a tile more than N levels above you.
-3. **Derived data** — temperature via lapse rate, water flow direction, camp-siting flatness, animal density in valleys.
-
-`Vector2 m_position` stays a `Vector2`. Collision stays 2D. Nothing about the engine becomes 3D.
-
-*For contrast:* if the maze later gains multiple **floors** — Level 0, Level 1, each with independent contents — that *would* be genuinely 3D data, since two things can occupy the same `(x, y)` at different z. That is what Dwarf Fortress does with z-levels, rendering one horizontal slice at a time. The Level 2 descent in the open questions is closer to that model than to a heightmap.
-
-### 15.6 The current maze rendering approach, and why it is correct
-
-The game already uses **mixed projection**, and the reasoning behind it should be preserved rather than "cleaned up" by a later pass.
+The game already uses **mixed projection**, and the reasoning behind it applies to the overworld unchanged.
 
 Current state:
 
@@ -407,101 +327,51 @@ Current state:
 | **Props** (doors, lockers, benches) | **3/4.** Door drawn 16×29 anchored at its base; furniture shows front faces. | `item_renderer.cpp`, `maze_renderer.cpp` |
 | **Player** | **3/4.** Front-facing sprite — you see the body, not the top of the head. | `player_renderer.cpp` |
 
-**Mixed projection is the standard convention, not a compromise.** Stardew Valley, Zelda: A Link to the Past, Pokémon and Chrono Trigger all draw the ground plane top-down and give a projected face only to things that need to read as *vertical*. No 2D game does consistent optical geometry. The rule is "project only what needs to read as vertical," because the goal is legibility, not correctness — players do not notice the inconsistency, and would notice if consistency were enforced and it read badly.
+**Mixed projection is the standard convention, not a compromise.** Stardew Valley, Zelda: A Link to the Past, Pokémon and Chrono Trigger all draw the ground plane top-down and give a projected face only to things that need to read as *vertical*. No 2D game does consistent optical geometry. The rule is "project only what needs to read as vertical," because the goal is legibility, not correctness. The overworld's trees, rocks, cabins and set pieces should follow the same rule: flat ground, projected props — no heightmap required to make that convention work.
 
-**Why the corridors are flat is a real technical constraint.** The Zelda-style projection needs somewhere to project *into*. Corridor walls are deliberately allowed to be **one cell thick**, so drawing a face at `y-1` and `y-2` would paint over the corridor above. Flat corridors are forced by the wall thickness the maze generator preserves, not an oversight.
+### 15.5 World scale, seed & the edge
 
-**It also produced a gameplay win.** Flat, ambiguous corridors versus volumetric, solid-feeling rooms is a genuine perceptual difference: disorientation in the corridors, "this is a *place*" in the rooms. That serves the horror and should be kept.
+**Settled: a new world seed per run.** Permadeath rerolls the world. This keeps discovery fresh and stops run #20 from being a memorised optimal route, which matters when the score is days survived.
 
-### 15.7 The cliff footprint problem
+**What carries across runs is not the map, it is literacy.** Water collects in basins, biomes cluster round it, resources thin out with distance from camp. A veteran reads an unfamiliar map quickly because they understand the generator's logic, not because they've memorised a layout.
 
-This is the core rendering problem the overworld introduces, and it does not exist in the maze.
+**Resolution decoupling still matters, for a smaller reason than before.** The world doesn't need a two-resolution split to afford erosion any more — but it still benefits from one, because the world is meant to be large (§15's original ~8,000–16,000-tile target still stands) and a coarse pass keeps that affordable: biome/moisture assignment and river placement run once, on a coarse grid, at world creation, and are stored in the save; per-chunk detail (tree/rock/resource scatter) is generated on demand from `hash(seed, chunkX, chunkY)` and never stored, exactly as originally planned. The maze's toroidal 1D-array grid is a different representation entirely and shares no world-storage code with this.
 
-> **A cliff is a boundary *between* tiles — zero width in world space. But drawing it needs vertical screen space. Where does that space come from?**
+**Whether the world is strictly finite now depends on the §15.1 decision.** If rivers stay non-directional (Option B), they're chunk-local noise and place no constraint on how the world is generated — it could in principle tile forever. If rivers go directional (Option A), a connected source-to-outlet path is a global object in the same way flow accumulation used to be, and the world needs the same finite, coarse-grid-then-detail treatment the original erosion argument made. Either way, the design argument for a large-but-finite world stands on its own regardless of the water decision: nomadic seasonal camps (§9), a maze that spawns near you (§5), a wife to find, and ~90 days of surviving in one place all depend on the world being *knowable*, the way Valheim, Don't Starve and Unreal World's worlds are.
 
-It comes from world tiles. **The cliff face has a footprint**: the tiles immediately south of a plateau edge become impassable cliff-wall tiles. That is not a hack — real cliffs have footprints too — but it means the world must be *generated with the footprint accounted for*, exactly as the maze is generated with wall thickness accounted for.
+**The edge.** Not a cliff — an abrupt drop reads as an artificial wall, and there's no heightmap to raise one anyway. Leaning **an impassable boundary biome** — dense highland forest, rock scree, whatever reads as "you don't go further" — with the boundary's radius perturbed by low-frequency noise so it's irregular rather than a legible circle. Thematically it's still the mountain ring: an enclosed valley, which is why nobody leaves and why the search for your wife stays local. A coastline is the alternative (prettier, adds a beach biome and fishing) but needs an answer for swimming around the edge. Either way the boundary should sit far enough out that most players never reach it and it stays soft knowledge rather than something bumped into.
 
-**One detail makes this much cheaper than it first appears: only south-facing edges need a full face.** The camera looks from the south, so north, east and west plateau edges only need a thin edge-cap tile — a lip. The cost is roughly one row of tiles along the southern boundary of each plateau, not a border around everything.
+### 15.6 Visual polish & effects — where the payoff actually is
 
-**Three options:**
+With height off the table, this is now the section carrying the overworld's visual ambition, and it's worth treating as the real plan rather than a leftover list. Roughly in order of payoff per line of code:
 
-| Option | Description | Trade |
-|---|---|---|
-| **(1) No cliffs** | Height is continuous, everything walkable. Height only feeds hillshade, temperature and water flow. | Zero footprint problem. Keeps all visual relief, loses "terrain as barrier." Genuinely viable — for a survival game that is a much smaller loss than it would be for an adventure game. |
-| **(2) Cliffs everywhere** | Quantise height into bands, face every band boundary. | Maximum drama, maximum complexity. Plateau shapes start dictating world layout. |
-| **(3) Mostly (1), with rare deliberate cliffs** | Gentle terrain continuously walkable and hillshaded only. Cliff faces appear **only** where the gradient exceeds a high threshold — perhaps 5% of the world. | **Leaning strongly toward this.** Because cliffs are rare their footprint is never a constraint; there is always room. And rare cliffs are far more dramatic than ubiquitous ones. |
-
-**Option 3 is structurally the same decision already made in the maze:** flat where the terrain is ambiguous and open, projected where it is solid and blocking. Consistency of *approach* is worth more here than consistency of projection.
-
-### 15.8 Ramps and connectivity — an algorithm the project already has
-
-If most terrain is walkable slope, ramps are unnecessary in the general case; you simply walk uphill. Ramps only matter where a hard cliff has been placed, and the guarantee needed there is **connectivity** — which is the same problem the maze generator already solves for disconnected islands:
-
-1. Quantise height into bands; mark high-gradient boundaries as impassable cliff.
-2. Flood-fill from the player's spawn.
-3. Any region that comes back unreachable — find the lowest-gradient point on its boundary and carve a ramp there.
-
-That is the **existing tunnel-borer BFS and connected-component pruning**, pointed at a different grid. Same guarantee, same code shape, and it reuses an algorithm already documented in the roadmap's algorithmic showcase.
-
-### 15.9 Rendering elevation: hillshade, and the pixel-art trap
-
-**Hillshade.** Because the terrain is generated, a continuous height field is available, so relief shading can be *computed* rather than hand-authored — the same technique GIS uses for topographic maps:
-
-```
-h = heightAt(x, y)
-n = normalize(vec3(h(x-1,y) - h(x+1,y), h(x,y-1) - h(x,y+1), 2.0))
-L = clamp(dot(n, sunDir), 0, 1)
-```
-
-Every hill, gully and ridge then shades itself with no additional art, and rotating `sunDir` with time of day re-lights the whole landscape — the same valley looks different at dawn and dusk. This is the answer to "3D gets elevation for free": so does this, just through shading instead of geometry.
-
-**The trap: continuous lighting and pixel art fight each other.** Multiplying a smooth `0.0-1.0` shading term over sprites produces muddy in-between colours and destroys the hard edges that make pixel art read.
-
-**The fix is posterisation.** Quantise the hillshade into 3-5 discrete steps and map each step to an actual colour on a defined palette ramp, rather than doing a continuous multiply. Slopes then shade in clean bands using colours an artist would have chosen, and everything stays on-palette. → search `pixel art palette ramp shading`, `posterized lighting pixel art`
-
-This is a strong argument for doing a **palette unification pass first** — hillshading essentially requires a defined ramp to snap to. It is also the fix for the existing asset incoherence: the current sprite sheets come from several different artists with different palettes, and quantising them all to one shared ramp would do more for the game's look than any new art.
-
-**Related rendering work, in rough order of payoff per line of code:**
-
-- **Y-sorted render queue.** The current draw order is three fixed layers (maze → player → items in `playing_state.cpp` ~L432-435), so the player always draws over wall faces and items always draw over the player. That is fine for a tile maze; a forest needs trees, rocks, cliffs, the dog, animals and the player to interleave *with each other*. Requires collecting drawables into one queue and sorting by **base Y in world pixels** (not tile row, or entities pop between tiles). `O(k log k)`, or `O(k)` with a bucket sort since baseY is bounded by screen height. **Cheap now with three renderers, expensive after thirty entity types exist.**
-- **8-bit autotiling.** The existing `tileMap[16]` is a 4-bit cardinal-only mask. Fine for solid walls; grass/sand/water/cliff borders need the corner-aware 47-tile "blob" set or diagonal transitions look wrong.
-- **Weather** (rain, fog, snow, plus a fog-density uniform) — turns the same terrain into a visibly different place, multiplying apparent content, and plugs straight into seasons and temperature.
+- **Palette unification + atlas JSON.** The current sprite sheets come from several artists with different palettes; snapping everything to one shared ramp does more for the game's look than any single new asset, and it's a prerequisite for the lighting work below reading cleanly.
+- **Y-sorted render queue.** The current draw order is three fixed layers (maze → player → items in `playing_state.cpp` ~L432-435), fine for a tile maze but not for a forest where trees, rocks, the dog, animals and the player need to interleave with each other. Collect drawables into one queue, sort by base Y in world pixels (not tile row, or entities pop between tiles) — `O(k log k)`, or `O(k)` with a bucket sort since baseY is bounded by screen height.
+- **8-bit autotiling.** The existing `tileMap[16]` is a 4-bit cardinal-only mask, fine for solid walls; biome borders (grass/sand/water) need the corner-aware 47-tile "blob" set or diagonal transitions look wrong.
+- **Banded/posterised lighting.** The old hillshade-specific version of this trick is gone with the heightmap, but the underlying principle still applies everywhere a continuous light term meets pixel art: quantise into 3-5 discrete steps and map each to a chosen palette colour rather than a continuous multiply, so day/night transitions and torchlight shade in clean bands instead of muddy in-betweens. → search `posterized lighting pixel art`, `pixel art palette ramp shading`.
+- **Day/night colour ramp**, using the banding above.
+- **Weather** — rain, fog, snow, a fog-density uniform. Turns the same terrain into a visibly different place and plugs straight into seasons and temperature.
 - **Wind sway** — offset the upper pixels of grass and tree sprites by `sin(time + worldPos)`. Roughly twenty lines, and the world stops feeling like a diorama.
-- **Day/night colour ramp**, ambient particles (pollen, leaves, snow, fireflies), animated water with edge foam, per-biome colour grading.
+- **Animated water with edge foam** — the direct payoff of §15.1's rivers/lakes; even non-directional water reads as alive once it animates.
+- **Ambient particles** (pollen, leaves, snow, fireflies) and per-biome colour grading.
 
-### 15.10 A staged path, because this is a lot at once
-
-The complexity is real, and the mitigation is that each stage stands alone and is independently shippable:
+### 15.7 A staged path
 
 | Stage | Work | Payoff |
 |---|---|---|
-| **0** | Palette unification + atlas JSON (replace hardcoded source rects). | Unblocks everything else; fixes existing asset incoherence. |
-| **1** | Height field + hillshade shader. No cliffs, nothing impassable. | Roughly a day's work, and **most of the visual payoff**. Could stop here permanently and still have a good-looking game. |
-| **2** | Quantise height, south-facing cliff faces, impassability, connectivity check. | Terrain as barrier. |
-| **3** | Ramps, then hydrology (flow accumulation → rivers). | Navigation, water as a resource, seasonal river behaviour. |
-| **4** | Erosion, weather, day/night, wind. | Polish and apparent content. |
+| **0** | Palette unification + atlas JSON. | Unblocks everything else; fixes existing asset incoherence. |
+| **1** | Biome/moisture assignment + water placement (coarse grid), per-chunk detail scatter. | The world exists and reads as governed rather than random. |
+| **2** | Render polish pass — Y-sort, autotiling, banded lighting/day-night, weather, wind sway, animated water, particles, per-biome grading. | This *is* the visual identity of the overworld. No further stages are planned — there's no elevation pass waiting behind this one. |
 
-**Do Stage 1, look at it, and only then decide whether Stage 2 is worth it.** Hillshade alone may read as enough elevation.
-
-Note also the split worth keeping in mind: **hydrology is gameplay, erosion is looks.** Flow accumulation alone gives rivers on un-eroded terrain, so hydrology can land well before erosion does.
-
-### 15.11 Reference games
-
-The combination described here — hydrology-driven procedural generation *plus* considered 2D pixel rendering — is genuinely uncommon. Most games have one or the other, which is a point in favour rather than a warning.
+### 15.8 Reference games
 
 | Game | What to look at |
 |---|---|
-| **Dwarf Fortress** | The generation reference. Erosion, rain shadow, river networks flowing mountains-to-ocean with named tributaries and correct confluences. Rendered as flat tile slices. → `dwarf fortress world generation map` |
-| **Unreal World** | The direct genre inspiration. Fixed finite world with hills, rivers, lakes and mires that structure travel, fishing and settlement. Very plain top-down tiles. |
-| **Rise to Ruins** | Probably the closest single reference — 2D pixel art, procedurally generated terrain with real elevation, and water that actually flows downhill and pools. |
-| **Songs of Syx** | Procgen world with mountains and elevation, 2D top-down. |
-| **Stardew Valley** | The reference for *how to draw cliffs* in 2D 3/4 — discrete elevation levels, cliff faces, ramps. Study the cliff tiles specifically. Hand-authored maps. |
-| **Zelda: A Link to the Past** | Where the cliff convention originates. Two elevation levels, ledges you can drop off but not climb. |
-| **Necesse** | Closest genre and aesthetic sibling (2D top-down pixel survival, procgen biomes), though its terrain is essentially flat. |
-| **Minecraft** | The counter-example. Infinite, so rivers are noise features that wander, dead-end and never connect to oceans consistently. Nobody navigates by them. → `minecraft river biome map overhead` |
-| **Factorio** | Noise-blob water, and correctly so — water there is purely an obstacle. Useful reminder that hydrology only pays for itself when water is a *resource*, which here it is. |
-
-Putting a Dwarf Fortress world map beside a Minecraft overworld map makes the difference immediate: one has drainage basins you can trace, the other has blue squiggles.
+| **Unreal World** | The direct genre inspiration, now also the closest structural match: fixed finite world, rivers and lakes that structure travel, fishing and settlement, drawn in very plain top-down tiles. No elevation-driven relief. |
+| **Necesse** | Closest genre and aesthetic sibling (2D top-down pixel survival, procgen biomes) — its terrain is flat, which used to be a limitation to note and is now simply the model. |
+| **Stardew Valley** | Reference for *considered* flat pixel art — palette discipline, readable tile borders, mixed-projection props — with the cliff-specific lesson dropped since there's no heightmap here. |
+| **Minecraft** | The counter-example for directional rivers (they wander, dead-end, never consistently reach an ocean, and nobody navigates by them) — but a fair *model* if §15.1 settles on Option B, since this game has no boats or current-based traversal either. |
+| **Factorio** | Noise-blob water, correctly so — water there is purely an obstacle. Useful reminder that directional flow only pays for itself when something in the game actually consumes the direction. |
 
 ---
 
@@ -523,7 +393,7 @@ Deltas against [roadmap.md](roadmap.md). Nothing below is deleted — it's reloc
 | **Maps (Phase 3)** | Existing maze maps unchanged. New category: surface survey maps found in the archive. |
 | **Dog (Phase 6)** | Promoted from "advanced system" to a mid-game surface unlock that can be taken below. |
 | **Radiation (Phase 3)** | Stays entirely underground. Explicitly does **not** surface. |
-| **New: wilderness half** | Terrain/biome generation, seasons, weather, hunting, fishing, foraging, shelter building and maintenance, temperature — all new, and not yet phased. Generation and rendering approach explored in §15. |
+| **New: wilderness half** | Terrain/biome generation, seasons, weather, hunting, fishing, foraging, shelter building and maintenance, temperature — all new, and not yet phased. Generation and rendering approach explored in §15 (flat, no elevation — water, biomes and rendering polish only). |
 | **Timeline** | ~105 days is obsolete. Multi-year project; phases need re-planning from scratch. |
 
 ---
@@ -569,10 +439,9 @@ The intended shape is an oscillation — prepare, dive, recover, repeat, with ri
 - **Cabin degradation rate.** Fast enough that abandoning one has teeth, slow enough that maintenance isn't a chore. This number decides whether the nomadic loop feels like planning or like babysitting.
 - **Level 2 descent** (roadmap Phase 6) — still in, and now reads as a third layer below the maze. Needs re-siting within the new structure.
 - **Do maze entrance locations persist across the shifting zones,** or can a regeneration event bury the way you came in? (Very good horror, potentially very unfair.)
-- **World size.** ~8,000 tiles across (~33 min to cross) or ~16,000 (~67 min)? Larger costs nothing at generation time given the coarse/fine split (§15.2), but a world too large for one run to meaningfully explore wastes the erosion and hydrology work.
-- **Cliffs: option (1) or option (3)?** (§15.7) If (3), what gradient threshold, and what fraction of the world should end up impassable? Worth deciding only after Stage 1 hillshade is on screen.
-- **Mountain ring or coastline** at the world edge? (§15.4) Leaning mountain ring, but a coast adds a beach biome and sea fishing.
-- **Is erosion worth implementing at all**, or does flow accumulation on un-eroded terrain look good enough in 2D? (§15.10) Erosion's value is largely visual, and much of it may not survive the top-down projection.
+- **Do rivers need simulated directional flow, or is an authored source-to-outlet path (or no direction at all) enough?** (§15.1) Turns on whether anything in the game actually consumes flow direction — a raft, a current, water-powered crafting — versus it being purely a visual/orientation cue. This also decides whether the water layer places any constraint on how large or "infinite" the world could be (§15.5).
+- **World size.** ~8,000 tiles across (~33 min to cross) or ~16,000 (~67 min)? Larger costs little at generation time given the coarse/fine split (§15.5), but a world too large for one run to meaningfully explore wastes the biome and water placement work.
+- **Mountain ring or coastline** at the world edge? (§15.5) Leaning mountain ring (as an impassable boundary biome, not a raised heightmap edge), but a coast adds a beach biome and sea fishing.
 - **Tile size needs a single committed spec before any art is bought or drawn.** Currently `player_renderer.hpp` uses `TILE_SIZE = 16` for sprite cells while `maze.hpp` defaults `cellSize = 32` for world cells. Fine as-is, but the overworld spec (tile size, 3/4 convention, master palette, atlas format) should be written down explicitly rather than inherited.
 - **Engine decision.** At multi-year, two-genre scope, the from-scratch C++/raylib build costs significantly more than it did at the original scope. Not urgent, but should be a conscious choice rather than an inherited default.
 
