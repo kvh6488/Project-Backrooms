@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/debug_overlay.hpp"
+#include "core/render_settings.hpp"
 #include "core/ui_manager.hpp"
 #include "entities/player.hpp"
 #include "entities/player_renderer.hpp"
@@ -16,7 +18,8 @@
 class PlayingState : public GameState {
 public:
   // seed of 0 means "pick one from the clock".
-  explicit PlayingState(UIManager &uiManager, unsigned int seed = 0);
+  PlayingState(UIManager &uiManager, DebugOverlay &debugOverlay,
+               unsigned int seed = 0);
   ~PlayingState() override;
 
   void onEnter() override;
@@ -30,6 +33,12 @@ private:
 
   // Reference to the global UI Manager
   UIManager &m_uiManager;
+  // Development panel. It only edits m_renderSettings and raises request
+  // flags; it never touches the world directly.
+  DebugOverlay &m_debugOverlay;
+
+  // Presentation values the debug panel tunes but the game owns.
+  RenderSettings m_renderSettings;
 
   // --- Core Systems ---
   unsigned int m_seed;

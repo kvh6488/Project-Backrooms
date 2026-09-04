@@ -9,14 +9,10 @@
 
 UIManager::UIManager(int screenWidth, int screenHeight)
     : m_screenWidth(screenWidth), m_screenHeight(screenHeight) {
-  m_debugMapTexture.id = 0;
   m_magicBookMapTexture.id = 0;
 }
 
 UIManager::~UIManager() {
-  if (m_debugMapTexture.id != 0) {
-    UnloadRenderTexture(m_debugMapTexture);
-  }
   if (m_magicBookMapTexture.id != 0) {
     UnloadRenderTexture(m_magicBookMapTexture);
   }
@@ -60,20 +56,7 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
   int screenW = GetScreenWidth();
   int screenH = GetScreenHeight();
 
-  // 1. Check if we need to regenerate debug map
-  if (m_debugMapTexture.id == 0 ||
-      m_debugMapTexture.texture.width != maze.getWidth() || m_debugMapDirty) {
-    if (m_debugMapTexture.id == 0 ||
-        m_debugMapTexture.texture.width != maze.getWidth()) {
-      if (m_debugMapTexture.id != 0)
-        UnloadRenderTexture(m_debugMapTexture);
-      m_debugMapTexture = LoadRenderTexture(maze.getWidth(), maze.getHeight());
-    }
-    generateDebugMap(maze);
-    m_debugMapDirty = false;
-  }
-
-  // 1.5 Check if we need to regenerate magic book map
+  // 1. Check if we need to regenerate the magic book's map
   if (m_magicBookMapTexture.id == 0 || m_magicBookMapDirty) {
     if (m_magicBookMapTexture.id == 0) {
       m_magicBookMapTexture = LoadRenderTexture(139, 89);
@@ -182,11 +165,6 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
                           WHITE);
   }
 
-  // 6. ImGui Debug Overlay
-  rlImGuiBegin();
-  ImGui::GetIO().FontGlobalScale = scale;
-  renderDebugUI(player, maze, scale);
-  rlImGuiEnd();
 }
 
 void UIManager::renderPopups(float scale, int screenW, int screenH,
@@ -612,160 +590,6 @@ void UIManager::renderInventory(Player &player, Maze &maze,
       }
     }
   }
-}
-
-void UIManager::renderDebugUI(Player &player, Maze &maze, float scale) {
-  ImGui::Begin("Debug Engine");
-  ImGui::Text("FPS: %d", GetFPS());
-  ImGui::Separator();
-  ImGui::Text("Maze Statistics");
-  ImGui::Text("Number of Rooms: %zu", maze.getRooms().size());
-
-  int totalCells = maze.getWidth() * maze.getHeight();
-  float coveragePercent = ((float)maze.getNonWallCount() / totalCells) * 100.0f;
-  float corridorPercent =
-      ((float)maze.getCorridorCount() / totalCells) * 100.0f;
-
-  ImGui::Text("Maze Coverage: %.1f%%", coveragePercent);
-  ImGui::Text("Corridor Coverage: %.1f%%", corridorPercent);
-
-  ImGui::Separator();
-  ImGui::Checkbox("Flashlight Torch Mode", &m_flashlightEnabled);
-  if (ImGui::Checkbox("Show Regeneration Zones", &m_showGenerationZones)) {
-    m_debugMapDirty = true;
-  }
-  if (ImGui::Checkbox("Show Radiation Zones", &m_showRadiationOnDebugMap)) {
-    m_debugMapDirty = true;
-  }
-
-  ImGui::Separator();
-  ImGui::Text("View Settings");
-  if (ImGui::Button(IsWindowFullscreen() ? "Exit Fullscreen (F11)"
-                                         : "Enter Fullscreen (F11)")) {
-    ToggleFullscreen();
-  }
-  ImGui::SliderFloat("Tile Zoom", &m_cameraZoom, 0.5f, 5.0f);
-
-  if (ImGui::Button("Regenerate Tic-Tac-Toe Zones")) {
-    m_triggerTicTacToeRegen = true;
-  }
-
-  // --- Magic Book of Maps ---
-  // These controls exist to decouple the book from its acquisition ritual
-  // (mushroom -> full trip -> 33% roll -> nearby table -> reach it before the
-  // trip decays). Testing the renderer should not require winning that lottery.
-  ImGui::Separator();
-  ImGui::Text("World Seed: %u", m_seed);
-  ImGui::TextWrapped("Relaunch with:  Backrooms.exe --seed %u", m_seed);
-
-  // --- Mushroom Trip ---
-  // Forcing the trip is what makes book inspection meaningful: the book is a
-  // hallucination and must be judged against the distorted, darkened scene it
-  // appears in, not against a sober one.
-  ImGui::Separator();
-  ImGui::Text("Mushroom Trip");
-  ImGui::Text("Effect strength: %.2f", player.getMushroomEffectStrength());
-  if (ImGui::Button("Force Full Trip (60s)")) {
-    m_triggerForceTrip = true;
-  }
-  ImGui::SameLine();
-  if (ImGui::Button("End Trip")) {
-    m_triggerEndTrip = true;
-  }
-
-  ImGui::Separator();
-  ImGui::Text("Magic Book of Maps");
-  if (ImGui::Button("Force Spawn Magic Book")) {
-    m_triggerMagicBookSpawn = true;
-  }
-  ImGui::Checkbox("Pin Book (ignore trip decay)", &m_pinMagicBook);
-  ImGui::SliderFloat("Trip Follow", &m_bookTripFollow, 0.0f, 1.0f);
-  ImGui::SliderFloat("Glow Radius", &m_bookGlowScale, 0.3f, 2.5f);
-  if (maze.isMagicBookSpawned()) {
-    ImGui::Text("State: spawned at (%d, %d)", maze.getMagicBookX(),
-                maze.getMagicBookY());
-  } else {
-    ImGui::Text("State: not spawned");
-  }
-  ImGui::TextWrapped("Last: %s", m_magicBookStatus.c_str());
-
-  ImGui::Separator();
-  ImGui::Text("Flashlight Tweaks");
-  if (ImGui::SliderFloat("Degree Cut", &m_lightConeAngle, 90.0f, 360.0f))
-    m_lightSettingsChanged = true;
-  if (ImGui::SliderFloat("Circle Size", &m_lightSizeScale, 1.0f, 6.0f))
-    m_lightSettingsChanged = true;
-  if (ImGui::SliderFloat("Angular Fade Strength", &m_lightFadeStrength, 0.1f,
-                         10.0f))
-    m_lightSettingsChanged = true;
-
-  ImGui::Separator();
-  ImGui::Text("Minimap");
-
-  float availWidth = ImGui::GetContentRegionAvail().x;
-  float mapRatio = (float)maze.getHeight() / (float)maze.getWidth();
-  Vector2 mapDisplaySize = {availWidth, availWidth * mapRatio};
-  ImVec2 mapScreenPos = ImGui::GetCursorScreenPos();
-  rlImGuiImageRect(&m_debugMapTexture.texture, (int)mapDisplaySize.x,
-                   (int)mapDisplaySize.y,
-                   Rectangle{0, 0, (float)m_debugMapTexture.texture.width,
-                             -(float)m_debugMapTexture.texture.height});
-
-  // Draw Player Dot on Minimap
-  Vector2 pPos = player.getPosition();
-  int gridX = (int)std::floor(pPos.x / maze.getCellSize());
-  int gridY = (int)std::floor(pPos.y / maze.getCellSize());
-
-  int wrappedX = (gridX % maze.getWidth() + maze.getWidth()) % maze.getWidth();
-  int wrappedY =
-      (gridY % maze.getHeight() + maze.getHeight()) % maze.getHeight();
-
-  float percentX = (float)wrappedX / maze.getWidth();
-  float percentY = (float)wrappedY / maze.getHeight();
-
-  ImVec2 playerScreenPos =
-      ImVec2(mapScreenPos.x + (percentX * mapDisplaySize.x),
-             mapScreenPos.y + (percentY * mapDisplaySize.y));
-
-  ImGui::GetWindowDrawList()->AddCircleFilled(playerScreenPos, 3.0f,
-                                              IM_COL32(255, 0, 0, 255));
-  ImGui::End();
-}
-
-void UIManager::generateDebugMap(Maze &maze) {
-  BeginTextureMode(m_debugMapTexture);
-  ClearBackground(BLANK);
-  for (int y = 0; y < maze.getHeight(); ++y) {
-    for (int x = 0; x < maze.getWidth(); ++x) {
-      if (maze.getCell(x, y) == Maze::CELL_WALL) {
-        DrawPixel(x, y, Color{100, 100, 100, 255});
-      } else {
-        if (m_showRadiationOnDebugMap && maze.getRadiationLevel(x, y) > 0) {
-          DrawPixel(x, y, Color{0, 255, 0, 255});
-        } else if (m_showGenerationZones && maze.isShiftingZone(x, y)) {
-          DrawPixel(x, y, Color{255, 100, 100, 255});
-        } else {
-          DrawPixel(x, y, Color{30, 30, 35, 255});
-        }
-      }
-    }
-  }
-
-  if (m_showRadiationOnDebugMap) {
-    for (int y = 0; y < maze.getHeight(); ++y) {
-      for (int x = 0; x < maze.getWidth(); ++x) {
-        if (maze.getItem(x, y) == ItemType::TOXIC_WASTE) {
-          DrawRectangle(x - 1, y - 1, 3, 3, BLUE);
-        }
-      }
-    }
-  }
-
-  if (maze.isMagicBookSpawned()) {
-    DrawRectangle(maze.getMagicBookX() - 1, maze.getMagicBookY() - 1, 3, 3, PURPLE);
-  }
-
-  EndTextureMode();
 }
 
 

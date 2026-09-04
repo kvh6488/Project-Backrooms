@@ -40,10 +40,18 @@ public:
   // Setup and input handling
   void update(float dt);
 
-  // Renders the popups, inventory, and ImGui debug overlay
-  // Requires references to current game state data
+  // Renders the shipping UI: popups, inventory, cupboards and map overlays.
+  // The debug panel is DebugOverlay's job and draws after this.
   void render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
               bool isDroppingItem, float totalTime);
+
+  // The scale UIManager lays its own widgets out with. DebugOverlay reuses it
+  // so the panel's text tracks the window size the same way the game UI does.
+  float getUIScale() const {
+    float sx = (float)GetScreenWidth() / m_screenWidth;
+    float sy = (float)GetScreenHeight() / m_screenHeight;
+    return sx < sy ? sx : sy;
+  }
 
   // Standardized popup system
   void showPopup(const std::string &text, PopupType type,
@@ -87,68 +95,16 @@ public:
   int getOpenedMapId() const { return m_openedMapId; }
   void markMapDrawn(int mapId, Maze& maze, int centerX, int centerY);
 
-  // --- Debug Flags (Used by PlayingState) ---
-  bool isFlashlightEnabled() const { return m_flashlightEnabled; }
-  bool showGenerationZones() const { return m_showGenerationZones; }
 
-  // Flashlight config
-  float getLightConeAngle() const { return m_lightConeAngle; }
-  float getLightFadeStrength() const { return m_lightFadeStrength; }
-  float getLightSizeScale() const { return m_lightSizeScale; }
-  bool hasLightSettingsChanged() const { return m_lightSettingsChanged; }
-  void clearLightSettingsChanged() { m_lightSettingsChanged = false; }
 
-  float getCameraZoom() const { return m_cameraZoom; }
-
-  bool triggerTicTacToeRegen() const { return m_triggerTicTacToeRegen; }
-  void clearTicTacToeRegen() { m_triggerTicTacToeRegen = false; }
-
-  // --- Magic Book Debug Controls ---
-  // Same mailbox convention as the regen trigger above: the UI only raises a
-  // request flag, PlayingState polls and clears it. The UI never touches the
-  // world itself.
-  bool triggerMagicBookSpawn() const { return m_triggerMagicBookSpawn; }
-  void clearMagicBookSpawn() { m_triggerMagicBookSpawn = false; }
-
-  // When pinned, PlayingState suppresses the trip-decay despawn so the book
-  // stays put for as long as it takes to inspect it.
-  bool isMagicBookPinned() const { return m_pinMagicBook; }
-
-  // --- Trip Debug Controls ---
-  // The magic book only exists at full trip strength, so inspecting it out of
-  // trip is meaningless: the shader, the darkness and the book must be seen
-  // together. These let PlayingState drive the trip on demand.
-  bool triggerForceTrip() const { return m_triggerForceTrip; }
-  void clearForceTrip() { m_triggerForceTrip = false; }
-  bool triggerEndTrip() const { return m_triggerEndTrip; }
-  void clearEndTrip() { m_triggerEndTrip = false; }
-
-  // Current world seed, shown in the debug panel for easy copying.
-  void setSeed(unsigned int seed) { m_seed = seed; }
-
-  // --- Magic Book Look Tuning ---
-  // 1.0 glues the book to the table's distorted position; 0.0 leaves it
-  // perfectly still while the scene swims around it.
-  float getBookTripFollow() const { return m_bookTripFollow; }
-  float getBookGlowScale() const { return m_bookGlowScale; }
-
-  // Last spawn outcome, surfaced in the debug panel. This is what separates
-  // "never spawned" from "spawned but not drawn".
-  void setMagicBookStatus(const std::string &status) {
-    m_magicBookStatus = status;
-  }
-
-  void markDebugMapDirty() { 
-    m_debugMapDirty = true;
-    m_magicBookMapDirty = true;
-  }
+  // The magic book's map is a cached texture of a fixed slice of the world,
+  // so any layout change invalidates it.
+  void markMagicBookMapDirty() { m_magicBookMapDirty = true; }
 
 private:
   void renderInventory(Player &player, Maze &maze, ItemRenderer &itemRenderer,
                        float scale, int screenW, int screenH);
   void renderPopups(float scale, int screenW, int screenH, float totalTime);
-  void renderDebugUI(Player &player, Maze &maze, float scale);
-  void generateDebugMap(Maze &maze);
   void generateMagicBookMap(Maze &maze);
 
   // Screen dimensions
@@ -178,36 +134,7 @@ private:
   bool m_showFullscreenMap = false;
   int m_openedMapId = 0;
 
-  // Debug Map
-  RenderTexture2D m_debugMapTexture;
-  bool m_debugMapDirty = true;
-  bool m_showRadiationOnDebugMap = true;
-
   // Magic Book Map
   RenderTexture2D m_magicBookMapTexture;
   bool m_magicBookMapDirty = true;
-
-  // Debug / Toggles
-  bool m_flashlightEnabled = true;
-  bool m_showGenerationZones = false;
-  bool m_triggerTicTacToeRegen = false;
-
-  // Magic book debug state
-  bool m_triggerMagicBookSpawn = false;
-  bool m_pinMagicBook = false;
-  bool m_triggerForceTrip = false;
-  bool m_triggerEndTrip = false;
-  float m_bookTripFollow = 0.8f;
-  float m_bookGlowScale = 1.0f;
-  unsigned int m_seed = 0;
-  std::string m_magicBookStatus = "(no attempt yet)";
-
-  // Flashlight Overlay Settings
-  float m_lightConeAngle = 235.0f;
-  float m_lightFadeStrength = 1.5f;
-  float m_lightSizeScale = 3.5f;
-  bool m_lightSettingsChanged = false;
-
-  // View Settings
-  float m_cameraZoom = 1.2f;
 };

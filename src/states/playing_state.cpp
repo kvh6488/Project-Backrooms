@@ -10,8 +10,9 @@
 #include <ctime>
 #include <iostream>
 
-PlayingState::PlayingState(UIManager &uiManager, unsigned int seed)
-    : m_uiManager(uiManager),
+PlayingState::PlayingState(UIManager &uiManager, DebugOverlay &debugOverlay,
+                           unsigned int seed)
+    : m_uiManager(uiManager), m_debugOverlay(debugOverlay),
       m_seed(seed != 0 ? seed : (unsigned int)std::time(nullptr)), m_rng(m_seed),
       m_maze(250, 150, 32, m_seed), m_player(Vector2{0, 0}, AreaState::ROOM),
       m_itemSpawner(m_rng), m_totalTime(0.0f) {}
@@ -27,7 +28,7 @@ void PlayingState::onEnter() {
   // 2. Generate Initial Maze
   debuglog::log("MAZE", "generating %dx%d world from seed %u",
                 m_maze.getWidth(), m_maze.getHeight(), m_seed);
-  m_uiManager.setSeed(m_seed);
+  m_debugOverlay.setSeed(m_seed);
 
   BSPGenerator bsp;
   bsp.generate(m_maze, m_rng);
@@ -45,7 +46,8 @@ void PlayingState::onEnter() {
   prims.pruneSmallAlcoves(m_maze, 5);
   m_itemSpawner.spawnInitialItems(m_maze);
 
-  m_uiManager.markDebugMapDirty();
+  m_debugOverlay.markMapDirty();
+  m_uiManager.markMagicBookMapDirty();
 
   // 3. Initialize Player Position
   Vector2 playerStartPos = {0.0f, 0.0f};
@@ -82,16 +84,16 @@ void PlayingState::update(float dt) {
     ToggleFullscreen();
   }
 
-  if (m_uiManager.triggerTicTacToeRegen()) {
+  if (m_debugOverlay.triggerTicTacToeRegen()) {
     regenerateTicTacToeZones();
-    m_uiManager.clearTicTacToeRegen();
+    m_debugOverlay.clearTicTacToeRegen();
   }
 
-  if (m_uiManager.hasLightSettingsChanged()) {
-    m_renderer.updateLightSettings(m_uiManager.getLightConeAngle(),
-                                   m_uiManager.getLightFadeStrength(),
-                                   m_uiManager.getLightSizeScale());
-    m_uiManager.clearLightSettingsChanged();
+  if (m_renderSettings.lightSettingsChanged) {
+    m_renderer.updateLightSettings(m_renderSettings.lightConeAngle,
+                                   m_renderSettings.lightFadeStrength,
+                                   m_renderSettings.lightSizeScale);
+    m_renderSettings.lightSettingsChanged = false;
   }
 
   handleInput();
@@ -171,7 +173,7 @@ void PlayingState::update(float dt) {
       std::min((float)GetScreenWidth() / 1280, (float)GetScreenHeight() / 720);
   m_camera.target = {std::round(m_player.getPosition().x),
                      std::round(m_player.getPosition().y)};
-  m_camera.zoom = m_uiManager.getCameraZoom() * scale;
+  m_camera.zoom = m_renderSettings.cameraZoom * scale;
   m_camera.offset =
       Vector2{(float)GetScreenWidth() / 2.0f, (float)GetScreenHeight() / 2.0f};
 
@@ -228,39 +230,40 @@ void PlayingState::update(float dt) {
   if (m_player.pollEventMushroomFullTripStarted()) {
     if (m_player.hasPickedUpMagicBook()) {
       debuglog::log("BOOK", "skipped - already picked up this run");
-      m_uiManager.setMagicBookStatus("skipped: book already picked up");
+      m_debugOverlay.setMagicBookStatus("skipped: book already picked up");
     } else if (GetRandomValue(0, 2) != 0) { // 33% chance
       debuglog::log("BOOK", "skipped - lost the 1-in-3 roll");
-      m_uiManager.setMagicBookStatus("skipped: lost the 1-in-3 roll");
+      m_debugOverlay.setMagicBookStatus("skipped: lost the 1-in-3 roll");
     } else {
       attemptMagicBookSpawn();
     }
   }
 
   // Debug: force a spawn from the ImGui panel, bypassing the whole ritual.
-  if (m_uiManager.triggerMagicBookSpawn()) {
-    m_uiManager.clearMagicBookSpawn();
+  if (m_debugOverlay.triggerMagicBookSpawn()) {
+    m_debugOverlay.clearMagicBookSpawn();
     attemptMagicBookSpawn();
   }
 
   // --- Debug trip controls ---
-  if (m_uiManager.triggerForceTrip()) {
-    m_uiManager.clearForceTrip();
+  if (m_debugOverlay.triggerForceTrip()) {
+    m_debugOverlay.clearForceTrip();
     m_player.debugForceTrip(60.0f);
     debuglog::log("TRIP", "forced full trip for 60s");
   }
-  if (m_uiManager.triggerEndTrip()) {
-    m_uiManager.clearEndTrip();
+  if (m_debugOverlay.triggerEndTrip()) {
+    m_debugOverlay.clearEndTrip();
     m_player.debugEndTrip();
     debuglog::log("TRIP", "trip ended by debug panel");
   }
 
-  if (m_maze.isMagicBookSpawned() && !m_uiManager.isMagicBookPinned() &&
+  if (m_maze.isMagicBookSpawned() && !m_debugOverlay.isMagicBookPinned() &&
       m_player.getMushroomEffectStrength() < 1.0f) {
     debuglog::log("BOOK", "despawned - trip strength fell below 1.0");
     m_maze.despawnMagicBook();
-    m_uiManager.setMagicBookStatus("despawned: trip strength fell below 1.0");
-    m_uiManager.markDebugMapDirty();
+    m_debugOverlay.setMagicBookStatus("despawned: trip strength fell below 1.0");
+    m_debugOverlay.markMapDirty();
+    m_uiManager.markMagicBookMapDirty();
   }
 
   if (m_player.pollEventMapCrafted()) {
@@ -477,7 +480,7 @@ Vector2 PlayingState::computeTripFollowOffset() const {
   float waveY = cosf(u * 12.0f + t * 2.0f) * 0.015f * strength +
                 cosf(v * 4.0f + t * 1.2f) * 0.02f * strength;
 
-  float follow = m_uiManager.getBookTripFollow();
+  float follow = m_debugOverlay.getBookTripFollow();
   float zoom = m_camera.zoom != 0.0f ? m_camera.zoom : 1.0f;
 
   // UV -> screen pixels -> world units (BeginMode2D scales by zoom).
@@ -502,18 +505,19 @@ void PlayingState::attemptMagicBookSpawn() {
   if (result == ItemSpawner::BookSpawnResult::SPAWNED) {
     debuglog::log("BOOK", "SPAWNED at (%d, %d), player at (%d, %d)",
                   m_maze.getMagicBookX(), m_maze.getMagicBookY(), gridX, gridY);
-    m_uiManager.setMagicBookStatus(
+    m_debugOverlay.setMagicBookStatus(
         TextFormat("SPAWNED at (%d, %d), player at (%d, %d)",
                    m_maze.getMagicBookX(), m_maze.getMagicBookY(), gridX,
                    gridY));
     // The debug map draws a purple marker at the book's cell - that marker is
     // the bisector: visible on the map but absent on screen means the bug is
     // in the renderer, not the spawner.
-    m_uiManager.markDebugMapDirty();
+    m_debugOverlay.markMapDirty();
+    m_uiManager.markMagicBookMapDirty();
   } else {
     debuglog::log("BOOK", "FAILED - no table within 20 tiles of (%d, %d)",
                   gridX, gridY);
-    m_uiManager.setMagicBookStatus(TextFormat(
+    m_debugOverlay.setMagicBookStatus(TextFormat(
         "FAILED: no table within 20 tiles of (%d, %d)", gridX, gridY));
   }
 }
@@ -525,7 +529,7 @@ void PlayingState::render() {
     m_screenTarget = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
   }
 
-  if (m_uiManager.isFlashlightEnabled()) {
+  if (m_renderSettings.flashlightEnabled) {
     m_renderer.buildLightMask(m_player.getPosition(), m_camera,
                               m_player.getAreaState(),
                               m_player.getFacingDirection());
@@ -536,12 +540,12 @@ void PlayingState::render() {
 
   BeginMode2D(m_camera);
   m_renderer.render(m_maze, m_camera, m_player.getAreaState(),
-                    m_uiManager.showGenerationZones());
+                    m_renderSettings.showGenerationZones);
   m_playerRenderer.render(m_player);
   m_itemRenderer.render(m_maze, m_camera, m_player.getAreaState());
   EndMode2D();
 
-  if (m_uiManager.isFlashlightEnabled() &&
+  if (m_renderSettings.flashlightEnabled &&
       m_player.getAreaState() == AreaState::CORRIDOR) {
     m_renderer.drawLightMask();
   }
@@ -580,7 +584,7 @@ void PlayingState::render() {
   m_itemRenderer.renderMagicBookOverlay(m_maze, m_camera,
                                         m_player.getAreaState(),
                                         computeTripFollowOffset(),
-                                        m_uiManager.getBookGlowScale());
+                                        m_debugOverlay.getBookGlowScale());
   EndMode2D();
 
   if (m_player.isPassingOut()) {
@@ -600,9 +604,12 @@ void PlayingState::render() {
                   Fade(BLACK, fadeAlpha));
   }
 
-  // Hand off UI rendering to UIManager
+  // Hand off UI rendering to UIManager, then the debug panel. ImGui must own
+  // the last draw of the frame, so the overlay goes after the game UI.
   m_uiManager.render(m_player, m_maze, m_itemRenderer, m_isDroppingItem,
                      m_totalTime);
+  m_debugOverlay.render(m_player, m_maze, m_renderSettings,
+                        m_uiManager.getUIScale());
 
   EndDrawing();
 }
@@ -658,5 +665,6 @@ void PlayingState::regenerateTicTacToeZones() {
   }
 
   m_maze.calculateRadiationZones();
-  m_uiManager.markDebugMapDirty();
+  m_debugOverlay.markMapDirty();
+  m_uiManager.markMagicBookMapDirty();
 }

@@ -1,5 +1,6 @@
 #include "core/application.hpp"
 #include "core/debug_seeds.hpp"
+#include "core/dev_mode.hpp"
 
 int main(int argc, char **argv) {
   // A seed fully determines the world, so resolving it here (rather than
@@ -8,7 +9,11 @@ int main(int argc, char **argv) {
   const char *note = nullptr;
   unsigned int seed = debugseeds::resolveFromArgs(argc, argv, &note);
 
-  Application app(seed, note);
+  // Without --dev the debug overlay is unreachable, so the game plays exactly
+  // as a player would meet it. See core/dev_mode.hpp.
+  bool devMode = devmode::enabledFromArgs(argc, argv);
+
+  Application app(seed, note, devMode);
   app.run();
   return 0;
 }

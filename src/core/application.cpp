@@ -6,8 +6,9 @@
 #include "states/playing_state.hpp"
 
 
-Application::Application(unsigned int seed, const char *seedNote)
-    : m_seed(seed), m_uiManager(m_screenWidth, m_screenHeight) {
+Application::Application(unsigned int seed, const char *seedNote, bool devMode)
+    : m_seed(seed), m_uiManager(m_screenWidth, m_screenHeight),
+      m_debugOverlay(devMode) {
   // 0. Logging first, so everything below is readable.
   debuglog::enableAnsiColors();
   // Raylib's own chatter is also tagged "[INFO]", which drowns our messages.
@@ -17,6 +18,9 @@ Application::Application(unsigned int seed, const char *seedNote)
   debuglog::log("SEED", "%u  (%s)", seed,
                 seedNote ? seedNote : "unspecified");
   debuglog::log("SEED", "reproduce with:  Backrooms.exe --seed %u", seed);
+  if (devMode) {
+    debuglog::log("DEV", "debug tools armed  (F1 toggles the panel)");
+  }
 
   // 1. Initialize Raylib System
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -40,7 +44,8 @@ Application::Application(unsigned int seed, const char *seedNote)
   CraftingSystem::init();
 
   // 3. Set Initial State
-  m_currentState = std::make_unique<PlayingState>(m_uiManager, m_seed);
+  m_currentState =
+      std::make_unique<PlayingState>(m_uiManager, m_debugOverlay, m_seed);
   m_currentState->onEnter();
 }
 
@@ -54,6 +59,10 @@ Application::~Application() {
 
 void Application::run() {
   while (!WindowShouldClose()) {
+    if (IsKeyPressed(KEY_F1)) {
+      m_debugOverlay.toggle();
+    }
+
     if (m_currentState) {
       m_currentState->update(GetFrameTime());
       m_currentState->render();

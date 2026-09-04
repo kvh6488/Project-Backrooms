@@ -65,6 +65,7 @@ add_executable(Backrooms
     src/items/item_renderer.cpp
     src/states/playing_state.cpp
     src/core/ui_manager.cpp
+    src/core/debug_overlay.cpp
     src/items/item_database.cpp
     src/items/crafting_system.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
@@ -121,6 +122,7 @@ add_executable(BackroomsTests
     src/items/item_renderer.cpp
     src/states/playing_state.cpp
     src/core/ui_manager.cpp
+    src/core/debug_overlay.cpp
     src/items/item_database.cpp
     src/items/crafting_system.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp

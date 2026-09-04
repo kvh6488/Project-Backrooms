@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/debug_overlay.hpp"
 #include "core/ui_manager.hpp"
 #include "states/game_state.hpp"
 #include <memory>
@@ -10,7 +11,10 @@ class Application {
 public:
   // seed fully determines world generation; seedNote is a human-readable
   // description of where that seed came from, purely for the startup log.
-  explicit Application(unsigned int seed, const char *seedNote = nullptr);
+  // devMode arms the debug overlay; without it F1 does nothing and the panel
+  // never appears. See core/dev_mode.hpp.
+  explicit Application(unsigned int seed, const char *seedNote = nullptr,
+                       bool devMode = false);
   ~Application();
 
   // Starts the main game loop
@@ -24,5 +28,8 @@ private:
   unsigned int m_seed;
 
   UIManager m_uiManager;
+  // Owned here rather than by a state so the panel survives future state
+  // switches (menu, death screen) and F1 keeps working across them.
+  DebugOverlay m_debugOverlay;
   std::unique_ptr<GameState> m_currentState;
 };

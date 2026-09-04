@@ -99,7 +99,7 @@ Data and presentation are strictly separated: `MazeRenderer` (terrain), `PlayerR
 2. Scene into `m_screenTarget`: maze → **player → items**. Items draw after the player deliberately, so tall furniture occludes the sprite.
 3. `drawLightMask()` (corridors only), then the radiation darkness rectangle, still inside the render texture.
 4. `EndTextureMode`, then blit `m_screenTarget` to the screen, wrapped in `m_tripShader` when `Player::getMushroomEffectStrength() > 0`.
-5. The magic-book overlay and all `UIManager` output draw *after* `EndShaderMode` — they are intentionally exempt from the trip distortion.
+5. The magic-book overlay and all `UIManager` output draw *after* `EndShaderMode` — they are intentionally exempt from the trip distortion. `DebugOverlay::render` goes last of all, because ImGui must own the final draw of the frame.
 
 `m_screenTarget` is reallocated whenever the window size changes; anything else caching screen-sized textures needs the same check.
 
@@ -115,15 +115,21 @@ Both need `ItemDatabase::init()` and `CraftingSystem::init()` before use; these 
 
 `Player` never touches the UI. It sets one-shot boolean flags which `PlayingState` drains each frame via the `pollEventX()` methods (`pollEventMushroomConsumed`, `pollEventMapCrafted`, …) — each poll returns the flag and clears it — and translates them into `UIManager::showPopup(text, PopupType, duration)` calls.
 
-`UIManager` is a state holder and mailbox, not a caller: it owns inventory/cupboard/map-overlay open state, the popup queue, ImGui debug toggles and flashlight sliders. `PlayingState` reads and clears its request flags (`triggerTicTacToeRegen` / `clearTicTacToeRegen`, `hasLightSettingsChanged` / `clearLightSettingsChanged`). Keep that direction — the UI does not mutate the world directly.
+`UIManager` is a state holder and mailbox, not a caller: it owns inventory/cupboard/map-overlay open state and the popup queue. Keep that direction — the UI does not mutate the world directly.
 
-Cached UI render textures (`m_debugMapTexture`, `m_magicBookMapTexture`, per-instance drawn maps) are regenerated only when marked dirty. Any code that changes maze layout must call `UIManager::markDebugMapDirty()`.
+`DebugOverlay` (`src/core/debug_overlay.hpp`) is the development panel, split out of `UIManager` and owned by `Application` so it survives future state switches. It is a *view*: presentation values the game needs regardless (torch on/off, camera zoom, the three light-cone numbers, show-zones) live in `RenderSettings`, which `PlayingState` owns and the overlay edits by reference; only debug-only state (the god-view minimap texture, magic-book and trip forcing, status strings) belongs to the overlay. It uses the same mailbox convention — `PlayingState` reads and clears `triggerTicTacToeRegen`, `triggerMagicBookSpawn`, `triggerForceTrip`, `triggerEndTrip`. Debug buttons must call the same public entry points the real systems will use, so they keep exercising the shipping path.
+
+Gating is runtime only: `Backrooms.exe --dev` arms the panel (`src/core/dev_mode.hpp`) and `F1` shows/hides it. The code still ships inside the binary — a release build should add a compile-time flag around `debug_overlay.cpp` as well.
+
+Cached render textures (`DebugOverlay::m_mapTexture`, `UIManager::m_magicBookMapTexture`, per-instance drawn maps) are regenerated only when marked dirty. Any code that changes maze layout must call **both** `DebugOverlay::markMapDirty()` and `UIManager::markMagicBookMapDirty()`.
 
 ### Input
 
 All keybindings are read directly with Raylib polling — there is no input abstraction. Movement and door/pickup keys are in `Player::update`; everything else is in `PlayingState::handleInput`.
 
-WASD/arrows move · `K`/`L` door 1 / door 2 · `P` pick up · `I` inventory · `O` open focused cupboard · `U` use/consume (or close fullscreen map) · `Q` enter placement mode, then left-click a visible floor tile · `1`–`5` hotbar · `F11` fullscreen.
+WASD/arrows move · `K`/`L` door 1 / door 2 · `P` pick up · `I` inventory · `O` open focused cupboard · `U` use/consume (or close fullscreen map) · `Q` enter placement mode, then left-click a visible floor tile · `1`–`5` hotbar · `F11` fullscreen · `F1` debug panel (only with `--dev`).
+
+Command line: `--seed <name|number>` pins the world (`src/core/debug_seeds.hpp`), `--dev` arms the debug panel.
 
 ## Tests
 
