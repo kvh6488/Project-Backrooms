@@ -61,6 +61,13 @@ public:
   std::array<InventorySlot, 20>& getInventoryRef() { return m_inventory; }
   float getMushroomEffectStrength() const;
 
+  // --- Debug Overrides ---
+  // Drive the trip state machine directly so the visual effects that only
+  // exist at full trip strength (the shader, the magic book) can be inspected
+  // without eating mushrooms and waiting out the 40s kick-in timer.
+  void debugForceTrip(float seconds);
+  void debugEndTrip();
+
   // --- Crafting System ---
   bool hasUnlockedRecipe(ItemType type) const;
   void unlockRecipe(ItemType type);

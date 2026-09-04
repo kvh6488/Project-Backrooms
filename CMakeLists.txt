@@ -107,6 +107,7 @@ enable_testing()
 # Notice we do NOT include main.cpp here, because gtest_main provides its own main()!
 add_executable(BackroomsTests
     tests/test_maze.cpp
+    tests/test_magic_book.cpp
     src/world/maze.cpp
     src/world/maze_renderer.cpp
     src/world/generators/bsp_generator.cpp

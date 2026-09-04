@@ -15,7 +15,8 @@
 // The PlayingState represents the core gameplay loop (exploring the maze).
 class PlayingState : public GameState {
 public:
-  PlayingState(UIManager &uiManager);
+  // seed of 0 means "pick one from the clock".
+  explicit PlayingState(UIManager &uiManager, unsigned int seed = 0);
   ~PlayingState() override;
 
   void onEnter() override;
@@ -57,8 +58,16 @@ private:
   float m_radiationDarknessAlpha = 0.0f;
   float m_radiationNextFlickerTime = 4.0f;
 
+  // Attempts a magic book spawn at the player's current tile and records the
+  // outcome in the UI. Shared by the mushroom-trip path and the debug button.
+  void attemptMagicBookSpawn();
+
+  // Apparent world-space shift the trip shader gives the scene at the magic
+  // book's position this frame. See the implementation for the derivation.
+  Vector2 computeTripFollowOffset() const;
+
   // --- State flags for Popups ---
   bool m_hasSeenCorridorPopup = false;
-  bool m_hasSeenRadiationPopup = false;
+  bool m_inRadiationZone = false;
   bool m_isDroppingItem = false;
 };

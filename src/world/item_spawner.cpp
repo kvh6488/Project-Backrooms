@@ -203,7 +203,7 @@ void ItemSpawner::spawnMushrooms(Maze &maze, ItemType type, int target,
             maze.getItem(x, y) == ItemType::NONE && isValidRad &&
             isRoomCorner(maze, x, y) && !isNearCorridor(maze, x, y)) {
 
-          if (chance(m_rng) < 0.3f) {
+          if (chance(m_rng) < 0.03f) {
             totalPlaced += spawnMushroomClump(maze, x, y, type);
           }
         }
@@ -498,7 +498,8 @@ void ItemSpawner::spawnTables(Maze &maze, int target, int boundsX, int boundsY,
 // ============================================================================
 // spawnMagicBookOfMaps — Place the magic book on the closest table
 // ============================================================================
-void ItemSpawner::spawnMagicBookOfMaps(Maze &maze, int originX, int originY) {
+ItemSpawner::BookSpawnResult
+ItemSpawner::spawnMagicBookOfMaps(Maze &maze, int originX, int originY) {
   std::vector<std::pair<int, int>> validTables;
 
   for (int y = 0; y < maze.getHeight(); ++y) {
@@ -519,11 +520,14 @@ void ItemSpawner::spawnMagicBookOfMaps(Maze &maze, int originX, int originY) {
     }
   }
 
-  if (!validTables.empty()) {
-    std::uniform_int_distribution<int> dist(0, validTables.size() - 1);
-    auto [bestX, bestY] = validTables[dist(m_rng)];
-    maze.spawnMagicBook(bestX, bestY);
+  if (validTables.empty()) {
+    return BookSpawnResult::NO_TABLE_IN_RANGE;
   }
+
+  std::uniform_int_distribution<int> pick(0, (int)validTables.size() - 1);
+  auto [bestX, bestY] = validTables[pick(m_rng)];
+  maze.spawnMagicBook(bestX, bestY);
+  return BookSpawnResult::SPAWNED;
 }
 
 // ============================================================================

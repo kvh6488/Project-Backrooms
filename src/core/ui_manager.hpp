@@ -103,6 +103,41 @@ public:
   bool triggerTicTacToeRegen() const { return m_triggerTicTacToeRegen; }
   void clearTicTacToeRegen() { m_triggerTicTacToeRegen = false; }
 
+  // --- Magic Book Debug Controls ---
+  // Same mailbox convention as the regen trigger above: the UI only raises a
+  // request flag, PlayingState polls and clears it. The UI never touches the
+  // world itself.
+  bool triggerMagicBookSpawn() const { return m_triggerMagicBookSpawn; }
+  void clearMagicBookSpawn() { m_triggerMagicBookSpawn = false; }
+
+  // When pinned, PlayingState suppresses the trip-decay despawn so the book
+  // stays put for as long as it takes to inspect it.
+  bool isMagicBookPinned() const { return m_pinMagicBook; }
+
+  // --- Trip Debug Controls ---
+  // The magic book only exists at full trip strength, so inspecting it out of
+  // trip is meaningless: the shader, the darkness and the book must be seen
+  // together. These let PlayingState drive the trip on demand.
+  bool triggerForceTrip() const { return m_triggerForceTrip; }
+  void clearForceTrip() { m_triggerForceTrip = false; }
+  bool triggerEndTrip() const { return m_triggerEndTrip; }
+  void clearEndTrip() { m_triggerEndTrip = false; }
+
+  // Current world seed, shown in the debug panel for easy copying.
+  void setSeed(unsigned int seed) { m_seed = seed; }
+
+  // --- Magic Book Look Tuning ---
+  // 1.0 glues the book to the table's distorted position; 0.0 leaves it
+  // perfectly still while the scene swims around it.
+  float getBookTripFollow() const { return m_bookTripFollow; }
+  float getBookGlowScale() const { return m_bookGlowScale; }
+
+  // Last spawn outcome, surfaced in the debug panel. This is what separates
+  // "never spawned" from "spawned but not drawn".
+  void setMagicBookStatus(const std::string &status) {
+    m_magicBookStatus = status;
+  }
+
   void markDebugMapDirty() { 
     m_debugMapDirty = true;
     m_magicBookMapDirty = true;
@@ -156,6 +191,16 @@ private:
   bool m_flashlightEnabled = true;
   bool m_showGenerationZones = false;
   bool m_triggerTicTacToeRegen = false;
+
+  // Magic book debug state
+  bool m_triggerMagicBookSpawn = false;
+  bool m_pinMagicBook = false;
+  bool m_triggerForceTrip = false;
+  bool m_triggerEndTrip = false;
+  float m_bookTripFollow = 0.8f;
+  float m_bookGlowScale = 1.0f;
+  unsigned int m_seed = 0;
+  std::string m_magicBookStatus = "(no attempt yet)";
 
   // Flashlight Overlay Settings
   float m_lightConeAngle = 235.0f;

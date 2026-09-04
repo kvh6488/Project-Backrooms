@@ -533,6 +533,31 @@ void Player::swapSlots(int slotIndex1, int slotIndex2) {
   }
 }
 
+// ============================================================================
+// debugForceTrip / debugEndTrip - Developer overrides for the trip state
+// ============================================================================
+// Jumps straight to the "full trip" branch of getMushroomEffectStrength() by
+// clearing the pending kick-in timers and setting the duration directly.
+// Raising m_eventMushroomFullTripStarted means the real downstream chain still
+// fires (including the 1-in-3 magic book roll), so this exercises the genuine
+// code path rather than a parallel one.
+// ============================================================================
+void Player::debugForceTrip(float seconds) {
+  m_kickInTimers.clear();
+  m_isPassingOut = false;
+  m_passOutTimer = 0.0f;
+  m_isFadingIn = false;
+  m_tripDurationRemaining = seconds;
+  m_eventMushroomFullTripStarted = true;
+}
+
+void Player::debugEndTrip() {
+  m_kickInTimers.clear();
+  m_tripDurationRemaining = 0.0f;
+  m_isPassingOut = false;
+  m_passOutTimer = 0.0f;
+}
+
 float Player::getMushroomEffectStrength() const {
   if (m_isPassingOut) {
     if (m_passOutTimer > 5.0f)

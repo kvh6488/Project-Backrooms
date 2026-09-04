@@ -650,6 +650,45 @@ void UIManager::renderDebugUI(Player &player, Maze &maze, float scale) {
     m_triggerTicTacToeRegen = true;
   }
 
+  // --- Magic Book of Maps ---
+  // These controls exist to decouple the book from its acquisition ritual
+  // (mushroom -> full trip -> 33% roll -> nearby table -> reach it before the
+  // trip decays). Testing the renderer should not require winning that lottery.
+  ImGui::Separator();
+  ImGui::Text("World Seed: %u", m_seed);
+  ImGui::TextWrapped("Relaunch with:  Backrooms.exe --seed %u", m_seed);
+
+  // --- Mushroom Trip ---
+  // Forcing the trip is what makes book inspection meaningful: the book is a
+  // hallucination and must be judged against the distorted, darkened scene it
+  // appears in, not against a sober one.
+  ImGui::Separator();
+  ImGui::Text("Mushroom Trip");
+  ImGui::Text("Effect strength: %.2f", player.getMushroomEffectStrength());
+  if (ImGui::Button("Force Full Trip (60s)")) {
+    m_triggerForceTrip = true;
+  }
+  ImGui::SameLine();
+  if (ImGui::Button("End Trip")) {
+    m_triggerEndTrip = true;
+  }
+
+  ImGui::Separator();
+  ImGui::Text("Magic Book of Maps");
+  if (ImGui::Button("Force Spawn Magic Book")) {
+    m_triggerMagicBookSpawn = true;
+  }
+  ImGui::Checkbox("Pin Book (ignore trip decay)", &m_pinMagicBook);
+  ImGui::SliderFloat("Trip Follow", &m_bookTripFollow, 0.0f, 1.0f);
+  ImGui::SliderFloat("Glow Radius", &m_bookGlowScale, 0.3f, 2.5f);
+  if (maze.isMagicBookSpawned()) {
+    ImGui::Text("State: spawned at (%d, %d)", maze.getMagicBookX(),
+                maze.getMagicBookY());
+  } else {
+    ImGui::Text("State: not spawned");
+  }
+  ImGui::TextWrapped("Last: %s", m_magicBookStatus.c_str());
+
   ImGui::Separator();
   ImGui::Text("Flashlight Tweaks");
   if (ImGui::SliderFloat("Degree Cut", &m_lightConeAngle, 90.0f, 360.0f))

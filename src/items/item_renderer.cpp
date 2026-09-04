@@ -234,119 +234,14 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
         break;
       }
       case ItemType::TABLE: {
-        int state = maze.getItemState(x, y);
-        // We only draw on the "root" tiles (1 for horizontal right, 3 for
-        // vertical bottom)
-        if (state == 0 || state == 2) {
-          break;
+        TableSprite table = computeTableSprite(maze, x, y);
+        if (!table.valid) {
+          break; // Non-root tile (state 0 / 2) - the root draws the whole sprite
         }
-
-        bool isGrey = false;
-        unsigned int hash = (unsigned int)(x * 73856093 ^ y * 19349663);
-        if (hash % 2 == 0) {
-          isGrey = true;
-        }
-
-        Rectangle tableSrc = {0};
-        float tableW = 0, tableH = 0;
-
-        if (state == 1) { // Horizontal Right
-          if (isGrey) {
-            tableSrc = {352.0f, 19.0f, 63.0f, 45.0f};
-            tableW = 63.0f;
-            tableH = 45.0f;
-          } else {
-            tableSrc = {353.0f, 406.0f, 61.0f, 41.0f};
-            tableW = 61.0f;
-            tableH = 41.0f;
-          }
-        } else if (state == 3) { // Vertical Bottom
-          if (isGrey) {
-            tableSrc = {416.0f, 0.0f, 31.0f, 64.0f};
-            tableW = 31.0f;
-            tableH = 64.0f;
-          } else {
-            tableSrc = {321.0f, 385.0f, 29.0f, 62.0f};
-            tableW = 29.0f;
-            tableH = 62.0f;
-          }
-        }
-
-        Rectangle destRectTable = {0};
-        if (state == 1) {
-          // Scale to fit width = 2 * cellSize
-          float scale = (cellSize * 2.0f) / tableW;
-          float drawW = tableW * scale;
-          float drawH = tableH * scale;
-          // Anchor bottom of the cell, centered over x and x-1
-          destRectTable = {(float)(x * cellSize) - (drawW / 2.0f),
-                           (float)(y * cellSize) + cellSize - drawH, drawW,
-                           drawH};
-        } else if (state == 3) {
-          // Scale to fit width = 1 * cellSize
-          float scale = (float)cellSize / tableW;
-          float drawW = tableW * scale;
-          float drawH = tableH * scale;
-          // Anchor bottom of the cell, centered horizontally
-          destRectTable = {
-              (float)(x * cellSize) + (cellSize / 2.0f) - (drawW / 2.0f),
-              (float)(y * cellSize) + cellSize - drawH, drawW, drawH};
-        }
-
-        DrawTexturePro(m_postApocWorkshopTextures, tableSrc, destRectTable,
+        DrawTexturePro(m_postApocWorkshopTextures, table.src, table.dest,
                        {0, 0}, 0.0f, WHITE);
-
-        // --- Render Magic Book of Maps Overlay ---
-        if (maze.isMagicBookSpawned() && maze.getMagicBookX() == x &&
-            maze.getMagicBookY() == y) {
-          Rectangle bookSrc = {48.0f, 97.0f, 16.0f, 16.0f};
-          float bookW = 16.0f;
-          float bookH = 16.0f;
-
-          float centerX, centerY;
-          if (state == 1) { // Horizontal Right
-            centerX = destRectTable.x + (destRectTable.width / 2.0f);
-            centerY = destRectTable.y + (destRectTable.height / 2.0f) - 8.0f;
-          } else { // Vertical Bottom
-            centerX = destRectTable.x + (destRectTable.width / 2.0f);
-            centerY = destRectTable.y + (destRectTable.height / 2.0f) - 8.0f;
-          }
-
-          // Adjust scale to match table's pixel-art feel
-          float bookScale =
-              (cellSize / 32.0f) * 1.5f; // Slight enlargement for visibility
-          float drawBookW = bookW * bookScale;
-          float drawBookH = bookH * bookScale;
-
-          Rectangle destRectBook = {centerX, centerY, drawBookW, drawBookH};
-          Vector2 origin = {drawBookW / 2.0f, drawBookH / 2.0f};
-
-          // --- Glow Effect ---
-          float t = (float)GetTime();
-          float pulse = (sinf(t * 5.0f) + 1.0f) * 0.5f; // Oscillates 0.0 to 1.0
-          
-          BeginBlendMode(BLEND_ADDITIVE);
-          
-          // Inner glow
-          float glowScale1 = bookScale * (1.05f + 0.05f * pulse);
-          Color glowColor1 = {255, 105, 180, (unsigned char)(120 + 80 * pulse)}; // Hot pink/red
-          Rectangle destGlow1 = {centerX, centerY, bookW * glowScale1, bookH * glowScale1};
-          Vector2 originGlow1 = {destGlow1.width / 2.0f, destGlow1.height / 2.0f};
-          DrawTexturePro(m_ritualTexture, bookSrc, destGlow1, originGlow1, 0.0f, glowColor1);
-          
-          // Outer glow
-          float glowScale2 = bookScale * (1.2f + 0.1f * pulse);
-          Color glowColor2 = {255, 50, 100, (unsigned char)(60 + 40 * pulse)}; // Deeper red/pink
-          Rectangle destGlow2 = {centerX, centerY, bookW * glowScale2, bookH * glowScale2};
-          Vector2 originGlow2 = {destGlow2.width / 2.0f, destGlow2.height / 2.0f};
-          DrawTexturePro(m_ritualTexture, bookSrc, destGlow2, originGlow2, 0.0f, glowColor2);
-          
-          EndBlendMode();
-
-          // Normal solid book on top
-          DrawTexturePro(m_ritualTexture, bookSrc, destRectBook, origin, 0.0f,
-                         WHITE);
-        }
+        // NOTE: the magic book is deliberately NOT drawn here - see
+        // renderMagicBookOverlay(), which runs in a later, shader-exempt pass.
         break;
       }
       case ItemType::NONE:
@@ -355,6 +250,168 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
       }
     }
   }
+}
+
+// ============================================================================
+// computeTableSprite - Resolve a table root tile to its atlas + world rect
+// ============================================================================
+// The grey/non-grey variant is picked by a spatial hash of the coordinates:
+// a deterministic, storage-free way to give each tile a stable pseudo-random
+// look. The same (x, y) always hashes to the same variant, so the table does
+// not flicker between frames and nothing needs to be persisted in the maze.
+// The two variants have DIFFERENT pixel dimensions, which is exactly why this
+// must be computed in one place only.
+// ============================================================================
+ItemRenderer::TableSprite
+ItemRenderer::computeTableSprite(const Maze &maze, int x, int y) const {
+  TableSprite out = {};
+  out.valid = false;
+
+  int state = maze.getItemState(x, y);
+  // Only the "root" tiles draw (1 = horizontal right, 3 = vertical bottom).
+  if (state != 1 && state != 3) {
+    return out;
+  }
+
+  bool isGrey = ((unsigned int)(x * 73856093 ^ y * 19349663) % 2 == 0);
+
+  float tableW = 0.0f, tableH = 0.0f;
+  if (state == 1) { // Horizontal Right
+    if (isGrey) {
+      out.src = {352.0f, 19.0f, 63.0f, 45.0f};
+      tableW = 63.0f;
+      tableH = 45.0f;
+    } else {
+      out.src = {353.0f, 406.0f, 61.0f, 41.0f};
+      tableW = 61.0f;
+      tableH = 41.0f;
+    }
+  } else { // state == 3, Vertical Bottom
+    if (isGrey) {
+      out.src = {416.0f, 0.0f, 31.0f, 64.0f};
+      tableW = 31.0f;
+      tableH = 64.0f;
+    } else {
+      out.src = {321.0f, 385.0f, 29.0f, 62.0f};
+      tableW = 29.0f;
+      tableH = 62.0f;
+    }
+  }
+
+  int cellSize = maze.getCellSize();
+  if (state == 1) {
+    // Scale to fit width = 2 * cellSize, anchored to the bottom of the cell
+    // and centered across x and x-1.
+    float scale = (cellSize * 2.0f) / tableW;
+    float drawW = tableW * scale;
+    float drawH = tableH * scale;
+    out.dest = {(float)(x * cellSize) - (drawW / 2.0f),
+                (float)(y * cellSize) + cellSize - drawH, drawW, drawH};
+  } else {
+    // Scale to fit width = 1 * cellSize, anchored bottom, centered
+    // horizontally.
+    float scale = (float)cellSize / tableW;
+    float drawW = tableW * scale;
+    float drawH = tableH * scale;
+    out.dest = {(float)(x * cellSize) + (cellSize / 2.0f) - (drawW / 2.0f),
+                (float)(y * cellSize) + cellSize - drawH, drawW, drawH};
+  }
+
+  out.valid = true;
+  return out;
+}
+
+// ============================================================================
+// renderMagicBookOverlay - Shader-exempt pass for the magic book
+// ============================================================================
+// Runs AFTER EndShaderMode() so the book does not warp with the trip shader.
+// Because it is outside render()'s per-cell scan, it must re-derive the two
+// things that loop provided for free: the visibility rule and the frustum
+// cull. Table geometry comes from computeTableSprite() so it cannot drift.
+// ============================================================================
+void ItemRenderer::renderMagicBookOverlay(const Maze &maze,
+                                          const Camera2D &camera,
+                                          AreaState state, Vector2 tripOffset,
+                                          float glowScale) const {
+  if (!maze.isMagicBookSpawned()) {
+    return;
+  }
+
+  int x = maze.getMagicBookX();
+  int y = maze.getMagicBookY();
+
+  // --- Visibility (mirrors the rules in render()) ---
+  if (state == AreaState::ROOM && !maze.isVisible(x, y)) {
+    return;
+  }
+  if (state == AreaState::CORRIDOR && maze.getCell(x, y) == Maze::CELL_ROOM) {
+    return;
+  }
+
+  // --- Frustum culling (same approach as render() / MazeRenderer) ---
+  int cellSize = maze.getCellSize();
+  Vector2 topLeft = GetScreenToWorld2D({0.0f, 0.0f}, camera);
+  Vector2 bottomRight = GetScreenToWorld2D(
+      {(float)GetScreenWidth(), (float)GetScreenHeight()}, camera);
+
+  float pixelX = (float)(x * cellSize);
+  float pixelY = (float)(y * cellSize);
+  if (pixelX + cellSize < topLeft.x || pixelX > bottomRight.x ||
+      pixelY + cellSize < topLeft.y || pixelY > bottomRight.y) {
+    return; // Off screen
+  }
+
+  TableSprite table = computeTableSprite(maze, x, y);
+  if (!table.valid) {
+    return; // The book is only ever placed on a table root tile.
+  }
+
+  Rectangle bookSrc = {48.0f, 97.0f, 16.0f, 16.0f};
+  const float bookW = 16.0f;
+  const float bookH = 16.0f;
+
+  // Sit the book on the table surface rather than its bounding-box center,
+  // then ride along with whatever apparent motion the trip shader is giving
+  // the table this frame.
+  float centerX = table.dest.x + (table.dest.width / 2.0f) + tripOffset.x;
+  float centerY = table.dest.y + (table.dest.height / 2.0f) - 8.0f +
+                  tripOffset.y;
+
+  float bookScale = (cellSize / 32.0f) * 1.5f;
+  float drawBookW = bookW * bookScale;
+  float drawBookH = bookH * bookScale;
+
+  // --- Pulsing glow ---
+  // Map sin from [-1, 1] into [0, 1] so it can drive a lerp directly. Driving
+  // it off wall-clock time (not accumulated delta) keeps it frame-rate
+  // independent.
+  float pulse = (sinf((float)GetTime() * 5.0f) + 1.0f) * 0.5f;
+
+  BeginBlendMode(BLEND_ADDITIVE);
+
+  // Soft radial halo. A scaled copy of the SPRITE would inherit the book's
+  // silhouette and its hard pixel-art edges; real light scatter is radially
+  // symmetric with a smooth falloff, so a gradient reads far better and costs
+  // one draw call instead of two.
+  float haloRadius = drawBookW * (0.95f + 0.15f * pulse) * glowScale;
+  Color haloInner = {255, 80, 140, (unsigned char)(70 + 55 * pulse)};
+  Color haloOuter = {255, 40, 90, 0};
+  DrawCircleGradient((int)centerX, (int)centerY, haloRadius, haloInner,
+                     haloOuter);
+
+  // One tight sprite-shaped rim so the book's outline still reads as lit.
+  float rimScale = bookScale * (1.04f + 0.03f * pulse);
+  Rectangle destRim = {centerX, centerY, bookW * rimScale, bookH * rimScale};
+  Vector2 originRim = {destRim.width / 2.0f, destRim.height / 2.0f};
+  Color rimColor = {255, 105, 180, (unsigned char)(110 + 70 * pulse)};
+  DrawTexturePro(m_ritualTexture, bookSrc, destRim, originRim, 0.0f, rimColor);
+
+  EndBlendMode();
+
+  // --- The book itself ---
+  Rectangle destRectBook = {centerX, centerY, drawBookW, drawBookH};
+  Vector2 origin = {drawBookW / 2.0f, drawBookH / 2.0f};
+  DrawTexturePro(m_ritualTexture, bookSrc, destRectBook, origin, 0.0f, WHITE);
 }
 
 void ItemRenderer::renderItemUI(ItemType type, Rectangle destRect,

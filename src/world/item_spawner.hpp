@@ -39,9 +39,19 @@ public:
   void respawnItems(Maze &maze, const std::map<ItemType, int> &itemsToSpawn,
                     int zoneX, int zoneY, int zoneW, int zoneH);
 
+  // Outcome of a magic book spawn attempt.
+  //
+  // Returning a reason instead of void matters for debuggability: a silent
+  // no-op is indistinguishable from a rendering failure, which makes the two
+  // failure modes impossible to bisect from the screen alone.
+  enum class BookSpawnResult {
+    SPAWNED,           // Placed on a table successfully.
+    NO_TABLE_IN_RANGE  // No root table tile within the search radius.
+  };
+
   // Spawns the magic book of maps on a random table within a 20 tile radius of
-  // origin.
-  void spawnMagicBookOfMaps(Maze &maze, int originX, int originY);
+  // origin. O(w*h) — it scans the whole grid to build the candidate list.
+  BookSpawnResult spawnMagicBookOfMaps(Maze &maze, int originX, int originY);
 
 private:
   std::mt19937 &m_rng;

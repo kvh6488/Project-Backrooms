@@ -6,12 +6,13 @@
 #include "world/generators/tunnel_borer.hpp"
 #include <algorithm>
 #include <cmath>
+#include "core/debug_log.hpp"
 #include <ctime>
 #include <iostream>
 
-
-PlayingState::PlayingState(UIManager &uiManager)
-    : m_uiManager(uiManager), m_seed(1783608201), m_rng(m_seed),
+PlayingState::PlayingState(UIManager &uiManager, unsigned int seed)
+    : m_uiManager(uiManager),
+      m_seed(seed != 0 ? seed : (unsigned int)std::time(nullptr)), m_rng(m_seed),
       m_maze(250, 150, 32, m_seed), m_player(Vector2{0, 0}, AreaState::ROOM),
       m_itemSpawner(m_rng), m_totalTime(0.0f) {}
 
@@ -24,7 +25,9 @@ void PlayingState::onEnter() {
   m_playerRenderer.loadTextures();
 
   // 2. Generate Initial Maze
-  std::cout << "[INFO] Initializing Maze with seed: " << m_seed << std::endl;
+  debuglog::log("MAZE", "generating %dx%d world from seed %u",
+                m_maze.getWidth(), m_maze.getHeight(), m_seed);
+  m_uiManager.setSeed(m_seed);
 
   BSPGenerator bsp;
   bsp.generate(m_maze, m_rng);
@@ -180,10 +183,13 @@ void PlayingState::update(float dt) {
                           PopupType::BOXED_BOTTOM, 4.0f);
   }
 
-  if (m_maze.getRadiationLevel(playerGridX, playerGridY) > 0 &&
-      !m_hasSeenRadiationPopup) {
-    m_hasSeenRadiationPopup = true;
+  bool currentlyInRadiation =
+      m_maze.getRadiationLevel(playerGridX, playerGridY) > 0;
+  if (currentlyInRadiation && !m_inRadiationZone) {
+    m_inRadiationZone = true;
     m_uiManager.showPopup("Radiation!", PopupType::HEADER_GREEN, 3.0f);
+  } else if (!currentlyInRadiation && m_inRadiationZone) {
+    m_inRadiationZone = false;
   }
 
   // --- Radiation Flicker Logic ---
@@ -220,22 +226,40 @@ void PlayingState::update(float dt) {
 
   // --- Check Player Events ---
   if (m_player.pollEventMushroomFullTripStarted()) {
-    if (!m_player.hasPickedUpMagicBook() &&
-        GetRandomValue(0, 2) == 0) { // 33% chance
-      int gridX = static_cast<int>(
-          std::floor(m_player.getPosition().x / m_maze.getCellSize()));
-      int gridY = static_cast<int>(
-          std::floor(m_player.getPosition().y / m_maze.getCellSize()));
-      m_itemSpawner.spawnMagicBookOfMaps(m_maze, gridX, gridY);
-      if (m_maze.isMagicBookSpawned()) {
-        m_uiManager.markDebugMapDirty();
-      }
+    if (m_player.hasPickedUpMagicBook()) {
+      debuglog::log("BOOK", "skipped - already picked up this run");
+      m_uiManager.setMagicBookStatus("skipped: book already picked up");
+    } else if (GetRandomValue(0, 2) != 0) { // 33% chance
+      debuglog::log("BOOK", "skipped - lost the 1-in-3 roll");
+      m_uiManager.setMagicBookStatus("skipped: lost the 1-in-3 roll");
+    } else {
+      attemptMagicBookSpawn();
     }
   }
 
-  if (m_maze.isMagicBookSpawned() &&
+  // Debug: force a spawn from the ImGui panel, bypassing the whole ritual.
+  if (m_uiManager.triggerMagicBookSpawn()) {
+    m_uiManager.clearMagicBookSpawn();
+    attemptMagicBookSpawn();
+  }
+
+  // --- Debug trip controls ---
+  if (m_uiManager.triggerForceTrip()) {
+    m_uiManager.clearForceTrip();
+    m_player.debugForceTrip(60.0f);
+    debuglog::log("TRIP", "forced full trip for 60s");
+  }
+  if (m_uiManager.triggerEndTrip()) {
+    m_uiManager.clearEndTrip();
+    m_player.debugEndTrip();
+    debuglog::log("TRIP", "trip ended by debug panel");
+  }
+
+  if (m_maze.isMagicBookSpawned() && !m_uiManager.isMagicBookPinned() &&
       m_player.getMushroomEffectStrength() < 1.0f) {
+    debuglog::log("BOOK", "despawned - trip strength fell below 1.0");
     m_maze.despawnMagicBook();
+    m_uiManager.setMagicBookStatus("despawned: trip strength fell below 1.0");
     m_uiManager.markDebugMapDirty();
   }
 
@@ -410,6 +434,90 @@ void PlayingState::handleInput() {
   }
 }
 
+// ============================================================================
+// computeTripFollowOffset - Make the book ride the shader's distortion
+// ============================================================================
+// The book is drawn after EndShaderMode() so it never warps. The table under
+// it IS warped, so with no correction the book is the only stationary object
+// on a swimming screen - which the eye reads as the book floating in circles.
+//
+// magic_trip.fs does an INVERSE uv lookup: the pixel at uv displays whatever
+// lives at (uv + wave). So scene content at uv appears shifted by -wave. The
+// blit uses a negative source height, flipping V, which cancels the sign on
+// the vertical axis - hence -waveX but +waveY below.
+//
+// Evaluating the wave at the content's own uv rather than the screen uv is a
+// first-order approximation, exact enough here: peak displacement is ~3% of
+// the screen, well inside the range where the two agree.
+// ============================================================================
+Vector2 PlayingState::computeTripFollowOffset() const {
+  float strength = m_player.getMushroomEffectStrength();
+  if (strength <= 0.0f || !m_maze.isMagicBookSpawned()) {
+    return {0.0f, 0.0f};
+  }
+
+  int cellSize = m_maze.getCellSize();
+  Vector2 bookWorld = {(m_maze.getMagicBookX() + 0.5f) * cellSize,
+                       (m_maze.getMagicBookY() + 0.5f) * cellSize};
+  Vector2 screen = GetWorldToScreen2D(bookWorld, m_camera);
+
+  float w = (float)GetScreenWidth();
+  float h = (float)GetScreenHeight();
+  if (w <= 0.0f || h <= 0.0f) {
+    return {0.0f, 0.0f};
+  }
+
+  float u = screen.x / w;
+  float v = 1.0f - (screen.y / h); // V is flipped by the render-texture blit
+  float t = m_totalTime;
+
+  // These four terms must mirror assets/magic_trip.fs exactly.
+  float waveX = sinf(v * 10.0f + t * 2.5f) * 0.01f * strength +
+                sinf(u * 3.0f - t * 1.5f) * 0.02f * strength;
+  float waveY = cosf(u * 12.0f + t * 2.0f) * 0.015f * strength +
+                cosf(v * 4.0f + t * 1.2f) * 0.02f * strength;
+
+  float follow = m_uiManager.getBookTripFollow();
+  float zoom = m_camera.zoom != 0.0f ? m_camera.zoom : 1.0f;
+
+  // UV -> screen pixels -> world units (BeginMode2D scales by zoom).
+  return {(-waveX * w * follow) / zoom, (waveY * h * follow) / zoom};
+}
+
+// ============================================================================
+// attemptMagicBookSpawn - Single entry point for placing the magic book
+// ============================================================================
+// Both the mushroom-trip path and the debug button funnel through here so the
+// outcome is reported identically. The status string is the diagnostic that
+// tells a blank screen apart from a failed placement.
+void PlayingState::attemptMagicBookSpawn() {
+  int gridX = static_cast<int>(
+      std::floor(m_player.getPosition().x / m_maze.getCellSize()));
+  int gridY = static_cast<int>(
+      std::floor(m_player.getPosition().y / m_maze.getCellSize()));
+
+  ItemSpawner::BookSpawnResult result =
+      m_itemSpawner.spawnMagicBookOfMaps(m_maze, gridX, gridY);
+
+  if (result == ItemSpawner::BookSpawnResult::SPAWNED) {
+    debuglog::log("BOOK", "SPAWNED at (%d, %d), player at (%d, %d)",
+                  m_maze.getMagicBookX(), m_maze.getMagicBookY(), gridX, gridY);
+    m_uiManager.setMagicBookStatus(
+        TextFormat("SPAWNED at (%d, %d), player at (%d, %d)",
+                   m_maze.getMagicBookX(), m_maze.getMagicBookY(), gridX,
+                   gridY));
+    // The debug map draws a purple marker at the book's cell - that marker is
+    // the bisector: visible on the map but absent on screen means the bug is
+    // in the renderer, not the spawner.
+    m_uiManager.markDebugMapDirty();
+  } else {
+    debuglog::log("BOOK", "FAILED - no table within 20 tiles of (%d, %d)",
+                  gridX, gridY);
+    m_uiManager.setMagicBookStatus(TextFormat(
+        "FAILED: no table within 20 tiles of (%d, %d)", gridX, gridY));
+  }
+}
+
 void PlayingState::render() {
   if (m_screenTarget.texture.width != GetScreenWidth() ||
       m_screenTarget.texture.height != GetScreenHeight()) {
@@ -466,6 +574,14 @@ void PlayingState::render() {
   if (tripStrength > 0.0f) {
     EndShaderMode();
   }
+
+  // Overlay layer (exempt from main shader)
+  BeginMode2D(m_camera);
+  m_itemRenderer.renderMagicBookOverlay(m_maze, m_camera,
+                                        m_player.getAreaState(),
+                                        computeTripFollowOffset(),
+                                        m_uiManager.getBookGlowScale());
+  EndMode2D();
 
   if (m_player.isPassingOut()) {
     float passOutTimer = m_player.getPassOutTimer();
