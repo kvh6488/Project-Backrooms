@@ -1,5 +1,6 @@
 #include "items/item_renderer.hpp"
 #include "items/item_database.hpp"
+#include "core/asset_load.hpp"
 #include "world/view_bounds.hpp"
 #include <cmath>
 #include <iostream>
@@ -13,13 +14,16 @@ ItemRenderer::ItemRenderer() {
 
 void ItemRenderer::loadTextures() {
   if (IsWindowReady()) {
-    m_postApocWorkshopTextures =
-        LoadTexture("assets/PostApoc_Workshop_WithShadow.png");
-    m_doodadsTexture = LoadTexture("assets/doodads_spritesheet.png");
-    m_mushroomTexture = LoadTexture("assets/mushrooms_pixel_asset.png");
-    m_postApocIconsTexture = LoadTexture("assets/PostApoc_Workshop_Icons.png");
-    m_ritualTexture =
-        LoadTexture("assets/Spritesheet_TheDarkRitual_BigWander.png");
+    m_postApocWorkshopTextures = assets::loadTexture(
+        "assets/PostApoc_Workshop_WithShadow.png", "ItemRenderer");
+    m_doodadsTexture =
+        assets::loadTexture("assets/doodads_spritesheet.png", "ItemRenderer");
+    m_mushroomTexture = assets::loadTexture(
+        "assets/mushrooms_pixel_asset.png", "ItemRenderer");
+    m_postApocIconsTexture = assets::loadTexture(
+        "assets/PostApoc_Workshop_Icons.png", "ItemRenderer");
+    m_ritualTexture = assets::loadTexture(
+        "assets/Spritesheet_TheDarkRitual_BigWander.png", "ItemRenderer");
   } else {
     std::cerr << "[ERROR] Window not ready. Cannot load item textures!"
               << std::endl;

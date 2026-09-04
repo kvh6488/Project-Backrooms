@@ -33,7 +33,7 @@ void ItemDatabase::init() {
 
   // MUSHROOM
   m_definitions[(int)ItemType::MUSHROOM] = {
-      "Mushroom",      "A weird looking mushroom. Probably shouldn't eat it.",
+      "Mushroom",      "A standard mushroom.",
       true,            true,
       true,            6,
       {16, 0, 16, 16}, // MUSHROOM UI Rect

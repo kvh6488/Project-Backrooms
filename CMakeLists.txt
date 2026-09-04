@@ -48,9 +48,14 @@ endif()
 # Copy assets to the build directory so the executable can find them
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-# 4. Define our executable and include the external source files directly
-add_executable(Backrooms 
-    src/core/main.cpp 
+# ------------------------------------------------------------------------------
+# Shared source lists
+# ------------------------------------------------------------------------------
+# Both executables compile the same game code; only their entry points differ
+# (main.cpp for the game, gtest_main for the tests). Listing the sources once
+# means adding a new .cpp is a single edit - the old duplicated lists silently
+# broke the test link whenever only one of them was updated.
+set(BACKROOMS_GAME_SOURCES
     src/core/application.cpp
     src/world/maze.cpp
     src/world/maze_renderer.cpp
@@ -68,6 +73,11 @@ add_executable(Backrooms
     src/core/debug_overlay.cpp
     src/items/item_database.cpp
     src/items/crafting_system.cpp
+)
+
+# ImGui and rlImGui are compiled straight into each target - neither ships a
+# CMake target of its own.
+set(BACKROOMS_VENDOR_SOURCES
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -76,12 +86,21 @@ add_executable(Backrooms
     ${rlimhui_SOURCE_DIR}/rlImGui.cpp
 )
 
-# Tell the compiler where to find the header files (.h files)
-target_include_directories(Backrooms PRIVATE
+set(BACKROOMS_INCLUDE_DIRS
     src
     ${imgui_SOURCE_DIR}
     ${rlimhui_SOURCE_DIR}
 )
+
+# 4. Define our executable
+add_executable(Backrooms
+    src/core/main.cpp
+    ${BACKROOMS_GAME_SOURCES}
+    ${BACKROOMS_VENDOR_SOURCES}
+)
+
+# Tell the compiler where to find the header files (.h files)
+target_include_directories(Backrooms PRIVATE ${BACKROOMS_INCLUDE_DIRS})
 
 # Link Raylib to our executable
 target_link_libraries(Backrooms PRIVATE raylib)
@@ -110,36 +129,12 @@ add_executable(BackroomsTests
     tests/test_maze.cpp
     tests/test_magic_book.cpp
     tests/test_inventory.cpp
-    src/world/maze.cpp
-    src/world/maze_renderer.cpp
-    src/world/generators/bsp_generator.cpp
-    src/world/generators/loop_generator.cpp
-    src/world/generators/prims_generator.cpp
-    src/world/generators/tunnel_borer.cpp
-    src/world/generators/generator_utils.cpp
-    src/entities/player.cpp
-    src/entities/player_renderer.cpp
-    src/world/item_spawner.cpp
-    src/items/item_renderer.cpp
-    src/states/playing_state.cpp
-    src/core/ui_manager.cpp
-    src/core/debug_overlay.cpp
-    src/items/item_database.cpp
-    src/items/crafting_system.cpp
-    ${imgui_SOURCE_DIR}/imgui.cpp
-    ${imgui_SOURCE_DIR}/imgui_demo.cpp
-    ${imgui_SOURCE_DIR}/imgui_draw.cpp
-    ${imgui_SOURCE_DIR}/imgui_tables.cpp
-    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-    ${rlimhui_SOURCE_DIR}/rlImGui.cpp
+    ${BACKROOMS_GAME_SOURCES}
+    ${BACKROOMS_VENDOR_SOURCES}
 )
 
 # Tell the test executable where to find our source header files
-target_include_directories(BackroomsTests PRIVATE 
-    src
-    ${imgui_SOURCE_DIR}
-    ${rlimhui_SOURCE_DIR}
-)
+target_include_directories(BackroomsTests PRIVATE ${BACKROOMS_INCLUDE_DIRS})
 
 # Link Google Test and Raylib to the test executable
 target_link_libraries(BackroomsTests PRIVATE

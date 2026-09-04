@@ -49,7 +49,7 @@ A single test or suite:
   rm -rf "build/CMakeCache.txt" "build/CMakeFiles"
   ```
   Leave `build/_deps/` in place — its sub-build caches are already MinGW and its downloaded sources (~150 MB of raylib/ImGui/rlImGui/googletest) are reused, so nothing re-downloads.
-- **Every source file is listed twice in `CMakeLists.txt`** — once under `add_executable(Backrooms ...)` and again under `add_executable(BackroomsTests ...)`. Adding a new `.cpp` means adding it to *both* lists, or the test binary fails to link.
+- **Game sources are listed once, in the `BACKROOMS_GAME_SOURCES` variable**, and shared by both `add_executable` calls (`Backrooms` adds `main.cpp`, `BackroomsTests` adds the `tests/*.cpp`). Adding a new `.cpp` is one edit to that variable. Header-only additions need no edit at all — which is why `debug_log.hpp` and `asset_load.hpp` are headers.
 - **Assets are copied at configure time** (`file(COPY assets DESTINATION ${CMAKE_CURRENT_BINARY_DIR})`), not at build time. After editing or adding anything in `assets/`, re-run the cmake configure step — a plain `cmake --build` will not refresh `build/assets/`.
 - `target_compile_definitions(... IsTextureValid=IsTextureReady)` exists because rlImGui's `main` branch expects a Raylib API name newer than the pinned 5.0. Do not remove it while raylib stays at 5.0.
 - rlImGui is fetched from `main` and ImGui from the `docking` branch head — neither is pinned, so an upstream change can break the build without any local edit.
@@ -115,7 +115,9 @@ Both need `ItemDatabase::init()` and `CraftingSystem::init()` before use; these 
 
 `Player` never touches the UI. It sets one-shot boolean flags which `PlayingState` drains each frame via the `pollEventX()` methods (`pollEventMushroomConsumed`, `pollEventMapCrafted`, …) — each poll returns the flag and clears it — and translates them into `UIManager::showPopup(text, PopupType, duration)` calls.
 
-`UIManager` is a state holder and mailbox, not a caller: it owns inventory/cupboard/map-overlay open state and the popup queue. Keep that direction — the UI does not mutate the world directly.
+`UIManager` is a state holder and mailbox, not a caller: it owns inventory/cupboard/map-overlay open state and the popup queue.
+
+Its one write path into the game is `handleInventoryInput(Player&, Maze&)`, called from `PlayingState::handleInput` — the input phase, before any drawing. `UIManager::render` and `renderInventory` are read-only with respect to the `Player` and the `Maze`; they only write hover bookkeeping for the tooltip. Both passes take their geometry from `InventoryLayout::compute`, so a click is hit-tested against exactly the rectangle that gets drawn. Keep that direction: new UI widgets resolve their clicks in `handleInventoryInput` and add their rectangle to `InventoryLayout`, never mid-draw.
 
 `DebugOverlay` (`src/core/debug_overlay.hpp`) is the development panel, split out of `UIManager` and owned by `Application` so it survives future state switches. It is a *view*: presentation values the game needs regardless (torch on/off, camera zoom, the three light-cone numbers, show-zones) live in `RenderSettings`, which `PlayingState` owns and the overlay edits by reference; only debug-only state (the god-view minimap texture, magic-book and trip forcing, status strings) belongs to the overlay. It uses the same mailbox convention — `PlayingState` reads and clears `triggerTicTacToeRegen`, `triggerMagicBookSpawn`, `triggerForceTrip`, `triggerEndTrip`. Debug buttons must call the same public entry points the real systems will use, so they keep exercising the shipping path.
 

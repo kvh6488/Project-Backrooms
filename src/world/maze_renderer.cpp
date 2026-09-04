@@ -1,5 +1,6 @@
 #include "world/maze_renderer.hpp"
 #include "entities/player.hpp"
+#include "core/asset_load.hpp"
 #include "world/view_bounds.hpp"
 #include <cmath>
 #include <iostream>
@@ -15,9 +16,12 @@ MazeRenderer::MazeRenderer() {
 
 void MazeRenderer::loadTextures() {
   if (IsWindowReady()) {
-    m_floorTileset = LoadTexture("assets/BCKRMlv1_Floor_set.png");
-    m_wallTileset = LoadTexture("assets/BCKRMlv1_Wall_set.png");
-    m_propTileset = LoadTexture("assets/BCKRMlv1_Prop_set.png");
+    m_floorTileset =
+        assets::loadTexture("assets/BCKRMlv1_Floor_set.png", "MazeRenderer");
+    m_wallTileset =
+        assets::loadTexture("assets/BCKRMlv1_Wall_set.png", "MazeRenderer");
+    m_propTileset =
+        assets::loadTexture("assets/BCKRMlv1_Prop_set.png", "MazeRenderer");
 
     // Generate the soft radial gradient for the flashlight overlay.
     // Diameter of 512px gives us a smooth, high-res gradient circle

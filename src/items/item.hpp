@@ -67,3 +67,14 @@ struct InventorySlot {
   int count = 0;
   int instanceId = 0;
 };
+
+// ============================================================================
+// Inventory sizing
+// ============================================================================
+// One container size serves the player's bag and every cupboard, so a stack
+// can move between them without a capacity check. The hotbar is not a separate
+// container - it is the first HOTBAR_SLOTS entries of the player's bag, which
+// is why slot 0-4 indices appear in both the hotbar draw and the bag logic.
+// ============================================================================
+inline constexpr int INVENTORY_SLOTS = 20;
+inline constexpr int HOTBAR_SLOTS = 5;

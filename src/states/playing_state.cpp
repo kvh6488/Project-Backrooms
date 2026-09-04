@@ -6,6 +6,7 @@
 #include "world/generators/tunnel_borer.hpp"
 #include <algorithm>
 #include <cmath>
+#include "core/asset_load.hpp"
 #include "core/debug_log.hpp"
 #include <ctime>
 #include <iostream>
@@ -68,7 +69,7 @@ void PlayingState::onEnter() {
   m_camera.zoom = 1.0f;
 
   // 5. Load Shaders
-  m_tripShader = LoadShader(0, "assets/magic_trip.fs");
+  m_tripShader = assets::loadShader(0, "assets/magic_trip.fs", "PlayingState");
   m_tripTimeLoc = GetShaderLocation(m_tripShader, "time");
   m_tripStrengthLoc = GetShaderLocation(m_tripShader, "strength");
   m_screenTarget = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
@@ -102,10 +103,8 @@ void PlayingState::update(float dt) {
                   !m_uiManager.isInventoryOpen() &&
                       !m_uiManager.isFullscreenMapOpen());
 
-  int playerGridX = static_cast<int>(
-      std::floor(m_player.getPosition().x / m_maze.getCellSize()));
-  int playerGridY = static_cast<int>(
-      std::floor(m_player.getPosition().y / m_maze.getCellSize()));
+  int playerGridX = m_maze.toGridX(m_player.getPosition().x);
+  int playerGridY = m_maze.toGridY(m_player.getPosition().y);
 
   m_maze.updateVisibility(playerGridX, playerGridY, m_player.getAreaState());
   m_playerRenderer.update(dt, m_player);
@@ -130,10 +129,8 @@ void PlayingState::update(float dt) {
     break;
   }
 
-  int lookGridX =
-      static_cast<int>(std::floor(lookPos.x / m_maze.getCellSize()));
-  int lookGridY =
-      static_cast<int>(std::floor(lookPos.y / m_maze.getCellSize()));
+  int lookGridX = m_maze.toGridX(lookPos.x);
+  int lookGridY = m_maze.toGridY(lookPos.y);
 
   if (m_maze.getItem(lookGridX, lookGridY) == ItemType::CUPBOARD) {
     bool wallAbove =
@@ -268,10 +265,8 @@ void PlayingState::update(float dt) {
   }
 
   if (m_player.pollEventMapCrafted()) {
-    int gridX = static_cast<int>(
-        std::floor(m_player.getPosition().x / m_maze.getCellSize()));
-    int gridY = static_cast<int>(
-        std::floor(m_player.getPosition().y / m_maze.getCellSize()));
+    int gridX = m_maze.toGridX(m_player.getPosition().x);
+    int gridY = m_maze.toGridY(m_player.getPosition().y);
     m_uiManager.markMapDrawn(m_player.getLastConsumedMapId(), m_maze, gridX,
                              gridY);
   }
@@ -329,8 +324,9 @@ void PlayingState::handleInput() {
     m_uiManager.toggleInventory();
     if (!m_uiManager.isInventoryOpen()) {
       m_uiManager.setHeldSlotIndex(-1);
-      if (m_uiManager.getActiveHotbarSlot() > 4) {
-        m_uiManager.setActiveHotbarSlot(m_uiManager.getActiveHotbarSlot() % 5);
+      if (m_uiManager.getActiveHotbarSlot() >= HOTBAR_SLOTS) {
+        m_uiManager.setActiveHotbarSlot(m_uiManager.getActiveHotbarSlot() %
+                                        HOTBAR_SLOTS);
       }
       if (m_uiManager.isCupboardInventoryOpen()) {
         m_maze.setItemState(m_uiManager.getOpenedCupboardX(),
@@ -356,36 +352,44 @@ void PlayingState::handleInput() {
     }
   }
 
+  // Mouse input for the inventory, cupboard and crafting panels. It runs here,
+  // in the input phase, so that render() can stay read-only - the UI used to
+  // resolve clicks mid-draw.
+  m_uiManager.handleInventoryInput(m_player, m_maze);
+
   if (m_uiManager.isInventoryOpen()) {
+    // The bag is a HOTBAR_SLOTS-wide grid: row 0 is the hotbar, the rows below
+    // are the bag proper. Up/down wraps between the hotbar and the BOTTOM row
+    // only - stepping down out of the hotbar into row 1 is deliberately a
+    // no-op, so the wrap is one unambiguous move rather than two directions
+    // that both leave the hotbar.
+    constexpr int kCols = HOTBAR_SLOTS;
+    constexpr int kLastRowStart = INVENTORY_SLOTS - kCols;
+
     int hotbar = m_uiManager.getActiveHotbarSlot();
-    if (IsKeyPressed(KEY_RIGHT) && (hotbar % 5 != 4))
+    if (IsKeyPressed(KEY_RIGHT) && (hotbar % kCols != kCols - 1))
       hotbar++;
-    if (IsKeyPressed(KEY_LEFT) && (hotbar % 5 != 0))
+    if (IsKeyPressed(KEY_LEFT) && (hotbar % kCols != 0))
       hotbar--;
     if (IsKeyPressed(KEY_DOWN)) {
-      if (hotbar >= 5 && hotbar <= 14)
-        hotbar += 5;
-      else if (hotbar >= 15 && hotbar <= 19)
-        hotbar -= 15;
+      if (hotbar >= kCols && hotbar < kLastRowStart)
+        hotbar += kCols;
+      else if (hotbar >= kLastRowStart)
+        hotbar -= kLastRowStart;
     }
     if (IsKeyPressed(KEY_UP)) {
-      if (hotbar >= 10 && hotbar <= 19)
-        hotbar -= 5;
-      else if (hotbar >= 0 && hotbar <= 4)
-        hotbar += 15;
+      if (hotbar >= 2 * kCols)
+        hotbar -= kCols;
+      else if (hotbar < kCols)
+        hotbar += kLastRowStart;
     }
     m_uiManager.setActiveHotbarSlot(hotbar);
   } else {
-    if (IsKeyPressed(KEY_ONE))
-      m_uiManager.setActiveHotbarSlot(0);
-    if (IsKeyPressed(KEY_TWO))
-      m_uiManager.setActiveHotbarSlot(1);
-    if (IsKeyPressed(KEY_THREE))
-      m_uiManager.setActiveHotbarSlot(2);
-    if (IsKeyPressed(KEY_FOUR))
-      m_uiManager.setActiveHotbarSlot(3);
-    if (IsKeyPressed(KEY_FIVE))
-      m_uiManager.setActiveHotbarSlot(4);
+    // KEY_ONE..KEY_NINE are contiguous, so slot i is KEY_ONE + i.
+    for (int i = 0; i < HOTBAR_SLOTS; ++i) {
+      if (IsKeyPressed(KEY_ONE + i))
+        m_uiManager.setActiveHotbarSlot(i);
+    }
   }
 
   if (IsKeyPressed(KEY_U)) {
@@ -415,10 +419,8 @@ void PlayingState::handleInput() {
 
   if (m_isDroppingItem && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
     Vector2 mouseWorld = GetScreenToWorld2D(GetMousePosition(), m_camera);
-    int gridX =
-        static_cast<int>(std::floor(mouseWorld.x / m_maze.getCellSize()));
-    int gridY =
-        static_cast<int>(std::floor(mouseWorld.y / m_maze.getCellSize()));
+    int gridX = m_maze.toGridX(mouseWorld.x);
+    int gridY = m_maze.toGridY(mouseWorld.y);
 
     if (m_maze.getItem(gridX, gridY) == ItemType::NONE) {
       int cellType = m_maze.getCell(gridX, gridY);
@@ -495,10 +497,8 @@ Vector2 PlayingState::computeTripFollowOffset() const {
 // outcome is reported identically. The status string is the diagnostic that
 // tells a blank screen apart from a failed placement.
 void PlayingState::attemptMagicBookSpawn() {
-  int gridX = static_cast<int>(
-      std::floor(m_player.getPosition().x / m_maze.getCellSize()));
-  int gridY = static_cast<int>(
-      std::floor(m_player.getPosition().y / m_maze.getCellSize()));
+  int gridX = m_maze.toGridX(m_player.getPosition().x);
+  int gridY = m_maze.toGridY(m_player.getPosition().y);
 
   ItemSpawner::BookSpawnResult result =
       m_itemSpawner.spawnMagicBookOfMaps(m_maze, gridX, gridY);

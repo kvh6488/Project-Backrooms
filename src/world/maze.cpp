@@ -1,5 +1,6 @@
 #include "world/maze.hpp"
 #include <algorithm>
+#include <cmath>
 #include <deque>
 #include <queue>
 
@@ -32,6 +33,14 @@ int Maze::wrapX(int x) const { return (x % m_width + m_width) % m_width; }
 
 int Maze::wrapY(int y) const { return (y % m_height + m_height) % m_height; }
 
+int Maze::toGridX(float worldX) const {
+  return static_cast<int>(std::floor(worldX / m_cellSize));
+}
+
+int Maze::toGridY(float worldY) const {
+  return static_cast<int>(std::floor(worldY / m_cellSize));
+}
+
 // ============================================================================
 // getCell — Read a Cell
 // ============================================================================
@@ -60,9 +69,12 @@ void Maze::setCell(int x, int y, int cellType) {
 }
 
 // ============================================================================
-// RECURSIVE SHADOWCASTING (Replaces old BFS Flood Fill)
+// updateVisibility - the room field of view
 // ============================================================================
-// Algorithm Reference: Björn Bergström's recursive shadowcasting,
+// See maze.hpp for the contract. ROOM mode floods the room; CORRIDOR mode
+// deliberately computes nothing, because the renderer hides corridors with the
+// screen-space light mask instead of a per-cell FOV.
+// ============================================================================
 void Maze::updateVisibility(int playerX, int playerY, AreaState state) {
   // Clear visibility every frame
   std::fill(m_visible.begin(), m_visible.end(), false);
@@ -103,18 +115,6 @@ void Maze::updateVisibility(int playerX, int playerY, AreaState state) {
   // now completely ignores the FOV check and draws all corridor tiles,
   // relying entirely on the screen-space darkness overlay to hide unseen areas.
 }
-
-// ============================================================================
-// castOctant — The Recursive Octant Scanner
-// ============================================================================
-// This function scans a single octant row-by-row (or column-by-column,
-// depending on the octant transform). It tracks which angular range
-// is still visible via [startSlope, endSlope].
-//
-// The recursion happens when we detect a transition from wall → floor:
-//   we've found the edge of a shadow, so we recurse to continue scanning
-//   the newly revealed arc.
-//
 
 bool Maze::isVisible(int x, int y) const { return m_visible[getIndex(x, y)]; }
 
@@ -524,7 +524,7 @@ void Maze::setItemState(int x, int y, int state) {
   }
 }
 
-std::array<InventorySlot, 20>& Maze::getCupboardInventory(int x, int y) {
+std::array<InventorySlot, INVENTORY_SLOTS>& Maze::getCupboardInventory(int x, int y) {
   int idx = getIndex(x, y);
   return m_cupboardInventories[idx];
 }

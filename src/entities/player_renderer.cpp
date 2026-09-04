@@ -1,4 +1,5 @@
 #include "entities/player_renderer.hpp"
+#include "core/asset_load.hpp"
 #include <iostream>
 
 PlayerRenderer::PlayerRenderer()
@@ -6,7 +7,8 @@ PlayerRenderer::PlayerRenderer()
 
 void PlayerRenderer::loadTextures() {
   if (IsWindowReady()) {
-    m_playerTexture = LoadTexture("assets/inspector_spritesheet.png");
+    m_playerTexture = assets::loadTexture(
+        "assets/inspector_spritesheet.png", "PlayerRenderer");
   } else {
     std::cerr << "[ERROR] Window not ready. Cannot load textures!" << std::endl;
   }

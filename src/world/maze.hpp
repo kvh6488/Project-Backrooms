@@ -55,6 +55,14 @@ public:
   int wrapX(int x) const;
   int wrapY(int y) const;
 
+  // Convert a world-space pixel coordinate to a grid coordinate.
+  // Deliberately does NOT wrap: getIndex wraps at the point of access, so
+  // callers that compare raw coordinates (camera bounds, click targets, the
+  // player's own tile) keep seeing monotonic values across the seam.
+  // floor(), not a cast, so negative world positions round the right way.
+  int toGridX(float worldX) const;
+  int toGridY(float worldY) const;
+
   // Get the cell type at grid position (x, y).
   // Returns CELL_WALL, CELL_CORRIDOR, or CELL_ROOM.
   int getCell(int x, int y) const;
@@ -63,19 +71,24 @@ public:
   void setCell(int x, int y, int cellType);
 
   // ============================================================================
-  // Recursive Shadowcasting FOV
+  // updateVisibility - the room field of view
   // ============================================================================
-  // Computes line-of-sight visibility from the player's grid position.
-  // In CORRIDOR mode: restricts to a forward-facing cone of `radius` tiles,
-  //   using recursive shadowcasting to produce true LOS with wall shadows.
-  // In ROOM mode: marks the entire room as fully visible (always lit).
+  // ROOM mode: an 8-way BFS flood through CELL_ROOM tiles marks the room the
+  //   player stands in, and its bounding walls, visible. Rooms are fully lit,
+  //   so there is no line-of-sight test to do - you see your room, and only
+  //   your room.
+  // CORRIDOR mode: does nothing but clear the buffer. The renderer draws every
+  //   corridor tile and hides the unlit ones behind the screen-space light
+  //   mask (MazeRenderer::buildLightMask), so a per-cell FOV would be computed
+  //   and then ignored.
   //
-  // This is the 2D roguelike gold standard for FOV. It divides the circle
-  // around the player into 8 octants and recursively scans each row outward.
-  // When it encounters a wall, it splits the visible arc and recurses on the
-  // remaining visible portion — producing perfect shadow geometry with no
-  // artifacts. See:
-  // http://www.roguebasin.com/index.php/FOV_using_recursive_shadowcasting
+  // NOTE: an earlier design used recursive shadowcasting for a forward-facing
+  // corridor cone. The light mask replaced it; if true wall shadows are ever
+  // needed, that is the algorithm to reach for
+  // (http://www.roguebasin.com/index.php/FOV_using_recursive_shadowcasting).
+  //
+  // Time complexity: O(cells in the room) in ROOM mode, O(w*h) for the buffer
+  // clear in both.
   // ============================================================================
   void updateVisibility(int playerX, int playerY, AreaState state);
 
@@ -142,7 +155,7 @@ public:
   void setItemState(int x, int y, int state);
 
   // --- Cupboard Inventories ---
-  std::array<InventorySlot, 20>& getCupboardInventory(int x, int y);
+  std::array<InventorySlot, INVENTORY_SLOTS>& getCupboardInventory(int x, int y);
   bool hasCupboardInventory(int x, int y) const;
   bool isCupboardEmpty(int x, int y) const;
 
@@ -182,7 +195,7 @@ private:
   std::vector<Room> m_shiftingZones;
 
   // Cupboard inventories map (Key: 1D grid index)
-  std::map<int, std::array<InventorySlot, 20>> m_cupboardInventories;
+  std::map<int, std::array<InventorySlot, INVENTORY_SLOTS>> m_cupboardInventories;
 
   // Item states map (Key: 1D grid index, Value: state integer)
   std::map<int, int> m_itemStates;

@@ -60,8 +60,8 @@ public:
   void consumeItem(int slotIndex);
   void destroyItem(int slotIndex);
   void swapSlots(int slotIndex1, int slotIndex2);
-  const std::array<InventorySlot, 20>& getInventory() const { return m_inventory; }
-  std::array<InventorySlot, 20>& getInventoryRef() { return m_inventory; }
+  const std::array<InventorySlot, INVENTORY_SLOTS>& getInventory() const { return m_inventory; }
+  std::array<InventorySlot, INVENTORY_SLOTS>& getInventoryRef() { return m_inventory; }
   float getMushroomEffectStrength() const;
 
   // --- Debug Overrides ---
@@ -100,7 +100,7 @@ public:
   void teleport(Vector2 newPos, AreaState newState);
 
 private:
-  std::array<InventorySlot, 20> m_inventory;
+  std::array<InventorySlot, INVENTORY_SLOTS> m_inventory;
   std::vector<ItemType> m_unlockedRecipes;
 
   Vector2 m_position; // Center of the player in world space (pixels)

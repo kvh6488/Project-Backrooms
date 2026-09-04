@@ -311,8 +311,8 @@ void DebugOverlay::drawMinimapSection(Player &player, Maze &maze) {
   // Player marker. The maze wraps toroidally, so the raw grid position is
   // wrapped before it becomes a fraction of the map.
   Vector2 pPos = player.getPosition();
-  int gridX = (int)std::floor(pPos.x / maze.getCellSize());
-  int gridY = (int)std::floor(pPos.y / maze.getCellSize());
+  int gridX = maze.toGridX(pPos.x);
+  int gridY = maze.toGridY(pPos.y);
   int wrappedX = (gridX % maze.getWidth() + maze.getWidth()) % maze.getWidth();
   int wrappedY =
       (gridY % maze.getHeight() + maze.getHeight()) % maze.getHeight();

@@ -95,7 +95,9 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
   renderPopups(scale, screenW, screenH, totalTime);
 
   // 5. Inventory
-  renderInventory(player, maze, itemRenderer, scale, screenW, screenH);
+  renderInventory(player, maze, itemRenderer,
+                  InventoryLayout::compute(scale, screenW, screenH), screenW,
+                  screenH);
 
   // 5.5 Map Rendering
   if (m_showFullscreenMap && (m_openedMapId == -1 || m_drawnMaps.find(m_openedMapId) != m_drawnMaps.end())) {
@@ -125,8 +127,8 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
 
     // Calculate relative position for player dot
     Vector2 pPos = player.getPosition();
-    int gridX = (int)std::floor(pPos.x / maze.getCellSize());
-    int gridY = (int)std::floor(pPos.y / maze.getCellSize());
+    int gridX = maze.toGridX(pPos.x);
+    int gridY = maze.toGridY(pPos.y);
 
     int relX = gridX - startX;
     int relY = gridY - startY;
@@ -207,22 +209,252 @@ void UIManager::renderPopups(float scale, int screenW, int screenH,
     }
   }
 }
+namespace {
 
+// A recipe is shown once the player has unlocked it, or is holding any one of
+// its ingredients - so the menu teaches recipes by acquisition rather than
+// listing everything up front. Input and drawing must filter identically, or a
+// click would select a different recipe than the one under the cursor.
+bool isRecipeVisible(const Player &player, const Recipe &recipe) {
+  if (player.hasUnlockedRecipe(recipe.result)) {
+    return true;
+  }
+  for (const auto &ing : recipe.ingredients) {
+    if (player.hasIngredient(ing.type, 1)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+} // namespace
+
+// ============================================================================
+// InventoryLayout
+// ============================================================================
+InventoryLayout InventoryLayout::compute(float scale, int screenW,
+                                         int screenH) {
+  InventoryLayout l{};
+  l.scale = scale;
+  l.slotSize = 60 * scale;
+  l.padding = 10 * scale;
+
+  float step = l.slotSize + l.padding;
+  float rowWidth = (COLUMNS * l.slotSize) + ((COLUMNS - 1) * l.padding);
+
+  // The hotbar anchors to the bottom of the screen; everything else stacks
+  // upward from it, so the whole panel stays put when the window resizes.
+  l.hotbarX = (screenW - rowWidth) / 2.0f;
+  l.hotbarY = screenH - l.slotSize - (20 * scale);
+
+  l.bagX = l.hotbarX;
+  l.bagY = l.hotbarY - (BAG_ROWS * step) - (20 * scale);
+
+  float cupboardWidth =
+      (CUPBOARD_COLUMNS * l.slotSize) + ((CUPBOARD_COLUMNS - 1) * l.padding);
+  l.cupboardX = (screenW - cupboardWidth) / 2.0f;
+  l.cupboardY = l.bagY - (CUPBOARD_ROWS * step) - (40 * scale);
+
+  // The crafting row needs headroom for the selected recipe's detail panel,
+  // which draws below it and would otherwise land on top of the bag.
+  l.craftingY = l.bagY - (260 * scale);
+  return l;
+}
+
+Rectangle InventoryLayout::playerSlot(int index) const {
+  float step = slotSize + padding;
+  if (index < HOTBAR_SLOTS) {
+    return Rectangle{hotbarX + index * step, hotbarY, slotSize, slotSize};
+  }
+  int bagIndex = index - HOTBAR_SLOTS;
+  return Rectangle{bagX + (bagIndex % COLUMNS) * step,
+                   bagY + (bagIndex / COLUMNS) * step, slotSize, slotSize};
+}
+
+Rectangle InventoryLayout::cupboardSlot(int index) const {
+  float step = slotSize + padding;
+  return Rectangle{cupboardX + (index % CUPBOARD_COLUMNS) * step,
+                   cupboardY + (index / CUPBOARD_COLUMNS) * step, slotSize,
+                   slotSize};
+}
+
+Rectangle InventoryLayout::craftingSlot(int visibleIdx) const {
+  return Rectangle{bagX + visibleIdx * (slotSize + padding), craftingY,
+                   slotSize, slotSize};
+}
+
+Rectangle InventoryLayout::craftButton() const {
+  float detailsY = craftingY + slotSize + (10 * scale);
+  float btnW = 100 * scale;
+  float btnH = 40 * scale;
+  float rowWidth = (COLUMNS * slotSize) + ((COLUMNS - 1) * padding);
+  return Rectangle{bagX + rowWidth - btnW, detailsY + (15 * scale), btnW, btnH};
+}
+
+// ============================================================================
+// handleInventoryInput - the UI's only write path into the game
+// ============================================================================
+// Runs in the state's input phase. Slots are tested in draw order, and the
+// first hit consumes the click, so a stack picked up here cannot be put back
+// down by a later slot in the same frame.
+// ============================================================================
+void UIManager::handleInventoryInput(Player &player, Maze &maze) {
+  // Closed panels swallow no clicks: the hotbar is on screen permanently, but
+  // has never been clickable while the bag is shut.
+  if (!m_inventoryOpen && !m_cupboardInventoryOpen) {
+    return;
+  }
+
+  bool leftClick = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+  bool rightClick = IsMouseButtonPressed(MOUSE_RIGHT_BUTTON);
+  if (!leftClick && !rightClick) {
+    return;
+  }
+
+  InventoryLayout layout = InventoryLayout::compute(
+      getUIScale(), GetScreenWidth(), GetScreenHeight());
+  Vector2 mouse = GetMousePosition();
+
+  // 1. Player slots - the hotbar row plus the bag when it is open.
+  int playerSlotCount = m_inventoryOpen ? INVENTORY_SLOTS : HOTBAR_SLOTS;
+  for (int i = 0; i < playerSlotCount; ++i) {
+    if (!CheckCollisionPointRec(mouse, layout.playerSlot(i))) {
+      continue;
+    }
+    if (leftClick) {
+      applySlotClick(i, false, player, maze);
+    } else if (m_heldSlotIndex == -1) {
+      player.consumeItem(i); // Only the player's own slots can be consumed.
+    }
+    return;
+  }
+
+  // 2. Cupboard slots.
+  if (m_cupboardInventoryOpen) {
+    for (int i = 0; i < INVENTORY_SLOTS; ++i) {
+      if (!CheckCollisionPointRec(mouse, layout.cupboardSlot(i))) {
+        continue;
+      }
+      if (leftClick) {
+        applySlotClick(i, true, player, maze);
+      }
+      return;
+    }
+  }
+
+  // 3. Crafting menu. Hidden while a cupboard is open - the two panels would
+  // occupy the same screen space.
+  if (!m_inventoryOpen || m_cupboardInventoryOpen || !leftClick) {
+    return;
+  }
+
+  const auto &recipes = CraftingSystem::getRecipes();
+  int visibleIdx = 0;
+  for (size_t i = 0; i < recipes.size(); ++i) {
+    if (!isRecipeVisible(player, recipes[i])) {
+      continue;
+    }
+    if (CheckCollisionPointRec(mouse, layout.craftingSlot(visibleIdx))) {
+      // Clicking the selected recipe again closes its detail panel.
+      m_selectedCraftingRecipeIdx =
+          (m_selectedCraftingRecipeIdx == (int)i) ? -1 : (int)i;
+      return;
+    }
+    visibleIdx++;
+  }
+
+  if (m_selectedCraftingRecipeIdx >= 0 &&
+      m_selectedCraftingRecipeIdx < (int)recipes.size() &&
+      CheckCollisionPointRec(mouse, layout.craftButton())) {
+    const auto &recipe = recipes[m_selectedCraftingRecipeIdx];
+    if (player.canCraft(recipe)) {
+      player.craftItem(recipe);
+    } else {
+      // Flash the missing ingredient counts rather than raise a popup - the
+      // reason the craft failed is already on screen, it just needs pointing
+      // at.
+      m_craftFlashEndTime = GetTime() + 0.5f;
+    }
+  }
+}
+
+// ============================================================================
+// applySlotClick - pick up, put down, merge or swap
+// ============================================================================
+void UIManager::applySlotClick(int index, bool isCupboardSlot, Player &player,
+                               Maze &maze) {
+  auto &playerInv = player.getInventoryRef();
+  auto *cupboardInv =
+      m_cupboardInventoryOpen
+          ? &maze.getCupboardInventory(m_openedCupboardX, m_openedCupboardY)
+          : nullptr;
+  if (isCupboardSlot && cupboardInv == nullptr) {
+    return;
+  }
+
+  auto &targetInv = isCupboardSlot ? *cupboardInv : playerInv;
+
+  if (m_heldSlotIndex == -1) {
+    // Nothing in hand: lift this slot, if it holds anything.
+    if (targetInv[index].type != ItemType::NONE) {
+      m_heldSlotIndex = index;
+      m_heldFromCupboard = isCupboardSlot;
+    }
+    return;
+  }
+
+  auto &heldInv = m_heldFromCupboard ? *cupboardInv : playerInv;
+  InventorySlot &held = heldInv[m_heldSlotIndex];
+  InventorySlot &target = targetInv[index];
+
+  if (held.type != ItemType::NONE && held.type == target.type) {
+    // Same type: pour as much as the destination stack will take. Any
+    // remainder stays in the source slot rather than overflowing.
+    int spaceInTarget =
+        ItemDatabase::getDef(target.type).maxStackSize - target.count;
+    int amountToMove =
+        spaceInTarget > 0 ? std::min(held.count, spaceInTarget) : 0;
+    target.count += amountToMove;
+    held.count -= amountToMove;
+    if (held.count <= 0) {
+      held.type = ItemType::NONE;
+      held.count = 0;
+    }
+  } else {
+    std::swap(held, target);
+  }
+
+  m_heldSlotIndex = -1;
+  m_heldFromCupboard = false;
+}
+
+// ============================================================================
+// renderInventory - drawing only
+// ============================================================================
+// Read-only with respect to the Player and the Maze. The only state it writes
+// is its own hover bookkeeping, which exists purely to place the tooltip.
+// Every click was already resolved by handleInventoryInput earlier this frame.
+// ============================================================================
 void UIManager::renderInventory(Player &player, Maze &maze,
-                                ItemRenderer &itemRenderer, float scale,
-                                int screenW, int screenH) {
-  float slotSize = 60 * scale;
-  float padding = 10 * scale;
+                                ItemRenderer &itemRenderer,
+                                const InventoryLayout &layout, int screenW,
+                                int screenH) {
+  const float scale = layout.scale;
+  const float slotSize = layout.slotSize;
+  const float padding = layout.padding;
 
   ItemType hoveredItemType = ItemType::NONE;
   int hoveredInstanceId = 0;
   bool hoveredIsCrafting = false;
 
-  auto drawSlot = [&](int index, float x, float y, bool isHotbar,
-                      bool isCupboardSlot) {
-    Rectangle slotRect = {x, y, slotSize, slotSize};
+  const auto &playerInv = player.getInventory();
+  const std::array<InventorySlot, INVENTORY_SLOTS> *cupboardInv =
+      m_cupboardInventoryOpen
+          ? &maze.getCupboardInventory(m_openedCupboardX, m_openedCupboardY)
+          : nullptr;
 
-    // Draw slot background
+  auto drawSlot = [&](int index, Rectangle slotRect, bool isHotbar,
+                      bool isCupboardSlot) {
     bool isHeldSlot =
         (index == m_heldSlotIndex) && (m_heldFromCupboard == isCupboardSlot);
     Color bgColor = isHeldSlot ? Fade(YELLOW, 0.3f) : Fade(BLACK, 0.7f);
@@ -234,83 +466,32 @@ void UIManager::renderInventory(Player &player, Maze &maze,
       DrawRectangleLinesEx(slotRect, 2.0f * scale, GRAY);
     }
 
-    auto &pInv = player.getInventoryRef();
-    auto *cInvPtr =
-        m_cupboardInventoryOpen
-            ? &maze.getCupboardInventory(m_openedCupboardX, m_openedCupboardY)
-            : nullptr;
+    const auto &currentInv = isCupboardSlot ? *cupboardInv : playerInv;
 
-    auto &currentInv = isCupboardSlot ? (*cInvPtr) : pInv;
-
-    // Mouse Interaction
     if (CheckCollisionPointRec(GetMousePosition(), slotRect)) {
       DrawRectangleLinesEx(slotRect, 3.0f * scale, WHITE);
-
-      if (m_inventoryOpen || m_cupboardInventoryOpen) {
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-          if (m_heldSlotIndex == -1) { // Pick up item
-            if (currentInv[index].type != ItemType::NONE) {
-              m_heldSlotIndex = index;
-              m_heldFromCupboard = isCupboardSlot;
-            }
-          } else { // Swap or place item
-            auto &heldInv = m_heldFromCupboard ? (*cInvPtr) : pInv;
-
-            // Merge stacks if same type
-            if (heldInv[m_heldSlotIndex].type != ItemType::NONE &&
-                heldInv[m_heldSlotIndex].type == currentInv[index].type) {
-              int maxStack =
-                  ItemDatabase::getDef(currentInv[index].type).maxStackSize;
-              int spaceInDest = maxStack - currentInv[index].count;
-              int amountToMove = 0;
-              if (spaceInDest > 0) {
-                amountToMove =
-                    std::min(heldInv[m_heldSlotIndex].count, spaceInDest);
-              }
-              currentInv[index].count += amountToMove;
-              heldInv[m_heldSlotIndex].count -= amountToMove;
-              if (heldInv[m_heldSlotIndex].count <= 0) {
-                heldInv[m_heldSlotIndex].type = ItemType::NONE;
-                heldInv[m_heldSlotIndex].count = 0;
-              }
-            } else {
-              // Swap
-              std::swap(heldInv[m_heldSlotIndex], currentInv[index]);
-            }
-
-            m_heldSlotIndex = -1;
-            m_heldFromCupboard = false;
-          }
-        } else if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-          // Consume item on right click (only player can consume)
-          if (m_heldSlotIndex == -1 && !isCupboardSlot) {
-            player.consumeItem(index);
-          }
-        }
-      }
-
       if (currentInv[index].type != ItemType::NONE && !isHeldSlot) {
         hoveredItemType = currentInv[index].type;
         hoveredInstanceId = currentInv[index].instanceId;
       }
     }
 
-    // Draw item icon using the renderer
-    auto slot = currentInv[index];
+    const InventorySlot &slot = currentInv[index];
     if (slot.type != ItemType::NONE && !isHeldSlot) {
-      Rectangle destRect = {x + padding, y + padding, slotSize - 2 * padding,
-                            slotSize - 2 * padding};
+      Rectangle destRect = {slotRect.x + padding, slotRect.y + padding,
+                            slotSize - 2 * padding, slotSize - 2 * padding};
       itemRenderer.renderItemUI(slot.type, destRect, WHITE);
 
       if (slot.count > 1) {
-        DrawText(TextFormat("%d", slot.count), x + slotSize - 20 * scale,
-                 y + slotSize - 20 * scale, 20 * scale, WHITE);
+        DrawText(TextFormat("%d", slot.count),
+                 slotRect.x + slotSize - 20 * scale,
+                 slotRect.y + slotSize - 20 * scale, 20 * scale, WHITE);
       }
     }
 
     if (isHotbar) {
-      DrawText(TextFormat("%d", index + 1), x + 5 * scale, y + 5 * scale,
-               15 * scale, LIGHTGRAY);
+      DrawText(TextFormat("%d", index + 1), slotRect.x + 5 * scale,
+               slotRect.y + 5 * scale, 15 * scale, LIGHTGRAY);
     }
   };
 
@@ -318,280 +499,212 @@ void UIManager::renderInventory(Player &player, Maze &maze,
     DrawRectangle(0, 0, screenW, screenH, Fade(BLACK, 0.75f));
   }
 
-  // 1. Draw Hotbar (Slots 0-4)
-  float hotbarTotalWidth = (5 * slotSize) + (4 * padding);
-  float startX = (screenW - hotbarTotalWidth) / 2.0f;
-  float startY = screenH - slotSize - (20 * scale);
-
-  for (int i = 0; i < 5; ++i) {
-    drawSlot(i, startX + i * (slotSize + padding), startY, true, false);
+  // 1. Hotbar (always on screen).
+  for (int i = 0; i < HOTBAR_SLOTS; ++i) {
+    drawSlot(i, layout.playerSlot(i), true, false);
   }
 
-  // 2. Draw Bag (Slots 5-19)
-  if (m_inventoryOpen || m_cupboardInventoryOpen) {
-    float bagStartX = (screenW - hotbarTotalWidth) / 2.0f;
-    float bagStartY = startY - (3 * (slotSize + padding)) - (20 * scale);
+  if (!m_inventoryOpen && !m_cupboardInventoryOpen) {
+    return;
+  }
 
-    for (int row = 0; row < 3; ++row) {
-      for (int col = 0; col < 5; ++col) {
-        int index = 5 + (row * 5) + col;
-        drawSlot(index, bagStartX + col * (slotSize + padding),
-                 bagStartY + row * (slotSize + padding), false, false);
+  // 2. Bag.
+  for (int i = HOTBAR_SLOTS; i < INVENTORY_SLOTS; ++i) {
+    drawSlot(i, layout.playerSlot(i), false, false);
+  }
+
+  // 3. Cupboard.
+  if (m_cupboardInventoryOpen) {
+    DrawText("Cupboard", layout.cupboardX, layout.cupboardY - 30 * scale,
+             20 * scale, WHITE);
+    for (int i = 0; i < INVENTORY_SLOTS; ++i) {
+      drawSlot(i, layout.cupboardSlot(i), false, true);
+    }
+  }
+
+  // 4. Crafting menu.
+  if (m_inventoryOpen && !m_cupboardInventoryOpen) {
+    DrawText("Crafting", layout.bagX, layout.craftingY - 25 * scale, 20 * scale,
+             WHITE);
+
+    const auto &recipes = CraftingSystem::getRecipes();
+    int visibleIdx = 0;
+
+    for (size_t i = 0; i < recipes.size(); ++i) {
+      const auto &recipe = recipes[i];
+      if (!isRecipeVisible(player, recipe)) {
+        continue;
       }
+
+      Rectangle slotRect = layout.craftingSlot(visibleIdx);
+      bool isSelected = (m_selectedCraftingRecipeIdx == (int)i);
+      DrawRectangleRec(slotRect,
+                       isSelected ? Fade(YELLOW, 0.3f) : Fade(BLACK, 0.7f));
+      DrawRectangleLinesEx(slotRect, 2.0f * scale, isSelected ? WHITE : GRAY);
+
+      if (CheckCollisionPointRec(GetMousePosition(), slotRect)) {
+        DrawRectangleLinesEx(slotRect, 3.0f * scale, WHITE);
+        hoveredItemType = recipe.result;
+        hoveredIsCrafting = true;
+      }
+
+      Rectangle destRect = {slotRect.x + padding, slotRect.y + padding,
+                            slotSize - 2 * padding, slotSize - 2 * padding};
+      itemRenderer.renderItemUI(recipe.result, destRect, WHITE);
+
+      visibleIdx++;
     }
 
-    // 3. Draw Cupboard Inventory
-    if (m_cupboardInventoryOpen) {
-      float cupboardTotalWidth = (10 * slotSize) + (9 * padding);
-      float cupboardStartX = (screenW - cupboardTotalWidth) / 2.0f;
-      float cupboardStartY =
-          bagStartY - (2 * (slotSize + padding)) - (40 * scale); // 40px gap
+    if (visibleIdx == 0) {
+      DrawText("Go get yourself some items", layout.bagX, layout.craftingY,
+               20 * scale, GRAY);
+    }
 
-      DrawText("Cupboard", cupboardStartX, cupboardStartY - 30 * scale,
-               20 * scale, WHITE);
+    // Selected recipe details.
+    if (m_selectedCraftingRecipeIdx >= 0 &&
+        m_selectedCraftingRecipeIdx < (int)recipes.size()) {
+      const auto &recipe = recipes[m_selectedCraftingRecipeIdx];
+      const auto &resultDef = ItemDatabase::getDef(recipe.result);
 
-      for (int row = 0; row < 2; ++row) {
-        for (int col = 0; col < 10; ++col) {
-          int index = (row * 10) + col;
-          drawSlot(index, cupboardStartX + col * (slotSize + padding),
-                   cupboardStartY + row * (slotSize + padding), false, true);
+      float detailsX = layout.bagX;
+      float detailsY = layout.craftingY + slotSize + (10 * scale);
+
+      DrawText(TextFormat("Recipe: %s", resultDef.name.c_str()), detailsX,
+               detailsY, 20 * scale, WHITE);
+
+      float ingX = detailsX;
+      float ingY = detailsY + 25 * scale;
+      for (size_t i = 0; i < recipe.ingredients.size(); ++i) {
+        const auto &ing = recipe.ingredients[i];
+        Rectangle ingSlotRect = {ingX, ingY, slotSize * 0.8f, slotSize * 0.8f};
+
+        DrawRectangleRec(ingSlotRect, Fade(BLACK, 0.7f));
+        DrawRectangleLinesEx(ingSlotRect, 2.0f * scale, GRAY);
+
+        Rectangle ingDestRect = {ingX + padding * 0.8f, ingY + padding * 0.8f,
+                                 (slotSize - 2 * padding) * 0.8f,
+                                 (slotSize - 2 * padding) * 0.8f};
+        itemRenderer.renderItemUI(ing.type, ingDestRect, WHITE);
+
+        int playerHas = 0;
+        for (const auto &slot : playerInv)
+          if (slot.type == ing.type)
+            playerHas += slot.count;
+
+        bool hasEnough = playerHas >= ing.count;
+        Color textColor = hasEnough ? GREEN : RED;
+
+        // handleInventoryInput sets the flash deadline when a craft is
+        // refused; this only reads the clock against it.
+        if (!hasEnough && GetTime() < m_craftFlashEndTime) {
+          if ((int)(GetTime() * 15) % 2 == 0) {
+            textColor = WHITE;
+          }
         }
-      }
-    }
 
-    // 4. Draw Crafting Menu
-    if (m_inventoryOpen && !m_cupboardInventoryOpen) {
-      float craftingStartY =
-          bagStartY - (260 * scale); // Up a lot higher to fit details menu
-      DrawText("Crafting", bagStartX, craftingStartY - 25 * scale, 20 * scale,
+        DrawText(TextFormat("%d/%d", playerHas, ing.count),
+                 ingX + slotSize * 0.8f + 5 * scale, ingY + slotSize * 0.3f,
+                 20 * scale, textColor);
+
+        if (CheckCollisionPointRec(GetMousePosition(), ingSlotRect)) {
+          hoveredItemType = ing.type;
+          hoveredIsCrafting = true;
+        }
+
+        ingX += slotSize * 0.8f + 60 * scale;
+      }
+
+      // Craft button.
+      Rectangle btnRect = layout.craftButton();
+      bool canCraft = player.canCraft(recipe);
+      DrawRectangleRec(btnRect, canCraft ? Fade(GREEN, 0.6f) : Fade(RED, 0.6f));
+      DrawRectangleLinesEx(btnRect, 2.0f * scale, WHITE);
+
+      int textW = MeasureText("Craft", 20 * scale);
+      DrawText("Craft", btnRect.x + (btnRect.width - textW) / 2,
+               btnRect.y + (btnRect.height - 20 * scale) / 2, 20 * scale,
                WHITE);
 
-      const auto &recipes = CraftingSystem::getRecipes();
-      int visibleIdx = 0;
-
-      for (size_t i = 0; i < recipes.size(); ++i) {
-        const auto &recipe = recipes[i];
-
-        // Check visibility: Has unlocked OR has at least one ingredient
-        bool isVisible = player.hasUnlockedRecipe(recipe.result);
-        if (!isVisible) {
-          for (const auto &ing : recipe.ingredients) {
-            if (player.hasIngredient(ing.type, 1)) {
-              isVisible = true;
-              break;
-            }
-          }
-        }
-
-        if (isVisible) {
-          float x = bagStartX + visibleIdx * (slotSize + padding);
-          float y = craftingStartY;
-          Rectangle slotRect = {x, y, slotSize, slotSize};
-
-          // Draw background
-          bool isSelected = (m_selectedCraftingRecipeIdx == (int)i);
-          Color bgColor = isSelected ? Fade(YELLOW, 0.3f) : Fade(BLACK, 0.7f);
-          DrawRectangleRec(slotRect, bgColor);
-          DrawRectangleLinesEx(slotRect, 2.0f * scale,
-                               isSelected ? WHITE : GRAY);
-
-          // Mouse Interaction
-          if (CheckCollisionPointRec(GetMousePosition(), slotRect)) {
-            DrawRectangleLinesEx(slotRect, 3.0f * scale, WHITE);
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-              if (m_selectedCraftingRecipeIdx == (int)i) {
-                m_selectedCraftingRecipeIdx = -1; // Toggle off
-              } else {
-                m_selectedCraftingRecipeIdx = (int)i; // Select
-              }
-            }
-            hoveredItemType = recipe.result;
-            hoveredIsCrafting = true;
-          }
-
-          // Draw icon
-          Rectangle destRect = {x + padding, y + padding,
-                                slotSize - 2 * padding, slotSize - 2 * padding};
-          itemRenderer.renderItemUI(recipe.result, destRect, WHITE);
-
-          visibleIdx++;
-        }
-      }
-
-      if (visibleIdx == 0) {
-        DrawText("Go get yourself some items", bagStartX, craftingStartY,
-                 20 * scale, GRAY);
-      }
-
-      // Draw Selected Recipe Details
-      if (m_selectedCraftingRecipeIdx >= 0 &&
-          m_selectedCraftingRecipeIdx < recipes.size()) {
-        const auto &recipe = recipes[m_selectedCraftingRecipeIdx];
-        const auto &resultDef = ItemDatabase::getDef(recipe.result);
-
-        float detailsX = bagStartX;
-        float detailsY = craftingStartY + slotSize +
-                         (10 * scale); // Below the crafting icons
-
-        // Draw title
-        DrawText(TextFormat("Recipe: %s", resultDef.name.c_str()), detailsX,
-                 detailsY, 20 * scale, WHITE);
-
-        // Draw ingredients
-        float ingX = detailsX;
-        float ingY = detailsY + 25 * scale;
-        for (size_t i = 0; i < recipe.ingredients.size(); ++i) {
-          const auto &ing = recipe.ingredients[i];
-          Rectangle ingSlotRect = {ingX, ingY, slotSize * 0.8f,
-                                   slotSize * 0.8f};
-
-          DrawRectangleRec(ingSlotRect, Fade(BLACK, 0.7f));
-          DrawRectangleLinesEx(ingSlotRect, 2.0f * scale, GRAY);
-
-          Rectangle ingDestRect = {ingX + padding * 0.8f, ingY + padding * 0.8f,
-                                   (slotSize - 2 * padding) * 0.8f,
-                                   (slotSize - 2 * padding) * 0.8f};
-          itemRenderer.renderItemUI(ing.type, ingDestRect, WHITE);
-
-          // Count text
-          int playerHas = 0;
-          for (auto slot : player.getInventory())
-            if (slot.type == ing.type)
-              playerHas += slot.count;
-
-          bool hasEnough = playerHas >= ing.count;
-          Color textColor = hasEnough ? GREEN : RED;
-
-          if (!hasEnough && GetTime() < m_craftFlashEndTime) {
-            if ((int)(GetTime() * 15) % 2 == 0) {
-              textColor = WHITE;
-            }
-          }
-
-          DrawText(TextFormat("%d/%d", playerHas, ing.count),
-                   ingX + slotSize * 0.8f + 5 * scale, ingY + slotSize * 0.3f,
-                   20 * scale, textColor);
-
-          // Mouse Hover on ingredient
-          if (CheckCollisionPointRec(GetMousePosition(), ingSlotRect)) {
-            hoveredItemType = ing.type;
-            hoveredIsCrafting = true;
-          }
-
-          ingX += slotSize * 0.8f + 60 * scale;
-        }
-
-        // Draw Craft Button
-        bool canCraft = player.canCraft(recipe);
-        float btnW = 100 * scale;
-        float btnH = 40 * scale;
-        float btnX = bagStartX + (5 * slotSize + 4 * padding) - btnW;
-        float btnY = detailsY + 15 * scale;
-
-        Rectangle btnRect = {btnX, btnY, btnW, btnH};
-        DrawRectangleRec(btnRect,
-                         canCraft ? Fade(GREEN, 0.6f) : Fade(RED, 0.6f));
-        DrawRectangleLinesEx(btnRect, 2.0f * scale, WHITE);
-
-        int textW = MeasureText("Craft", 20 * scale);
-        DrawText("Craft", btnX + (btnW - textW) / 2,
-                 btnY + (btnH - 20 * scale) / 2, 20 * scale, WHITE);
-
-        if (CheckCollisionPointRec(GetMousePosition(), btnRect)) {
-          DrawRectangleLinesEx(btnRect, 3.0f * scale, YELLOW);
-          if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            if (canCraft) {
-              player.craftItem(recipe);
-            } else {
-              m_craftFlashEndTime = GetTime() + 0.5f; // Flash for 0.5 seconds
-            }
-          }
-        }
+      if (CheckCollisionPointRec(GetMousePosition(), btnRect)) {
+        DrawRectangleLinesEx(btnRect, 3.0f * scale, YELLOW);
       }
     }
+  }
 
-    if (m_heldSlotIndex != -1) {
-      Vector2 mousePos = GetMousePosition();
+  // 5. The stack riding the cursor.
+  if (m_heldSlotIndex != -1) {
+    Vector2 mousePos = GetMousePosition();
+    const auto &heldInv = m_heldFromCupboard ? *cupboardInv : playerInv;
+    const InventorySlot &slot = heldInv[m_heldSlotIndex];
 
-      auto &pInv = player.getInventoryRef();
-      auto *cInvPtr =
-          m_cupboardInventoryOpen
-              ? &maze.getCupboardInventory(m_openedCupboardX, m_openedCupboardY)
-              : nullptr;
-      auto &heldInv = m_heldFromCupboard ? (*cInvPtr) : pInv;
-      auto slot = heldInv[m_heldSlotIndex];
+    Rectangle destRect = {mousePos.x - slotSize / 2 + padding,
+                          mousePos.y - slotSize / 2 + padding,
+                          slotSize - 2 * padding, slotSize - 2 * padding};
+    itemRenderer.renderItemUI(slot.type, destRect, Fade(WHITE, 0.8f));
 
-      Rectangle destRect = {mousePos.x - slotSize / 2 + padding,
-                            mousePos.y - slotSize / 2 + padding,
-                            slotSize - 2 * padding, slotSize - 2 * padding};
-      itemRenderer.renderItemUI(slot.type, destRect, Fade(WHITE, 0.8f));
-
-      if (slot.count > 1) {
-        DrawText(TextFormat("%d", slot.count),
-                 mousePos.x + slotSize / 2 - 20 * scale,
-                 mousePos.y + slotSize / 2 - 20 * scale, 20 * scale, WHITE);
-      }
+    if (slot.count > 1) {
+      DrawText(TextFormat("%d", slot.count),
+               mousePos.x + slotSize / 2 - 20 * scale,
+               mousePos.y + slotSize / 2 - 20 * scale, 20 * scale, WHITE);
     }
+  }
 
-    if (hoveredItemType != ItemType::NONE && m_heldSlotIndex == -1) {
-      const auto &def = ItemDatabase::getDef(hoveredItemType);
-      std::string desc = def.description;
+  // 6. Tooltip for whatever the cursor is over.
+  if (hoveredItemType != ItemType::NONE && m_heldSlotIndex == -1) {
+    const auto &def = ItemDatabase::getDef(hoveredItemType);
+    std::string desc = def.description;
 
-
-      // Simple line break measurement estimation
-      int maxDescW = 0;
-      int lines = 1;
-      std::string currentLineForMeasure;
-      for (char c : desc) {
-        if (c == '\n') {
-          int w = MeasureText(currentLineForMeasure.c_str(), 15 * scale);
-          if (w > maxDescW)
-            maxDescW = w;
-          currentLineForMeasure = "";
-          lines++;
-        } else {
-          currentLineForMeasure += c;
-        }
-      }
-      if (!currentLineForMeasure.empty()) {
+    // Simple line break measurement estimation
+    int maxDescW = 0;
+    int lines = 1;
+    std::string currentLineForMeasure;
+    for (char c : desc) {
+      if (c == '\n') {
         int w = MeasureText(currentLineForMeasure.c_str(), 15 * scale);
         if (w > maxDescW)
           maxDescW = w;
+        currentLineForMeasure = "";
+        lines++;
+      } else {
+        currentLineForMeasure += c;
       }
+    }
+    if (!currentLineForMeasure.empty()) {
+      int w = MeasureText(currentLineForMeasure.c_str(), 15 * scale);
+      if (w > maxDescW)
+        maxDescW = w;
+    }
 
-      int nameW = MeasureText(def.name.c_str(), 20 * scale);
-      int boxW = std::max(nameW, maxDescW) + 40 * scale;
-      int boxH = 40 * scale + (lines * 20 * scale);
+    int nameW = MeasureText(def.name.c_str(), 20 * scale);
+    int boxW = std::max(nameW, maxDescW) + 40 * scale;
+    int boxH = 40 * scale + (lines * 20 * scale);
 
-      Vector2 mousePos = GetMousePosition();
-      DrawRectangle(mousePos.x + 10 * scale, mousePos.y + 10 * scale, boxW,
-                    boxH, Fade(BLACK, 0.9f));
-      DrawRectangleLines(mousePos.x + 10 * scale, mousePos.y + 10 * scale, boxW,
-                         boxH, GRAY);
-      DrawText(def.name.c_str(), mousePos.x + 20 * scale,
-               mousePos.y + 15 * scale, 20 * scale, YELLOW);
+    Vector2 mousePos = GetMousePosition();
+    DrawRectangle(mousePos.x + 10 * scale, mousePos.y + 10 * scale, boxW, boxH,
+                  Fade(BLACK, 0.9f));
+    DrawRectangleLines(mousePos.x + 10 * scale, mousePos.y + 10 * scale, boxW,
+                       boxH, GRAY);
+    DrawText(def.name.c_str(), mousePos.x + 20 * scale, mousePos.y + 15 * scale,
+             20 * scale, YELLOW);
 
-      // Draw multi-line text
-      int lineY = mousePos.y + 40 * scale;
-      std::string currentLine;
-      for (char c : desc) {
-        if (c == '\n') {
-          DrawText(currentLine.c_str(), mousePos.x + 20 * scale, lineY,
-                   15 * scale, LIGHTGRAY);
-          currentLine = "";
-          lineY += 20 * scale;
-        } else {
-          currentLine += c;
-        }
-      }
-      if (!currentLine.empty()) {
+    int lineY = mousePos.y + 40 * scale;
+    std::string currentLine;
+    for (char c : desc) {
+      if (c == '\n') {
         DrawText(currentLine.c_str(), mousePos.x + 20 * scale, lineY,
                  15 * scale, LIGHTGRAY);
+        currentLine = "";
+        lineY += 20 * scale;
+      } else {
+        currentLine += c;
       }
+    }
+    if (!currentLine.empty()) {
+      DrawText(currentLine.c_str(), mousePos.x + 20 * scale, lineY, 15 * scale,
+               LIGHTGRAY);
     }
   }
 }
-
 
 void UIManager::generateMagicBookMap(Maze &maze) {
   int startX = 55;

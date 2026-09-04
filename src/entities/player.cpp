@@ -156,8 +156,8 @@ void Player::update(Maze &maze, float dt, bool canMove) {
   }
 
   if (doorIndexToEnter != -1) {
-    int gridX = static_cast<int>(std::floor(m_position.x / maze.getCellSize()));
-    int gridY = static_cast<int>(std::floor(m_position.y / maze.getCellSize()));
+    int gridX = maze.toGridX(m_position.x);
+    int gridY = maze.toGridY(m_position.y);
 
     int dx[] = {0, 0, -1, 1};
     int dy[] = {-1, 1, 0, 0};
@@ -227,10 +227,10 @@ void Player::resolveCollision(const Maze &maze) {
   // Convert pixel coordinates to Maze Grid Coordinates
   // We use floor() to safely handle negative values if the player goes out of
   // bounds.
-  int startGridX = static_cast<int>(std::floor(minX / cellSize));
-  int endGridX = static_cast<int>(std::floor(maxX / cellSize));
-  int startGridY = static_cast<int>(std::floor(minY / cellSize));
-  int endGridY = static_cast<int>(std::floor(maxY / cellSize));
+  int startGridX = maze.toGridX(minX);
+  int endGridX = maze.toGridX(maxX);
+  int startGridY = maze.toGridY(minY);
+  int endGridY = maze.toGridY(maxY);
 
   // Loop through these nearby grid cells
   for (int y = startGridY; y <= endGridY; ++y) {
@@ -319,8 +319,8 @@ void Player::resolveCollision(const Maze &maze) {
 // Door Interaction Check
 // ============================================================================
 int Player::getAvailableDoors(const Maze &maze) const {
-  int gridX = static_cast<int>(std::floor(m_position.x / maze.getCellSize()));
-  int gridY = static_cast<int>(std::floor(m_position.y / maze.getCellSize()));
+  int gridX = maze.toGridX(m_position.x);
+  int gridY = maze.toGridY(m_position.y);
 
   int dx[] = {0, 0, -1, 1};
   int dy[] = {-1, 1, 0, 0};
@@ -344,8 +344,8 @@ int Player::getAvailableDoors(const Maze &maze) const {
 // ============================================================================
 
 void Player::pickupItem(Maze &maze) {
-  int px = static_cast<int>(std::floor(m_position.x / maze.getCellSize()));
-  int py = static_cast<int>(std::floor(m_position.y / maze.getCellSize()));
+  int px = maze.toGridX(m_position.x);
+  int py = maze.toGridY(m_position.y);
 
   ItemType typeToPickup = ItemType::NONE;
   int targetX = px;
@@ -404,7 +404,7 @@ void Player::pickupItem(Maze &maze) {
 
   int maxStack = ItemDatabase::getDef(typeToPickup).maxStackSize;
   // 1. Try to find an existing stack that isn't full
-  for (int i = 0; i < 20; ++i) {
+  for (int i = 0; i < INVENTORY_SLOTS; ++i) {
     if (m_inventory[i].type == typeToPickup && m_inventory[i].count < maxStack) {
       m_inventory[i].count++;
       if (targetX != -1) maze.setItem(targetX, targetY, ItemType::NONE);
@@ -417,7 +417,7 @@ void Player::pickupItem(Maze &maze) {
   }
 
   // 2. Try to find an empty slot
-  for (int i = 0; i < 20; ++i) {
+  for (int i = 0; i < INVENTORY_SLOTS; ++i) {
     if (m_inventory[i].type == ItemType::NONE) {
       m_inventory[i].type = typeToPickup;
       m_inventory[i].count = 1;
@@ -432,13 +432,13 @@ void Player::pickupItem(Maze &maze) {
 }
 
 void Player::dropItem(Maze &maze, int slotIndex) {
-  if (slotIndex < 0 || slotIndex >= 20)
+  if (slotIndex < 0 || slotIndex >= INVENTORY_SLOTS)
     return;
   if (m_inventory[slotIndex].type == ItemType::NONE)
     return;
 
-  int gridX = static_cast<int>(std::floor(m_position.x / maze.getCellSize()));
-  int gridY = static_cast<int>(std::floor(m_position.y / maze.getCellSize()));
+  int gridX = maze.toGridX(m_position.x);
+  int gridY = maze.toGridY(m_position.y);
 
   int outX, outY;
   // Try to find nearest empty cell up to radius 2
@@ -454,7 +454,7 @@ void Player::dropItem(Maze &maze, int slotIndex) {
 }
 
 void Player::consumeItem(int slotIndex) {
-  if (slotIndex < 0 || slotIndex >= 20)
+  if (slotIndex < 0 || slotIndex >= INVENTORY_SLOTS)
     return;
   if (m_inventory[slotIndex].type == ItemType::NONE)
     return;
@@ -492,7 +492,7 @@ void Player::consumeItem(int slotIndex) {
 }
 
 void Player::destroyItem(int slotIndex) {
-  if (slotIndex < 0 || slotIndex >= 20)
+  if (slotIndex < 0 || slotIndex >= INVENTORY_SLOTS)
     return;
   if (m_inventory[slotIndex].type == ItemType::NONE)
     return;
@@ -505,7 +505,8 @@ void Player::destroyItem(int slotIndex) {
 }
 
 void Player::swapSlots(int slotIndex1, int slotIndex2) {
-  if (slotIndex1 < 0 || slotIndex1 >= 20 || slotIndex2 < 0 || slotIndex2 >= 20)
+  if (slotIndex1 < 0 || slotIndex1 >= INVENTORY_SLOTS ||
+      slotIndex2 < 0 || slotIndex2 >= INVENTORY_SLOTS)
     return;
 
   // If same type, try to merge stacks
