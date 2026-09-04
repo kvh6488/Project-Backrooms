@@ -34,7 +34,6 @@ struct NamedSeed {
 inline constexpr NamedSeed NAMED[] = {
     {"radiation", 1788480606u,
      "player spawns inside a radiation zone (magic mushrooms nearby)"},
-    {"original", 1783608201u, "the original pinned development seed"},
 };
 
 inline constexpr int NAMED_COUNT = sizeof(NAMED) / sizeof(NAMED[0]);
