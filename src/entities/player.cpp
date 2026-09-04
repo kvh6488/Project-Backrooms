@@ -14,13 +14,12 @@ Player::Player(Vector2 startPosition, AreaState startState)
 // ============================================================================
 // Update - Kinematics and Input
 // ============================================================================
-void Player::update(Maze &maze, bool canMove) {
+void Player::update(Maze &maze, float dt, bool canMove) {
   // 1. FRAMERATE INDEPENDENCE (Delta Time)
-  // GetFrameTime() returns the seconds elapsed since the last frame (e.g.,
-  // 0.016s for 60 FPS). Multiplying our speed by this ensures we move exactly
-  // 250 pixels per second in real life, regardless of how fast the computer is
-  // running.
-  float dt = GetFrameTime();
+  // dt is the seconds elapsed since the last frame (e.g. 0.016s at 60 FPS).
+  // Multiplying speed by it means we move a fixed number of pixels per real
+  // second regardless of how fast the machine runs. It is passed in rather
+  // than read from GetFrameTime() here, so the frame loop owns the clock.
 
   if (m_isPassingOut) {
     float prevTimer = m_passOutTimer;

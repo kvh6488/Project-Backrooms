@@ -12,6 +12,7 @@
 #include "world/maze.hpp"
 #include "world/maze_renderer.hpp"
 #include <random>
+#include <vector>
 
 
 // The PlayingState represents the core gameplay loop (exploring the maze).
@@ -27,9 +28,21 @@ public:
   void update(float dt) override;
   void render() override;
 
+  // The eight shifting strips, derived from the world's dimensions rather than
+  // hardcoded to 250x150. A pure function of its arguments — no instance state
+  // — so the layout can be pinned by a test without standing up a window.
+  static std::vector<Maze::Room> buildTicTacToeZones(int width, int height,
+                                                     int thickness);
+
 private:
   void handleInput();
   void regenerateTicTacToeZones();
+
+  // Width of every shifting strip, in cells. The roadmap plans to vary this
+  // per night as the run escalates.
+  // Keep it >= 6: BSPLeaf::createRooms assumes a leaf at least 6 cells across
+  // and its room-size distribution inverts below that.
+  int m_zoneThickness = 14;
 
   // Reference to the global UI Manager
   UIManager &m_uiManager;

@@ -1,5 +1,6 @@
 #include "items/item_renderer.hpp"
 #include "items/item_database.hpp"
+#include "world/view_bounds.hpp"
 #include <cmath>
 #include <iostream>
 
@@ -50,36 +51,16 @@ ItemRenderer::~ItemRenderer() {
 // ============================================================================
 void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
                           AreaState state) const {
-  // --- FRUSTUM CULLING (same approach as MazeRenderer) ---
-  Vector2 topLeft = GetScreenToWorld2D({0.0f, 0.0f}, camera);
-  Vector2 bottomRight = GetScreenToWorld2D(
-      {(float)GetScreenWidth(), (float)GetScreenHeight()}, camera);
-
+  // --- FRUSTUM CULLING (shared with MazeRenderer) ---
+  ViewBounds view = ViewBounds::fromCamera(maze, camera);
   int cellSize = maze.getCellSize();
 
-  int startX = (int)std::floor(topLeft.x / cellSize) - 1;
-  int endX = (int)std::ceil(bottomRight.x / cellSize) + 1;
-  int startY = (int)std::floor(topLeft.y / cellSize) - 3;
-  int endY = (int)std::ceil(bottomRight.y / cellSize) + 1;
-
-  for (int y = startY; y <= endY; ++y) {
-    for (int x = startX; x <= endX; ++x) {
-      int cell = maze.getCell(x, y);
-
-      // Only render items on visible floor/room cells
-      if (cell != Maze::CELL_ROOM && cell != Maze::CELL_CORRIDOR)
+  for (int y = view.startY; y <= view.endY; ++y) {
+    for (int x = view.startX; x <= view.endX; ++x) {
+      // Floor check plus the room/corridor visibility rule, shared with the
+      // magic book pass so the two cannot drift apart.
+      if (!isCellRenderable(maze, x, y, state))
         continue;
-
-      // Visibility check: in rooms, respect FOV; in corridors, let the
-      // flashlight mask handle it (same logic as MazeRenderer)
-      if (state == AreaState::ROOM && !maze.isVisible(x, y))
-        continue;
-
-      if (state == AreaState::CORRIDOR && cell == Maze::CELL_ROOM) {
-        // Strictly no room items should render while the player is in the
-        // corridors.
-        continue;
-      }
 
       // --- Item Rendering (Grid-Parallel Switch) ---
       // O(1) lookup per cell. Adding a new item type means adding a
@@ -325,9 +306,11 @@ ItemRenderer::computeTableSprite(const Maze &maze, int x, int y) const {
 // renderMagicBookOverlay - Shader-exempt pass for the magic book
 // ============================================================================
 // Runs AFTER EndShaderMode() so the book does not warp with the trip shader.
-// Because it is outside render()'s per-cell scan, it must re-derive the two
-// things that loop provided for free: the visibility rule and the frustum
-// cull. Table geometry comes from computeTableSprite() so it cannot drift.
+// Because it is outside render()'s per-cell scan it still has to apply the two
+// things that loop provides for free — the visibility rule and the frustum
+// cull — but both now come from view_bounds.hpp rather than being restated
+// here, so they cannot drift from the item pass. Table geometry likewise comes
+// from computeTableSprite().
 // ============================================================================
 void ItemRenderer::renderMagicBookOverlay(const Maze &maze,
                                           const Camera2D &camera,
@@ -340,27 +323,14 @@ void ItemRenderer::renderMagicBookOverlay(const Maze &maze,
   int x = maze.getMagicBookX();
   int y = maze.getMagicBookY();
 
-  // --- Visibility (mirrors the rules in render()) ---
-  if (state == AreaState::ROOM && !maze.isVisible(x, y)) {
+  if (!isCellRenderable(maze, x, y, state)) {
     return;
   }
-  if (state == AreaState::CORRIDOR && maze.getCell(x, y) == Maze::CELL_ROOM) {
-    return;
-  }
-
-  // --- Frustum culling (same approach as render() / MazeRenderer) ---
-  int cellSize = maze.getCellSize();
-  Vector2 topLeft = GetScreenToWorld2D({0.0f, 0.0f}, camera);
-  Vector2 bottomRight = GetScreenToWorld2D(
-      {(float)GetScreenWidth(), (float)GetScreenHeight()}, camera);
-
-  float pixelX = (float)(x * cellSize);
-  float pixelY = (float)(y * cellSize);
-  if (pixelX + cellSize < topLeft.x || pixelX > bottomRight.x ||
-      pixelY + cellSize < topLeft.y || pixelY > bottomRight.y) {
+  if (!ViewBounds::fromCamera(maze, camera).contains(x, y)) {
     return; // Off screen
   }
 
+  int cellSize = maze.getCellSize();
   TableSprite table = computeTableSprite(maze, x, y);
   if (!table.valid) {
     return; // The book is only ever placed on a table root tile.
@@ -414,38 +384,42 @@ void ItemRenderer::renderMagicBookOverlay(const Maze &maze,
   DrawTexturePro(m_ritualTexture, bookSrc, destRectBook, origin, 0.0f, WHITE);
 }
 
+// ============================================================================
+// atlasFor - resolve a UiTexture name to the loaded handle
+// ============================================================================
+// This is still a switch, but note what it switches ON. It used to be a switch
+// over ItemType, which grows with every item added; this one is over the atlas
+// set, which the renderer already owns and which changes only when an artist
+// hands over a new sheet. Adding an item is now one edit in ItemDatabase.
+// ============================================================================
+Texture2D ItemRenderer::atlasFor(UiTexture which) const {
+  switch (which) {
+  case UiTexture::WORKSHOP:
+    return m_postApocWorkshopTextures;
+  case UiTexture::WORKSHOP_ICONS:
+    return m_postApocIconsTexture;
+  case UiTexture::RITUAL:
+    return m_ritualTexture;
+  case UiTexture::MUSHROOMS:
+  default:
+    return m_mushroomTexture;
+  }
+}
+
 void ItemRenderer::renderItemUI(ItemType type, Rectangle destRect,
                                 Color tint) const {
   const auto &def = ItemDatabase::getDef(type);
 
+  // The barrel has no inventory icon: it is drawn as a flat green swatch, so
+  // it deliberately never reaches the atlas path.
   if (type == ItemType::TOXIC_WASTE) {
     DrawRectangleRec(destRect, GREEN);
     return;
   }
 
   if (def.uiSpriteRect.width > 0 && def.uiSpriteRect.height > 0) {
-    Texture2D texToUse = m_mushroomTexture; // Fallback
-
-    switch (type) {
-    case ItemType::PAPER:
-    case ItemType::PENCIL:
-      texToUse = m_postApocWorkshopTextures;
-      break;
-    case ItemType::MAP:
-      texToUse = m_postApocIconsTexture;
-      break;
-    case ItemType::MUSHROOM:
-    case ItemType::MAGIC_MUSHROOM:
-      texToUse = m_mushroomTexture;
-      break;
-    case ItemType::MAGIC_BOOK_OF_MAPS:
-      texToUse = m_ritualTexture;
-      break;
-    default:
-      break;
-    }
-
-    DrawTexturePro(texToUse, def.uiSpriteRect, destRect, {0, 0}, 0.0f, tint);
+    DrawTexturePro(atlasFor(def.uiTexture), def.uiSpriteRect, destRect, {0, 0},
+                   0.0f, tint);
   } else {
     DrawRectangleRec(destRect, tint);
   }

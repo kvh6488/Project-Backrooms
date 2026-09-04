@@ -98,8 +98,9 @@ void PlayingState::update(float dt) {
 
   handleInput();
 
-  m_player.update(m_maze, !m_uiManager.isInventoryOpen() &&
-                              !m_uiManager.isFullscreenMapOpen());
+  m_player.update(m_maze, dt,
+                  !m_uiManager.isInventoryOpen() &&
+                      !m_uiManager.isFullscreenMapOpen());
 
   int playerGridX = static_cast<int>(
       std::floor(m_player.getPosition().x / m_maze.getCellSize()));
@@ -614,11 +615,50 @@ void PlayingState::render() {
   EndDrawing();
 }
 
+// ============================================================================
+// buildTicTacToeZones - the eight shifting strips, derived from maze size
+// ============================================================================
+// Two full-height vertical strips and two horizontal bands, the bands cut into
+// three segments by the verticals - a noughts-and-crosses board. These used to
+// be eight hardcoded rectangles that were only correct at 250x150.
+//
+// The strip positions are fractions of each dimension (22%/72% across, 20%/70%
+// down), computed with integer arithmetic so they reproduce the original
+// hand-tuned numbers exactly at 250x150 rather than drifting by a rounding
+// error. The asymmetry is deliberate: it makes the centre band the largest, so
+// the middle of the world shifts least.
+// ============================================================================
+std::vector<Maze::Room> PlayingState::buildTicTacToeZones(int width, int height,
+                                                          int thickness) {
+  const int w = width;
+  const int h = height;
+  const int t = thickness;
+
+  const int vx[2] = {w * 22 / 100, w * 72 / 100}; // 55, 180 at width 250
+  const int hy[2] = {h * 20 / 100, h * 70 / 100}; // 30, 105 at height 150
+
+  // Where each horizontal segment starts, and how wide it is: the gaps the
+  // vertical strips leave behind.
+  const int segX[3] = {0, vx[0] + t, vx[1] + t};
+  const int segW[3] = {vx[0], vx[1] - (vx[0] + t), w - (vx[1] + t)};
+
+  std::vector<Maze::Room> zones;
+  zones.push_back({vx[0], 0, t, h});
+  zones.push_back({vx[1], 0, t, h});
+
+  for (int band = 0; band < 2; ++band) {
+    for (int seg = 0; seg < 3; ++seg) {
+      if (segW[seg] > 0) {
+        zones.push_back({segX[seg], hy[band], segW[seg], t});
+      }
+    }
+  }
+  return zones;
+}
+
 void PlayingState::regenerateTicTacToeZones() {
-  std::vector<Maze::Room> zones = {{55, 0, 14, 150},   {180, 0, 14, 150},
-                                   {0, 30, 55, 14},    {69, 30, 111, 14},
-                                   {194, 30, 56, 14},  {0, 105, 55, 14},
-                                   {69, 105, 111, 14}, {194, 105, 56, 14}};
+  std::vector<Maze::Room> zones =
+      buildTicTacToeZones(m_maze.getWidth(), m_maze.getHeight(), m_zoneThickness);
 
   std::vector<std::map<ItemType, int>> removedPerZone(zones.size());
   for (size_t i = 0; i < zones.size(); ++i) {

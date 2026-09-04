@@ -65,6 +65,19 @@ void Application::run() {
     if (m_currentState) {
       m_currentState->update(GetFrameTime());
       m_currentState->render();
+
+      // Honour a transition only here, after the frame is fully drawn. The
+      // state that raised the request is still live during update/render, so
+      // destroying it any earlier would pull the object out from under itself.
+      if (m_currentState->hasPendingTransition()) {
+        if (m_currentState->wantsQuit()) {
+          break; // ~Application calls onExit on the way out
+        }
+        std::unique_ptr<GameState> next = m_currentState->takeNextState();
+        m_currentState->onExit();
+        m_currentState = std::move(next);
+        m_currentState->onEnter();
+      }
     }
   }
 }

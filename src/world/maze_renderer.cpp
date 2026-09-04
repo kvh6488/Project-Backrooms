@@ -1,5 +1,6 @@
 #include "world/maze_renderer.hpp"
 #include "entities/player.hpp"
+#include "world/view_bounds.hpp"
 #include <cmath>
 #include <iostream>
 
@@ -41,22 +42,13 @@ MazeRenderer::~MazeRenderer() {
 void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
                           AreaState state, bool showGenerationZones) const {
   // --- FRUSTUM CULLING ---
-  Vector2 topLeft = GetScreenToWorld2D({0.0f, 0.0f}, camera);
-  Vector2 bottomRight = GetScreenToWorld2D(
-      {(float)GetScreenWidth(), (float)GetScreenHeight()}, camera);
-
+  // Shared with the item passes; see view_bounds.hpp for why startY reaches
+  // three cells further than the other edges.
+  ViewBounds view = ViewBounds::fromCamera(maze, camera);
   int cellSize = maze.getCellSize();
 
-  // We are back to purely 1x1 scaling!
-  // We subtract 3 from startY to ensure walls projecting upwards are drawn even
-  // if their base is off-screen.
-  int startX = (int)std::floor(topLeft.x / cellSize) - 1;
-  int endX = (int)std::ceil(bottomRight.x / cellSize) + 1;
-  int startY = (int)std::floor(topLeft.y / cellSize) - 3;
-  int endY = (int)std::ceil(bottomRight.y / cellSize) + 1;
-
-  for (int y = startY; y <= endY; ++y) {
-    for (int x = startX; x <= endX; ++x) {
+  for (int y = view.startY; y <= view.endY; ++y) {
+    for (int x = view.startX; x <= view.endX; ++x) {
       int cell = maze.getCell(x, y);
 
       // Determine if this cell should be drawn as a "void" (unseen or out of

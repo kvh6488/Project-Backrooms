@@ -38,8 +38,11 @@ public:
 
   // --- Core Methods ---
 
-  // Updates player logic every frame (Input -> Kinematics -> Collision)
-  void update(Maze &maze, bool canMove = true);
+  // Updates player logic every frame (Input -> Kinematics -> Collision).
+  // dt comes from the caller rather than GetFrameTime() so there is one
+  // authoritative clock per frame — the thing a pause, a sleep-driven time
+  // skip or slow-motion all have to be able to control.
+  void update(Maze &maze, float dt, bool canMove = true);
 
   // Getters
   Vector2 getPosition() const { return m_position; }

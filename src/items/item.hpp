@@ -28,20 +28,35 @@ enum class ItemType : int {
 };
 
 // ============================================================================
+// UiTexture
+// ============================================================================
+// Names the atlas a UI icon is cut from. The definition stores the name; the
+// ItemRenderer owns the actual Texture2D handles and resolves the name at draw
+// time. That keeps the enum free of any dependency on loaded GPU resources,
+// and means a new item is one edit in ItemDatabase rather than two.
+enum class UiTexture : int {
+  MUSHROOMS = 0, // mushrooms_pixel_asset.png — also the fallback
+  WORKSHOP,      // PostApoc_Workshop_WithShadow.png
+  WORKSHOP_ICONS,// PostApoc_Workshop_Icons.png
+  RITUAL         // Spritesheet_TheDarkRitual_BigWander.png
+};
+
+// ============================================================================
 // ItemDefinition
 // ============================================================================
 // Centralized metadata for a specific ItemType (Type Object Pattern).
 struct ItemDefinition {
     std::string name;
     std::string description;
-    
+
     // Core behaviors
     bool isPlaceable;   // Can this be instantiated as a physical tile in the maze?
     bool isPickable;    // Can this be picked up and stored in an inventory?
     bool isConsumable;  // Can the player "use" or "eat" this item directly?
-    
+
     int maxStackSize;
     Rectangle uiSpriteRect; // The texture rectangle for rendering this item in UI
+    UiTexture uiTexture;    // Which atlas uiSpriteRect indexes into
 };
 
 // ============================================================================

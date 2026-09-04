@@ -3,7 +3,9 @@
 #include "world/generators/prims_generator.hpp"
 #include "world/generators/tunnel_borer.hpp"
 #include "world/item_spawner.hpp"
+#include "states/playing_state.hpp"
 #include "world/maze.hpp"
+#include "world/view_bounds.hpp"
 #include <ctime>
 #include <gtest/gtest.h>
 #include <queue>
@@ -563,4 +565,104 @@ TEST(MazeItemLayerTest, ClearItemsInZoneAlsoDropsTheCupboardInventory) {
   EXPECT_FALSE(maze.hasCupboardInventory(5, 5))
       << "a cleared cell must not keep an inventory for a cupboard that is gone";
   EXPECT_TRUE(maze.isCupboardEmpty(5, 5));
+}
+
+// ============================================================================
+// Shifting-zone layout
+// ============================================================================
+// The eight tic-tac-toe strips used to be eight hardcoded rectangles that were
+// only correct at 250x150. They are now derived from the world's dimensions so
+// the maze can be resized and the strip thickness can vary per night, which is
+// what the roadmap plans. This pins the derivation to the exact rectangles the
+// hardcoded list held, so the refactor cannot have moved the world.
+// ============================================================================
+TEST(TicTacToeZoneTest, DerivedLayoutMatchesTheOriginalHardcodedRectangles) {
+  auto zones = PlayingState::buildTicTacToeZones(250, 150, 14);
+
+  const int expected[8][4] = {
+      {55, 0, 14, 150},   {180, 0, 14, 150}, {0, 30, 55, 14},
+      {69, 30, 111, 14},  {194, 30, 56, 14}, {0, 105, 55, 14},
+      {69, 105, 111, 14}, {194, 105, 56, 14}};
+
+  ASSERT_EQ(zones.size(), 8u);
+  for (int i = 0; i < 8; ++i) {
+    EXPECT_EQ(zones[i].x, expected[i][0]) << "zone " << i << " x";
+    EXPECT_EQ(zones[i].y, expected[i][1]) << "zone " << i << " y";
+    EXPECT_EQ(zones[i].width, expected[i][2]) << "zone " << i << " width";
+    EXPECT_EQ(zones[i].height, expected[i][3]) << "zone " << i << " height";
+  }
+}
+
+// The strips must not overlap each other, or clearItemsInZone would double
+// count the items it reports and the spawner would over-replenish.
+TEST(TicTacToeZoneTest, StripsCoverDistinctCells) {
+  const int w = 250, h = 150;
+  auto zones = PlayingState::buildTicTacToeZones(w, h, 14);
+
+  std::vector<int> hits(w * h, 0);
+  for (const auto &z : zones) {
+    for (int y = z.y; y < z.y + z.height; ++y) {
+      for (int x = z.x; x < z.x + z.width; ++x) {
+        ASSERT_GE(x, 0);
+        ASSERT_LT(x, w);
+        ASSERT_GE(y, 0);
+        ASSERT_LT(y, h);
+        hits[y * w + x]++;
+      }
+    }
+  }
+
+  for (int i = 0; i < w * h; ++i) {
+    ASSERT_LE(hits[i], 1) << "cell " << i << " is covered by two strips";
+  }
+}
+
+// A different world size must still produce a well-formed board rather than
+// strips that run off the edge or invert.
+TEST(TicTacToeZoneTest, StaysInBoundsAtOtherWorldSizes) {
+  const int w = 120, h = 80, t = 8;
+  auto zones = PlayingState::buildTicTacToeZones(w, h, t);
+
+  ASSERT_FALSE(zones.empty());
+  for (const auto &z : zones) {
+    EXPECT_GT(z.width, 0);
+    EXPECT_GT(z.height, 0);
+    EXPECT_GE(z.x, 0);
+    EXPECT_GE(z.y, 0);
+    EXPECT_LE(z.x + z.width, w) << "strip runs off the right edge";
+    EXPECT_LE(z.y + z.height, h) << "strip runs off the bottom edge";
+  }
+}
+
+// ============================================================================
+// isCellRenderable — the shared visibility rule
+// ============================================================================
+// Extracted from three copies so the item pass, the magic book pass and any
+// future mob pass agree. Walls hold nothing; rooms respect the BFS field of
+// view; from a corridor you see corridor contents but never a room's interior.
+// ============================================================================
+TEST(ViewBoundsTest, IsCellRenderableAppliesTheRoomAndCorridorRules) {
+  Maze maze(20, 20, 32, 12345);
+
+  // A 3x3 room at (5,5), and a corridor cell away from it.
+  for (int y = 5; y < 8; ++y)
+    for (int x = 5; x < 8; ++x)
+      maze.setCell(x, y, Maze::CELL_ROOM);
+  maze.setCell(12, 12, Maze::CELL_CORRIDOR);
+
+  // Walls never hold contents, in either context.
+  EXPECT_FALSE(isCellRenderable(maze, 0, 0, AreaState::ROOM));
+  EXPECT_FALSE(isCellRenderable(maze, 0, 0, AreaState::CORRIDOR));
+
+  // Standing in the room: its cells are lit by the BFS flood, so they draw.
+  maze.updateVisibility(6, 6, AreaState::ROOM);
+  EXPECT_TRUE(isCellRenderable(maze, 6, 6, AreaState::ROOM));
+  EXPECT_FALSE(isCellRenderable(maze, 12, 12, AreaState::ROOM))
+      << "a corridor cell outside the lit room must not draw its contents";
+
+  // Standing in a corridor: corridor contents draw, room interiors do not.
+  maze.updateVisibility(12, 12, AreaState::CORRIDOR);
+  EXPECT_TRUE(isCellRenderable(maze, 12, 12, AreaState::CORRIDOR));
+  EXPECT_FALSE(isCellRenderable(maze, 6, 6, AreaState::CORRIDOR))
+      << "room interiors stay hidden while the player is in the corridors";
 }

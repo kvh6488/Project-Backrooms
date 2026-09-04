@@ -67,6 +67,9 @@ private:
   // dimensions - so computing it in two places silently misplaces the book.
   TableSprite computeTableSprite(const Maze &maze, int x, int y) const;
 
+  // Maps the atlas name an ItemDefinition carries to the loaded handle.
+  Texture2D atlasFor(UiTexture which) const;
+
   Texture2D m_postApocWorkshopTextures;
   Texture2D m_doodadsTexture;
   Texture2D m_mushroomTexture;
