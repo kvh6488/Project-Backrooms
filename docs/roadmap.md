@@ -98,7 +98,7 @@ Make the maze visually distinct and physically wrap around.
   - Equipping a torch extends corridor visibility distance (implmented in later phase)
 - Possibly resize game window, and gameview to fit screen etc, add temporary application icon.
 
-### Phase 3 — Radiation & Base Game development *(Days 23–34)*
+### Phase 3 (COMPLETE) — Radiation & Base Game development *(Days 23–34)*
 The mathematical heart — radiation systems spreading across the grid.
 - **Radiation Sources (Barrels):**
   - Random barrels spawn in random rooms across the map.
