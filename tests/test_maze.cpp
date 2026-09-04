@@ -5,7 +5,7 @@
 #include "world/item_spawner.hpp"
 #include "states/playing_state.hpp"
 #include "world/maze.hpp"
-#include "world/view_bounds.hpp"
+#include "render/view_bounds.hpp"
 #include <ctime>
 #include <gtest/gtest.h>
 #include <queue>

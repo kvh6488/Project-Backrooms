@@ -58,21 +58,27 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_CURRENT_BINARY_
 set(BACKROOMS_GAME_SOURCES
     src/core/application.cpp
     src/world/maze.cpp
-    src/world/maze_renderer.cpp
+    src/world/item_spawner.cpp
     src/world/generators/bsp_generator.cpp
     src/world/generators/loop_generator.cpp
     src/world/generators/prims_generator.cpp
     src/world/generators/tunnel_borer.cpp
     src/world/generators/generator_utils.cpp
     src/entities/player.cpp
-    src/entities/player_renderer.cpp
-    src/world/item_spawner.cpp
-    src/items/item_renderer.cpp
-    src/states/playing_state.cpp
-    src/core/ui_manager.cpp
-    src/core/debug_overlay.cpp
     src/items/item_database.cpp
     src/items/crafting_system.cpp
+    src/render/maze_renderer.cpp
+    src/render/player_renderer.cpp
+    src/render/item_renderer.cpp
+    src/states/playing_state.cpp
+    src/ui/ui_manager.cpp
+)
+
+# Developer tooling: the ImGui panel, the seed table and the console logger.
+# Kept as its own list because a release build drops it wholesale - the panel
+# is currently gated only at runtime by --dev, so the code still ships.
+set(BACKROOMS_DEV_SOURCES
+    src/dev/debug_overlay.cpp
 )
 
 # ImGui and rlImGui are compiled straight into each target - neither ships a
@@ -96,6 +102,7 @@ set(BACKROOMS_INCLUDE_DIRS
 add_executable(Backrooms
     src/core/main.cpp
     ${BACKROOMS_GAME_SOURCES}
+    ${BACKROOMS_DEV_SOURCES}
     ${BACKROOMS_VENDOR_SOURCES}
 )
 
@@ -130,6 +137,7 @@ add_executable(BackroomsTests
     tests/test_magic_book.cpp
     tests/test_inventory.cpp
     ${BACKROOMS_GAME_SOURCES}
+    ${BACKROOMS_DEV_SOURCES}
     ${BACKROOMS_VENDOR_SOURCES}
 )
 

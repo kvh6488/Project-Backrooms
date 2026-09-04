@@ -1,16 +1,16 @@
 #pragma once
 
-#include "core/debug_overlay.hpp"
+#include "dev/debug_overlay.hpp"
 #include "core/render_settings.hpp"
-#include "core/ui_manager.hpp"
+#include "ui/ui_manager.hpp"
 #include "entities/player.hpp"
-#include "entities/player_renderer.hpp"
-#include "items/item_renderer.hpp"
+#include "render/player_renderer.hpp"
+#include "render/item_renderer.hpp"
 #include "raylib.h"
 #include "states/game_state.hpp"
 #include "world/item_spawner.hpp"
 #include "world/maze.hpp"
-#include "world/maze_renderer.hpp"
+#include "render/maze_renderer.hpp"
 #include <random>
 #include <vector>
 

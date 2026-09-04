@@ -17,7 +17,7 @@
 // source lists in CMakeLists.txt. See debug_log.hpp for the same reasoning.
 // ============================================================================
 
-#include "core/debug_log.hpp"
+#include "dev/debug_log.hpp"
 #include <raylib.h>
 
 namespace assets {

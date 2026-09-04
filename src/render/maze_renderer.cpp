@@ -1,7 +1,7 @@
-#include "world/maze_renderer.hpp"
+#include "render/maze_renderer.hpp"
 #include "entities/player.hpp"
 #include "core/asset_load.hpp"
-#include "world/view_bounds.hpp"
+#include "render/view_bounds.hpp"
 #include <cmath>
 #include <iostream>
 

@@ -1,4 +1,4 @@
-#include "entities/player_renderer.hpp"
+#include "render/player_renderer.hpp"
 #include "core/asset_load.hpp"
 #include <iostream>
 

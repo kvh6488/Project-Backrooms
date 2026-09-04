@@ -1,7 +1,7 @@
 #pragma once
 
 #include "entities/player.hpp"
-#include "items/item_renderer.hpp"
+#include "render/item_renderer.hpp"
 #include "raylib.h"
 #include "world/maze.hpp"
 #include <string>

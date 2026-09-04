@@ -24,7 +24,7 @@
 //      in-game trigger will, so the button keeps exercising the shipping path.
 //
 // Gating is runtime only: --dev arms it, F1 shows and hides it. See
-// core/dev_mode.hpp. The code still ships inside the binary; a release build
+// dev/dev_mode.hpp. The code still ships inside the binary; a release build
 // should also gate this file at compile time.
 // ============================================================================
 

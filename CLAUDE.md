@@ -56,6 +56,31 @@ A single test or suite:
 
 ## Architecture
 
+### Source layout
+
+```
+src/
+  core/       Application, main, and the things everything may depend on
+              (asset_load, render_settings). Nothing here may include a
+              gameplay header.
+  dev/        Developer tooling - the ImGui panel, seed table, console logger.
+              Dropped wholesale from a release build.
+  ui/         UIManager - the shipping HUD, inventory and map overlays.
+  render/     All presentation: the three renderers plus the shared
+              view_bounds cull. Renderers own their textures; no game state.
+  world/      Maze, ItemSpawner, and world/generators/.
+  entities/   Player today; mobs land here.
+  items/      ItemType, ItemDatabase, CraftingSystem - data, no drawing.
+  states/     GameState and the concrete states.
+```
+
+Two rules keep this honest. **Dependencies point inward toward `core/` and
+`items/`**: `ui/` and `render/` may include `world/` and `entities/`, never the
+reverse - a renderer knowing about the UI is the bug this layout is shaped to
+prevent. And **`render/` is grouped by role, not by subject**: `maze_renderer`
+does not sit beside `maze.hpp`, because all four renderers (mobs included)
+share `view_bounds.hpp` and change together when the draw pipeline changes.
+
 ### Ownership chain
 
 `main.cpp` → `Application` (owns the Raylib window, the `UIManager`, and a `unique_ptr<GameState>`; its `run()` is the frame loop) → `PlayingState` (the only concrete `GameState` today) which owns the `Maze`, `Player`, `Camera2D`, all three renderers, the `ItemSpawner`, the seed and the shared `std::mt19937`.
@@ -119,9 +144,9 @@ Both need `ItemDatabase::init()` and `CraftingSystem::init()` before use; these 
 
 Its one write path into the game is `handleInventoryInput(Player&, Maze&)`, called from `PlayingState::handleInput` — the input phase, before any drawing. `UIManager::render` and `renderInventory` are read-only with respect to the `Player` and the `Maze`; they only write hover bookkeeping for the tooltip. Both passes take their geometry from `InventoryLayout::compute`, so a click is hit-tested against exactly the rectangle that gets drawn. Keep that direction: new UI widgets resolve their clicks in `handleInventoryInput` and add their rectangle to `InventoryLayout`, never mid-draw.
 
-`DebugOverlay` (`src/core/debug_overlay.hpp`) is the development panel, split out of `UIManager` and owned by `Application` so it survives future state switches. It is a *view*: presentation values the game needs regardless (torch on/off, camera zoom, the three light-cone numbers, show-zones) live in `RenderSettings`, which `PlayingState` owns and the overlay edits by reference; only debug-only state (the god-view minimap texture, magic-book and trip forcing, status strings) belongs to the overlay. It uses the same mailbox convention — `PlayingState` reads and clears `triggerTicTacToeRegen`, `triggerMagicBookSpawn`, `triggerForceTrip`, `triggerEndTrip`. Debug buttons must call the same public entry points the real systems will use, so they keep exercising the shipping path.
+`DebugOverlay` (`src/dev/debug_overlay.hpp`) is the development panel, split out of `UIManager` and owned by `Application` so it survives future state switches. It is a *view*: presentation values the game needs regardless (torch on/off, camera zoom, the three light-cone numbers, show-zones) live in `RenderSettings`, which `PlayingState` owns and the overlay edits by reference; only debug-only state (the god-view minimap texture, magic-book and trip forcing, status strings) belongs to the overlay. It uses the same mailbox convention — `PlayingState` reads and clears `triggerTicTacToeRegen`, `triggerMagicBookSpawn`, `triggerForceTrip`, `triggerEndTrip`. Debug buttons must call the same public entry points the real systems will use, so they keep exercising the shipping path.
 
-Gating is runtime only: `Backrooms.exe --dev` arms the panel (`src/core/dev_mode.hpp`) and `F1` shows/hides it. The code still ships inside the binary — a release build should add a compile-time flag around `debug_overlay.cpp` as well.
+Gating is runtime only: `Backrooms.exe --dev` arms the panel (`src/dev/dev_mode.hpp`) and `F1` shows/hides it. The code still ships inside the binary — a release build should drop `BACKROOMS_DEV_SOURCES` from the executable and guard the `dev/` includes, which is why the dev tooling is its own directory and its own CMake list.
 
 Cached render textures (`DebugOverlay::m_mapTexture`, `UIManager::m_magicBookMapTexture`, per-instance drawn maps) are regenerated only when marked dirty. Any code that changes maze layout must call **both** `DebugOverlay::markMapDirty()` and `UIManager::markMagicBookMapDirty()`.
 
@@ -131,11 +156,17 @@ All keybindings are read directly with Raylib polling — there is no input abst
 
 WASD/arrows move · `K`/`L` door 1 / door 2 · `P` pick up · `I` inventory · `O` open focused cupboard · `U` use/consume (or close fullscreen map) · `Q` enter placement mode, then left-click a visible floor tile · `1`–`5` hotbar · `F11` fullscreen · `F1` debug panel (only with `--dev`).
 
-Command line: `--seed <name|number>` pins the world (`src/core/debug_seeds.hpp`), `--dev` arms the debug panel.
+Command line: `--seed <name|number>` pins the world (`src/dev/debug_seeds.hpp`), `--dev` arms the debug panel.
 
 ## Tests
 
-`tests/test_maze.cpp` is currently the only test file — it covers maze indexing, toroidal wrapping, and generator invariants (rooms carved, connectivity) using fixed seeds. The test target links the whole game including Raylib and ImGui, so tests can construct real game objects, but must not open a window.
+Three files, split by subject:
+
+- `tests/test_maze.cpp` — maze indexing, toroidal wrapping, generator invariants (rooms carved, connectivity, no diagonal leaks), the derived Tic-Tac-Toe zone layout and `isCellRenderable`.
+- `tests/test_inventory.cpp` — pickup/drop/stack/swap rules and crafting, including the full-bag edge cases.
+- `tests/test_magic_book.cpp` — book spawn candidate selection and its search radius.
+
+The test target links the whole game including Raylib and ImGui, so tests can construct real game objects, but must not open a window. Anything needing `ItemDatabase` or `CraftingSystem` must call their `init()` itself — only the `Application` constructor does that in the shipping path.
 
 ## Conventions
 

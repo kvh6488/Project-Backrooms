@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/debug_overlay.hpp"
-#include "core/ui_manager.hpp"
+#include "dev/debug_overlay.hpp"
+#include "ui/ui_manager.hpp"
 #include "states/game_state.hpp"
 #include <memory>
 
@@ -12,7 +12,7 @@ public:
   // seed fully determines world generation; seedNote is a human-readable
   // description of where that seed came from, purely for the startup log.
   // devMode arms the debug overlay; without it F1 does nothing and the panel
-  // never appears. See core/dev_mode.hpp.
+  // never appears. See dev/dev_mode.hpp.
   explicit Application(unsigned int seed, const char *seedNote = nullptr,
                        bool devMode = false);
   ~Application();

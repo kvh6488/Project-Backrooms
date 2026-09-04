@@ -1,7 +1,7 @@
-#include "items/item_renderer.hpp"
+#include "render/item_renderer.hpp"
 #include "items/item_database.hpp"
 #include "core/asset_load.hpp"
-#include "world/view_bounds.hpp"
+#include "render/view_bounds.hpp"
 #include <cmath>
 #include <iostream>
 

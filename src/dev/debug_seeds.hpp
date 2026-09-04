@@ -16,7 +16,7 @@
 // Header-only so no CMakeLists.txt source-list edits are needed.
 // ============================================================================
 
-#include "core/debug_log.hpp"
+#include "dev/debug_log.hpp"
 
 #include <cstdlib>
 #include <cstring>

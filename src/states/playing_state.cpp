@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include "core/asset_load.hpp"
-#include "core/debug_log.hpp"
+#include "dev/debug_log.hpp"
 #include <ctime>
 #include <iostream>
 
