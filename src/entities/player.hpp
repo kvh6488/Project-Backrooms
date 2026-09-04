@@ -85,8 +85,6 @@ public:
   bool pollEventPassOutComplete() { bool v = m_eventPassOutComplete; m_eventPassOutComplete = false; return v; }
 
   // --- Map Event Polling ---
-  bool pollEventMapDrawingStarted() { bool v = m_eventMapDrawingStarted; m_eventMapDrawingStarted = false; return v; }
-  bool pollEventMapSet() { bool v = m_eventMapSet; m_eventMapSet = false; return v; }
   bool pollEventMagicBookOpened() { bool v = m_eventMagicBookOpened; m_eventMagicBookOpened = false; return v; }
   bool pollEventMapCrafted() { bool v = m_eventMapCrafted; m_eventMapCrafted = false; return v; }
   bool pollEventMapOpened() { bool v = m_eventMapOpened; m_eventMapOpened = false; return v; }
@@ -130,9 +128,7 @@ private:
   bool m_eventMushroomOver = false;
   bool m_eventMushroomFirstPickup = false;
   bool m_eventPassOutComplete = false;
-  
-  bool m_eventMapDrawingStarted = false;
-  bool m_eventMapSet = false;
+
   bool m_eventMagicBookOpened = false;
   bool m_eventMapCrafted = false;
   bool m_eventMapOpened = false;

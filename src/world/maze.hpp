@@ -49,6 +49,12 @@ public:
   // This is the heart of our 1D-to-2D mapping.
   int getIndex(int x, int y) const;
 
+  // Wrap a single coordinate onto the torus. getIndex does this internally;
+  // these exist for code that needs the wrapped coordinate itself rather than
+  // an index. Always use them instead of hand-rolling the modulo.
+  int wrapX(int x) const;
+  int wrapY(int y) const;
+
   // Get the cell type at grid position (x, y).
   // Returns CELL_WALL, CELL_CORRIDOR, or CELL_ROOM.
   int getCell(int x, int y) const;
@@ -75,10 +81,6 @@ public:
 
   // Check if cell is visible (used by MazeRenderer)
   bool isVisible(int x, int y) const;
-
-  // Get the light level at a cell (0.0 = pitch black, 1.0 = fully lit)
-  // Used by the renderer to apply smooth distance-based darkening.
-  float getLightLevel(int x, int y) const;
 
   // --- Phase 2.3: Rubik's Torus ---
   // Check if a coordinate is within the designated shifting slice
@@ -163,7 +165,6 @@ private:
   // THE 1D FLAT ARRAY
   std::vector<int> m_grid;
   std::vector<bool> m_visible;
-  std::vector<float> m_lightLevel; // Per-cell brightness (0.0 to 1.0)
   std::vector<int> m_radiationMap; // 0 for safe, >0 for radiated
 
   // Item layer — parallel to m_grid. Each index stores the ItemType

@@ -135,12 +135,7 @@ int ItemSpawner::spawnMushroomClump(Maze &maze, int startX, int startY,
       const int dx[] = {1, -1, 0, 0};
       const int dy[] = {0, 0, 1, -1};
       for (int i = 0; i < 4; ++i) {
-        // Toroidal wrap
-        int nx =
-            (cx + dx[i] % maze.getWidth() + maze.getWidth()) % maze.getWidth();
-        int ny = (cy + dy[i] % maze.getHeight() + maze.getHeight()) %
-                 maze.getHeight();
-        candidates.push_back({nx, ny});
+        candidates.push_back({maze.wrapX(cx + dx[i]), maze.wrapY(cy + dy[i])});
       }
     }
   }

@@ -9,8 +9,7 @@
 Maze::Maze(int width, int height, int cellSize, unsigned int seed)
     : m_width(width), m_height(height), m_cellSize(cellSize), m_nonWallCount(0),
       m_corridorCount(0), m_grid(width * height, CELL_WALL),
-      m_visible(width * height, false), m_lightLevel(width * height, 0.0f),
-      m_radiationMap(width * height, 0),
+      m_visible(width * height, false), m_radiationMap(width * height, 0),
       m_items(width * height, ItemType::NONE) {}
 
 Maze::~Maze() {}
@@ -19,15 +18,19 @@ Maze::~Maze() {}
 // getIndex — The heart of 1D-to-2D Mapping
 // ============================================================================
 int Maze::getIndex(int x, int y) const {
-  // --- TOROIDAL MATH (MODULO WRAPPING) ---
-  // In C++, the '%' operator is a remainder, not a true modulo for negative
-  // numbers. For example, -1 % 250 = -1. We want -1 to wrap to 249. Formula:
-  // (value % MAX + MAX) % MAX guarantees a positive wrapped index.
-  int wrappedX = (x % m_width + m_width) % m_width;
-  int wrappedY = (y % m_height + m_height) % m_height;
-
-  return wrappedY * m_width + wrappedX;
+  return wrapY(y) * m_width + wrapX(x);
 }
+
+// --- TOROIDAL MATH (MODULO WRAPPING) ---
+// In C++, the '%' operator is a remainder, not a true modulo for negative
+// numbers. For example, -1 % 250 = -1. We want -1 to wrap to 249. Formula:
+// (value % MAX + MAX) % MAX guarantees a positive wrapped index.
+//
+// Never hand-roll this at a call site: `(x + dx % w + w) % w` binds the % to dx
+// alone and is only accidentally correct while |dx| < w.
+int Maze::wrapX(int x) const { return (x % m_width + m_width) % m_width; }
+
+int Maze::wrapY(int y) const { return (y % m_height + m_height) % m_height; }
 
 // ============================================================================
 // getCell — Read a Cell
@@ -61,9 +64,8 @@ void Maze::setCell(int x, int y, int cellType) {
 // ============================================================================
 // Algorithm Reference: Björn Bergström's recursive shadowcasting,
 void Maze::updateVisibility(int playerX, int playerY, AreaState state) {
-  // Clear visibility and light levels every frame
+  // Clear visibility every frame
   std::fill(m_visible.begin(), m_visible.end(), false);
-  std::fill(m_lightLevel.begin(), m_lightLevel.end(), 0.0f);
 
   if (state == AreaState::ROOM) {
     // --- ROOMS ARE ALWAYS FULLY LIT ---
@@ -72,7 +74,6 @@ void Maze::updateVisibility(int playerX, int playerY, AreaState state) {
     q.push({playerX, playerY});
     int startIdx = getIndex(playerX, playerY);
     m_visible[startIdx] = true;
-    m_lightLevel[startIdx] = 1.0f;
 
     int dx[] = {0, 0, -1, 1, -1, 1, -1, 1};
     int dy[] = {-1, 1, 0, 0, -1, -1, 1, 1};
@@ -88,7 +89,6 @@ void Maze::updateVisibility(int playerX, int playerY, AreaState state) {
 
         if (!m_visible[nIndex]) {
           m_visible[nIndex] = true;
-          m_lightLevel[nIndex] = 1.0f;
 
           // Only flood through room tiles (walls become visible but stop the
           // flood)
@@ -118,10 +118,6 @@ void Maze::updateVisibility(int playerX, int playerY, AreaState state) {
 
 bool Maze::isVisible(int x, int y) const { return m_visible[getIndex(x, y)]; }
 
-float Maze::getLightLevel(int x, int y) const {
-  return m_lightLevel[getIndex(x, y)];
-}
-
 // ============================================================================
 // PHASE 2.3: RUBIK'S TORUS
 // ============================================================================
@@ -133,8 +129,8 @@ void Maze::addShiftingZone(int x, int y, int w, int h) {
 }
 
 bool Maze::isShiftingZone(int x, int y) const {
-  int wrappedX = (x % m_width + m_width) % m_width;
-  int wrappedY = (y % m_height + m_height) % m_height;
+  int wrappedX = wrapX(x);
+  int wrappedY = wrapY(y);
   for (const auto &zone : m_shiftingZones) {
     if (wrappedX >= zone.x && wrappedX < zone.x + zone.width &&
         wrappedY >= zone.y && wrappedY < zone.y + zone.height) {
@@ -311,10 +307,12 @@ std::map<ItemType, int> Maze::clearItemsInZone(int startX, int startY,
       if (item != ItemType::NONE) {
         removed[item]++;
         m_items[idx] = ItemType::NONE;
-        // m_itemStates is keyed by the same index. Leaving an entry behind
-        // hands it to whatever spawns here next — a cupboard inheriting a
-        // table root's state 1 renders permanently open.
+        // m_itemStates and m_cupboardInventories are keyed by the same index.
+        // Leaving an entry behind hands it to whatever spawns here next — a
+        // cupboard inheriting a table root's state 1 renders permanently open —
+        // and the maps would grow without bound as zones regenerate each night.
         m_itemStates.erase(idx);
+        m_cupboardInventories.erase(idx);
       }
     }
   }
@@ -372,12 +370,8 @@ void Maze::calculateRadiationZones() {
       int currentType = m_grid[currentIdx];
 
       for (int i = 0; i < 4; ++i) {
-        int nx = (x + dx[i]) % m_width;
-        if (nx < 0)
-          nx += m_width;
-        int ny = (y + dy[i]) % m_height;
-        if (ny < 0)
-          ny += m_height;
+        int nx = wrapX(x + dx[i]);
+        int ny = wrapY(y + dy[i]);
 
         int nIdx = getIndex(nx, ny);
         int nextType = m_grid[nIdx];
@@ -428,12 +422,8 @@ void Maze::calculateRadiationZones() {
           const int rdx[] = {1, -1, 0, 0};
           const int rdy[] = {0, 0, 1, -1};
           for (int d = 0; d < 4; ++d) {
-            int nx = (cx + rdx[d]) % m_width;
-            if (nx < 0)
-              nx += m_width;
-            int ny = (cy + rdy[d]) % m_height;
-            if (ny < 0)
-              ny += m_height;
+            int nx = wrapX(cx + rdx[d]);
+            int ny = wrapY(cy + rdy[d]);
 
             int nIdx = getIndex(nx, ny);
             if (m_grid[nIdx] == CELL_ROOM && !roomVisited[nIdx]) {
@@ -460,8 +450,8 @@ bool Maze::hasBarrel(int x, int y) const {
 bool Maze::isBarrelNear(int x, int y, int radius) const {
   for (int dy = -radius; dy <= radius; ++dy) {
     for (int dx = -radius; dx <= radius; ++dx) {
-      int nx = (x + dx % m_width + m_width) % m_width;
-      int ny = (y + dy % m_height + m_height) % m_height;
+      int nx = wrapX(x + dx);
+      int ny = wrapY(y + dy);
       if (getItem(nx, ny) == ItemType::TOXIC_WASTE) {
         return true;
       }
@@ -501,10 +491,8 @@ bool Maze::findNearestEmptyItemCell(int startX, int startY, int maxRadius, int& 
     }
 
     for (int i = 1; i < 5; ++i) {
-      int nx = (node.x + dx[i]) % m_width;
-      if (nx < 0) nx += m_width;
-      int ny = (node.y + dy[i]) % m_height;
-      if (ny < 0) ny += m_height;
+      int nx = wrapX(node.x + dx[i]);
+      int ny = wrapY(node.y + dy[i]);
 
       int idx = getIndex(nx, ny);
       if (!visited[idx]) {

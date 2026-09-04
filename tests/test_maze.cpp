@@ -52,6 +52,30 @@ TEST(MazeTest, ToroidalWrapping) {
   EXPECT_EQ(maze.getCell(-5, 20), Maze::CELL_CORRIDOR);
 }
 
+// 5b. The wrap helpers, which every coordinate offset in the codebase now
+// goes through. The multiple-of-width cases are the ones the old hand-rolled
+// `(x + dx % w + w) % w` got wrong: % bound to dx alone, so any offset at or
+// beyond the grid width fell out of range.
+TEST(MazeTest, WrapHelpersNormaliseAnyOffset) {
+  Maze maze(10, 10, 32, 12345);
+
+  EXPECT_EQ(maze.wrapX(3), 3);
+  EXPECT_EQ(maze.wrapY(3), 3);
+
+  EXPECT_EQ(maze.wrapX(-1), 9);
+  EXPECT_EQ(maze.wrapY(-1), 9);
+
+  EXPECT_EQ(maze.wrapX(10), 0);
+  EXPECT_EQ(maze.wrapY(10), 0);
+
+  // Offsets larger than the grid must still land in range.
+  EXPECT_EQ(maze.wrapX(23), 3);
+  EXPECT_EQ(maze.wrapY(-23), 7);
+
+  // The helpers and getIndex must agree, or the item and cell layers drift.
+  EXPECT_EQ(maze.getIndex(-5, 20), maze.wrapY(20) * maze.getWidth() + maze.wrapX(-5));
+}
+
 // 6. Test BSP Generation
 TEST(MazeTest, BSPGenerationCarvesRooms) {
   // We use a fixed seed (12345) so the test is fully deterministic
@@ -519,4 +543,24 @@ TEST(MazeItemLayerTest, ClearItemsInZoneAlsoResetsItemState) {
   EXPECT_EQ(maze.getItem(5, 5), ItemType::NONE);
   EXPECT_EQ(maze.getItemState(5, 5), 0)
       << "a cleared cell must not hand its old state to the next occupant";
+}
+
+// m_cupboardInventories is keyed by the same 1D index too. A cupboard wiped by
+// a shifting zone that keeps its 20-slot array leaves hasCupboardInventory()
+// reporting true for a cell with no cupboard on it, and the map grows a little
+// on every night's regeneration.
+TEST(MazeItemLayerTest, ClearItemsInZoneAlsoDropsTheCupboardInventory) {
+  Maze maze(20, 20, 32, 12345);
+
+  maze.setItem(5, 5, ItemType::CUPBOARD);
+  maze.getCupboardInventory(5, 5)[0] = {ItemType::PAPER, 2, 0};
+  ASSERT_TRUE(maze.hasCupboardInventory(5, 5));
+  ASSERT_FALSE(maze.isCupboardEmpty(5, 5));
+
+  maze.clearItemsInZone(4, 4, 5, 5);
+
+  EXPECT_EQ(maze.getItem(5, 5), ItemType::NONE);
+  EXPECT_FALSE(maze.hasCupboardInventory(5, 5))
+      << "a cleared cell must not keep an inventory for a cupboard that is gone";
+  EXPECT_TRUE(maze.isCupboardEmpty(5, 5));
 }

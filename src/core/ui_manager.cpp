@@ -603,12 +603,8 @@ void UIManager::generateMagicBookMap(Maze &maze) {
   ClearBackground(BLANK);
   for (int y = 0; y < height; ++y) {
     for (int x = 0; x < width; ++x) {
-      int gridX = startX + x;
-      int gridY = startY + y;
-      
-      // Handle wrapping
-      gridX = (gridX % maze.getWidth() + maze.getWidth()) % maze.getWidth();
-      gridY = (gridY % maze.getHeight() + maze.getHeight()) % maze.getHeight();
+      int gridX = maze.wrapX(startX + x);
+      int gridY = maze.wrapY(startY + y);
 
       if (maze.getCell(gridX, gridY) == Maze::CELL_WALL) {
         DrawPixel(x, y, Color{100, 100, 100, 255});
@@ -637,12 +633,8 @@ void UIManager::markMapDrawn(int mapId, Maze &maze, int centerX, int centerY) {
 
   for (int y = 0; y < 35; ++y) {
     for (int x = 0; x < 53; ++x) {
-      int gridX = (startX + x) % maze.getWidth();
-      if (gridX < 0)
-        gridX += maze.getWidth();
-      int gridY = (startY + y) % maze.getHeight();
-      if (gridY < 0)
-        gridY += maze.getHeight();
+      int gridX = maze.wrapX(startX + x);
+      int gridY = maze.wrapY(startY + y);
 
       if (maze.getCell(gridX, gridY) == Maze::CELL_WALL) {
         DrawPixel(x, y, Color{100, 100, 100, 255});
