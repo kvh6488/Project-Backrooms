@@ -6,7 +6,7 @@ is the acceptance test and must stay at 100 %.
 
 ## Working with it
 
-- **The palette is [palette.json](palette.json).** The table below is a copy for
+- **The palette is [palette.json](../assets/palette.json).** The table below is a copy for
   reading; the JSON is what `quantize.py` reads. `palette_swatch.png` is the
   labelled picture of it; `palette_strip.png` (one pixel per colour) is the
   file to import into Aseprite or GIMP so you paint with it.
@@ -44,7 +44,7 @@ is the acceptance test and must stay at 100 %.
 
 Evidence from the gate:
 
-- [palette_swatch.png](palette_swatch.png) — the ramps, with the per-world windows bracketed.
+- [palette_swatch.png](../assets/palette_swatch.png) — the ramps, with the per-world windows bracketed.
 - `artifacts/palette_preview/side_by_side.png` — three scenes rendered through
   the current sheets and through sheets quantized to each candidate palette.
 - `artifacts/palette_preview/carpet_zoom.png` — 4× of the carpet and a table,
@@ -65,7 +65,7 @@ invents one. Steps run dark → light, step 0 first.
 | blue | 6 | `#152d5c` `#2f4876` `#3b6590` `#4e91af` `#6ea7c6` `#91d6e8` |
 | accent | 6 | `#6b2643` `#063ee6` `#b02a2a` `#f43636` `#cc99ff` `#95da41` |
 
-Machine-readable copy: [palette.json](palette.json) (OKLab L/C/h per entry).
+Machine-readable copy: [palette.json](../assets/palette.json) (OKLab L/C/h per entry).
 
 ### Per-world windows
 

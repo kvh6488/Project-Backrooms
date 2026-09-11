@@ -2,8 +2,8 @@
 """Propose a master palette from every sheet the game draws or might draw.
 
 Usage:
-    python tools/palette_sample.py [--config plan|yellow|yellow12] [--out docs/palette.json]
-                                   [--swatch docs/palette_swatch.png] [--strip docs/palette_strip.png]
+    python tools/palette_sample.py [--config plan|yellow|yellow12] [--out assets/palette.json]
+                                   [--swatch assets/palette_swatch.png] [--strip assets/palette_strip.png]
 
 Why: assets/ holds 828 distinct colours from five artists with five different
 greens, greys and blacks, so the sheets read as five places. The plan calls for
@@ -301,28 +301,36 @@ def error_report(ramps, cols, w, lab):
 # ---- swatch ---------------------------------------------------------------
 
 def draw_swatch(ramps, path):
+    """Labelled ramps. Drawn only in palette colours (darkest/lightest neutral
+    for ground and text, two ramp colours for the world brackets) so the file
+    passes quantize.py --check like everything else in assets/."""
     cell, pad, label_w = 48, 8, 88
     font = ImageFont.load_default()
+    by = {r["name"]: r["colours"] for r in ramps}
+    ink = tuple(by["neutral"][-1]["rgb"]); dim = tuple(by["neutral"][-3]["rgb"])
+    ground = tuple(by["neutral"][0]["rgb"])
+    over = tuple(by["yellow" if "yellow" in by else "brown"][-2]["rgb"])
+    under = tuple(by["green"][3]["rgb"])
     width = label_w + max(len(r["colours"]) for r in ramps) * (cell + pad) + pad
     height = pad + len(ramps) * (cell + 22 + pad) + 30
-    img = Image.new("RGB", (width, height), (24, 24, 24))
+    img = Image.new("RGB", (width, height), ground)
     dr = ImageDraw.Draw(img)
     y = pad
     for r in ramps:
-        dr.text((pad, y + cell // 2 - 6), r["name"], fill=(220, 220, 220), font=font)
+        dr.text((pad, y + cell // 2 - 6), r["name"], fill=ink, font=font)
         for i, c in enumerate(r["colours"]):
             x = label_w + i * (cell + pad)
             dr.rectangle([x, y, x + cell - 1, y + cell - 1], fill=tuple(c["rgb"]))
-            dr.text((x, y + cell + 2), c["hex"][1:], fill=(200, 200, 200), font=font)
-            dr.text((x, y + cell + 11), f"L{c['L']:.2f}", fill=(140, 140, 140), font=font)
+            dr.text((x, y + cell + 2), c["hex"][1:], fill=ink, font=font)
+            dr.text((x, y + cell + 11), f"L{c['L']:.2f}", fill=dim, font=font)
         if r["name"] != "accent":                # world windows as brackets
-            for key, dy, colour in (("underworld", 3, (90, 160, 120)), ("overworld", 6, (220, 170, 90))):
+            for key, dy, colour in (("underworld", 3, under), ("overworld", 6, over)):
                 a, b = window(len(r["colours"]), WORLDS[key])
                 x0 = label_w + a * (cell + pad); x1 = label_w + (b + 1) * (cell + pad) - pad
                 dr.line([x0, y - dy, x1, y - dy], fill=colour, width=2)
         y += cell + 22 + pad
-    dr.text((pad, y), "bracket above ramp: orange = overworld window, green = underworld window",
-            fill=(160, 160, 160), font=font)
+    dr.text((pad, y), "bracket above ramp: yellow = overworld window, green = underworld window",
+            fill=dim, font=font)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     img.save(path)
 
@@ -339,9 +347,9 @@ def write_images(ramps, swatch, strip):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", choices=CONFIGS, default="plan")
-    ap.add_argument("--out", default=os.path.join(ROOT, "docs", "palette.json"))
-    ap.add_argument("--swatch", default=os.path.join(ROOT, "docs", "palette_swatch.png"))
-    ap.add_argument("--strip", default=os.path.join(ROOT, "docs", "palette_strip.png"),
+    ap.add_argument("--out", default=os.path.join(ROOT, "assets", "palette.json"))
+    ap.add_argument("--swatch", default=os.path.join(ROOT, "assets", "palette_swatch.png"))
+    ap.add_argument("--strip", default=os.path.join(ROOT, "assets", "palette_strip.png"),
                     help="one pixel per colour, ramp by ramp; import into Aseprite/GIMP as a palette")
     ap.add_argument("--render", action="store_true",
                     help="skip sampling; redraw the swatch and strip from the existing --out JSON")

@@ -2,10 +2,10 @@
 """Snap every pixel of a PNG to the master palette, or check that it already is.
 
 Usage:
-    python tools/quantize.py <in.png> <out.png> [--palette docs/palette.json]
-    python tools/quantize.py --check <png|dir> ... [--palette docs/palette.json]
+    python tools/quantize.py <in.png> <out.png> [--palette assets/palette.json]
+    python tools/quantize.py --check <png|dir> ... [--palette assets/palette.json]
 
-Why: the palette in docs/palette.json is only a palette if every sheet uses
+Why: the palette in assets/palette.json is only a palette if every sheet uses
 nothing else. This is the one tool that enforces it - quantize writes a sheet
 that conforms, --check proves that it does (exit 1 and a per-file report of
 stray pixels otherwise). Run --check on assets/ as the Phase 6 acceptance test.
@@ -75,7 +75,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("paths", nargs="+")
     ap.add_argument("--check", action="store_true")
-    ap.add_argument("--palette", default=os.path.join(ROOT, "docs", "palette.json"))
+    ap.add_argument("--palette", default=os.path.join(ROOT, "assets", "palette.json"))
     a = ap.parse_args()
     pal_rgb, pal_lab = load_palette(a.palette)
 
