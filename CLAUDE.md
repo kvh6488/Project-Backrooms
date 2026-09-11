@@ -152,7 +152,9 @@ Cached render textures (`DebugOverlay::m_mapTexture`, `UIManager::m_magicBookMap
 
 ### Input
 
-All keybindings are read directly with Raylib polling — there is no input abstraction. Movement and door/pickup keys are in `Player::update`; everything else is in `PlayingState::handleInput`.
+Input is a value, not a global. `pollHardwareInput()` in `src/core/input_state.hpp` is the **only** place raylib's keyboard/mouse API is called (plus the `F1` dev-panel toggle in `Application::run`, deliberately kept outside the struct). It fills an `InputState` POD — named actions (`pickup`, `door1`, `moveUp`…) split into held and pressed, plus mouse position and buttons — which `Application::run` obtains from an `InputSource` each tick and passes to both `GameState::update(dt, in)` and `render(in)`. Gameplay reads `in.pickup`, never `KEY_P`; a rebinding is one line in `pollHardwareInput`, and a test drives `Player::update` by filling the struct by hand. Movement and door/pickup handling live in `Player::update`; everything else is in `PlayingState::handleInput`.
+
+Time is fixed, not measured: every tick advances the simulation by `Application::kFixedDt` (1/60 s). `SetTargetFPS(60)` paces the loop to real time; nothing reads `GetFrameTime()` or `GetTime()`. `Application::run(RunConfig)` takes `maxTicks` so a harness can bound a run. A click that lands on the debug panel (`ImGui::GetIO().WantCaptureMouse`) is stripped from the `InputState` before the game sees it.
 
 WASD/arrows move · `K`/`L` door 1 / door 2 · `P` pick up · `I` inventory · `O` open focused cupboard · `U` use/consume (or close fullscreen map) · `Q` enter placement mode, then left-click a visible floor tile · `1`–`5` hotbar · `F11` fullscreen · `F1` debug panel (only with `--dev`).
 

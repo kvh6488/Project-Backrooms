@@ -2,12 +2,14 @@
 #include "dev/debug_log.hpp"
 #include "items/item_database.hpp"
 #include "items/crafting_system.hpp"
+#include "imgui.h"
 #include "rlImGui.h"
 #include "states/playing_state.hpp"
 
 
 Application::Application(unsigned int seed, const char *seedNote, bool devMode)
-    : m_seed(seed), m_uiManager(m_screenWidth, m_screenHeight),
+    : m_seed(seed), m_input(std::make_unique<HardwareInput>()),
+      m_uiManager(m_screenWidth, m_screenHeight),
       m_debugOverlay(devMode) {
   // 0. main() has already armed the logger (it logs before we exist).
   // Raylib's own chatter is also tagged "[INFO]", which drowns our messages.
@@ -56,15 +58,29 @@ Application::~Application() {
   CloseWindow();
 }
 
-void Application::run() {
-  while (!WindowShouldClose()) {
+void Application::run(const RunConfig &config) {
+  for (int tick = 0; !WindowShouldClose(); ++tick) {
+    if (config.maxTicks >= 0 && tick >= config.maxTicks) {
+      break;
+    }
+
+    // F1 is deliberately outside InputState: it is a dev-tool switch, not a
+    // player action, and a scripted scenario must not be able to reach it.
     if (IsKeyPressed(KEY_F1)) {
       m_debugOverlay.toggle();
     }
 
+    InputState in = m_input->sample(tick);
+    // A click on the debug panel is the panel's, not the game's. Without this
+    // gate a slider drag also placed items and picked up inventory.
+    if (m_debugOverlay.isVisible() && ImGui::GetIO().WantCaptureMouse) {
+      in.mouseLeftPressed = false;
+      in.mouseRightPressed = false;
+    }
+
     if (m_currentState) {
-      m_currentState->update(GetFrameTime());
-      m_currentState->render();
+      m_currentState->update(kFixedDt, in);
+      m_currentState->render(in);
 
       // Honour a transition only here, after the frame is fully drawn. The
       // state that raised the request is still live during update/render, so

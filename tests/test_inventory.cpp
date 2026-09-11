@@ -2,9 +2,9 @@
 // test_inventory.cpp — Inventory, pickup/drop and crafting invariants
 // ============================================================================
 // Everything here is deterministic, window-free logic: Player's inventory
-// methods touch only m_inventory and the Maze item layer. Player::update is
-// deliberately never called — it reads GetFrameTime() and the keyboard, which
-// need a live window.
+// methods touch only m_inventory and the Maze item layer, and Player::update
+// takes its clock and its input as arguments, so a test can drive a whole
+// tick with a hand-built InputState and no window.
 //
 // The reason this file exists: a miscounted stack or a swallowed ingredient
 // looks like nothing on screen. There is no visual tell for "the craft ate two
@@ -327,3 +327,52 @@ TEST_F(InventoryTest, CraftFailsOnAFullBagWhenNoIngredientSlotWouldEmpty) {
 }
 
 } // namespace
+
+// --- 6. Driving a tick through Player::update -----------------------------
+// The point of InputState: "hold W for a second" is a value, not a keyboard.
+// Both tests pin the fixed-tick contract - 60 ticks of 1/60 s is exactly one
+// second of game time however fast the loop actually ran.
+
+TEST_F(InventoryTest, HeldMoveUpAdvancesExactlySpeedTimesSeconds) {
+  Maze maze = makeRoomMaze();
+  Player player = playerAt(10, 10);
+  const Vector2 start = player.getPosition();
+
+  InputState in;
+  in.moveUp = true;
+  const float dt = 1.0f / 60.0f;
+  for (int tick = 0; tick < 60; ++tick) {
+    player.update(maze, dt, in);
+  }
+
+  // 130 px/s (Player::m_speed) for 1 s, with float accumulation slack.
+  EXPECT_NEAR(player.getPosition().y, start.y - 130.0f, 0.5f);
+  EXPECT_FLOAT_EQ(player.getPosition().x, start.x);
+  EXPECT_EQ(player.getFacingDirection(), FacingDirection::UP);
+}
+
+TEST_F(InventoryTest, PressedPickupThroughUpdateTakesTheItem) {
+  Maze maze = makeRoomMaze();
+  Player player = playerAt(10, 10);
+  maze.setItem(10, 10, ItemType::MUSHROOM);
+
+  InputState idle;
+  player.update(maze, 1.0f / 60.0f, idle);
+  EXPECT_EQ(maze.getItem(10, 10), ItemType::MUSHROOM)
+      << "nothing pressed, nothing picked up";
+
+  InputState press;
+  press.pickup = true;
+  player.update(maze, 1.0f / 60.0f, press);
+  EXPECT_EQ(maze.getItem(10, 10), ItemType::NONE);
+  EXPECT_EQ(totalOf(player, ItemType::MUSHROOM), 1);
+
+  // canMove=false is the inventory-open gate: keys still arrive, but the
+  // player must neither move nor interact.
+  maze.setItem(10, 10, ItemType::MUSHROOM);
+  press.moveLeft = true;
+  const Vector2 before = player.getPosition();
+  player.update(maze, 1.0f / 60.0f, press, /*canMove=*/false);
+  EXPECT_EQ(maze.getItem(10, 10), ItemType::MUSHROOM);
+  EXPECT_FLOAT_EQ(player.getPosition().x, before.x);
+}

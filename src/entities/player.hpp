@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/input_state.hpp"
 #include "world/maze.hpp"
 #include "raylib.h"
 #include "items/crafting_system.hpp"
@@ -38,11 +39,11 @@ public:
 
   // --- Core Methods ---
 
-  // Updates player logic every frame (Input -> Kinematics -> Collision).
-  // dt comes from the caller rather than GetFrameTime() so there is one
-  // authoritative clock per frame — the thing a pause, a sleep-driven time
-  // skip or slow-motion all have to be able to control.
-  void update(Maze &maze, float dt, bool canMove = true);
+  // Updates player logic every tick (Input -> Kinematics -> Collision).
+  // Both dt and the input come from the caller rather than raylib, so there
+  // is one authoritative clock and one input source per tick - which is what
+  // lets a test drive this with a hand-built InputState.
+  void update(Maze &maze, float dt, const InputState &in, bool canMove = true);
 
   // Getters
   Vector2 getPosition() const { return m_position; }

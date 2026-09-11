@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/input_state.hpp"
 #include "entities/player.hpp"
 #include "render/item_renderer.hpp"
 #include "raylib.h"
@@ -81,12 +82,14 @@ public:
   // menu. MUST be called from the state's input phase, before render(), and is
   // the ONLY place UIManager mutates a Player or a Maze - render() is now
   // read-only with respect to game state.
-  void handleInventoryInput(Player &player, Maze &maze);
+  void handleInventoryInput(Player &player, Maze &maze, const InputState &in);
 
   // Renders the shipping UI: popups, inventory, cupboards and map overlays.
   // The debug panel is DebugOverlay's job and draws after this.
+  // `in` is read only for the mouse position (hover highlights, tooltips);
+  // the read-only-with-respect-to-game-state rule above still holds.
   void render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
-              bool isDroppingItem, float totalTime);
+              bool isDroppingItem, float totalTime, const InputState &in);
 
   // The scale UIManager lays its own widgets out with. DebugOverlay reuses it
   // so the panel's text tracks the window size the same way the game UI does.
@@ -147,7 +150,7 @@ public:
 private:
   void renderInventory(Player &player, Maze &maze, ItemRenderer &itemRenderer,
                        const InventoryLayout &layout, int screenW,
-                       int screenH);
+                       int screenH, const InputState &in);
 
   // Resolves one click on one slot: pick up, put down, merge stacks or swap.
   // isCupboardSlot selects which of the two open containers `index` addresses,

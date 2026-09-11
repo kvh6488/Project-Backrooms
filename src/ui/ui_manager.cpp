@@ -52,7 +52,8 @@ void UIManager::showPopup(const std::string &text, PopupType type,
 }
 
 void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
-                       bool isDroppingItem, float totalTime) {
+                       bool isDroppingItem, float totalTime,
+                       const InputState &in) {
   float scale = std::min((float)GetScreenWidth() / m_screenWidth,
                          (float)GetScreenHeight() / m_screenHeight);
   int screenW = GetScreenWidth();
@@ -99,7 +100,7 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
   // 5. Inventory
   renderInventory(player, maze, itemRenderer,
                   InventoryLayout::compute(scale, screenW, screenH), screenW,
-                  screenH);
+                  screenH, in);
 
   // 5.5 Map Rendering
   if (m_showFullscreenMap && (m_openedMapId == -1 || m_drawnMaps.find(m_openedMapId) != m_drawnMaps.end())) {
@@ -300,22 +301,23 @@ Rectangle InventoryLayout::craftButton() const {
 // first hit consumes the click, so a stack picked up here cannot be put back
 // down by a later slot in the same frame.
 // ============================================================================
-void UIManager::handleInventoryInput(Player &player, Maze &maze) {
+void UIManager::handleInventoryInput(Player &player, Maze &maze,
+                                     const InputState &in) {
   // Closed panels swallow no clicks: the hotbar is on screen permanently, but
   // has never been clickable while the bag is shut.
   if (!m_inventoryOpen && !m_cupboardInventoryOpen) {
     return;
   }
 
-  bool leftClick = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
-  bool rightClick = IsMouseButtonPressed(MOUSE_RIGHT_BUTTON);
+  bool leftClick = in.mouseLeftPressed;
+  bool rightClick = in.mouseRightPressed;
   if (!leftClick && !rightClick) {
     return;
   }
 
   InventoryLayout layout = InventoryLayout::compute(
       getUIScale(), GetScreenWidth(), GetScreenHeight());
-  Vector2 mouse = GetMousePosition();
+  Vector2 mouse = in.mouse;
 
   // 1. Player slots - the hotbar row plus the bag when it is open.
   int playerSlotCount = m_inventoryOpen ? INVENTORY_SLOTS : HOTBAR_SLOTS;
@@ -440,7 +442,7 @@ void UIManager::applySlotClick(int index, bool isCupboardSlot, Player &player,
 void UIManager::renderInventory(Player &player, Maze &maze,
                                 ItemRenderer &itemRenderer,
                                 const InventoryLayout &layout, int screenW,
-                                int screenH) {
+                                int screenH, const InputState &in) {
   const float scale = layout.scale;
   const float slotSize = layout.slotSize;
   const float padding = layout.padding;
@@ -470,7 +472,7 @@ void UIManager::renderInventory(Player &player, Maze &maze,
 
     const auto &currentInv = isCupboardSlot ? *cupboardInv : playerInv;
 
-    if (CheckCollisionPointRec(GetMousePosition(), slotRect)) {
+    if (CheckCollisionPointRec(in.mouse, slotRect)) {
       DrawRectangleLinesEx(slotRect, 3.0f * scale, WHITE);
       if (currentInv[index].type != ItemType::NONE && !isHeldSlot) {
         hoveredItemType = currentInv[index].type;
@@ -544,7 +546,7 @@ void UIManager::renderInventory(Player &player, Maze &maze,
                        isSelected ? Fade(YELLOW, 0.3f) : Fade(BLACK, 0.7f));
       DrawRectangleLinesEx(slotRect, 2.0f * scale, isSelected ? WHITE : GRAY);
 
-      if (CheckCollisionPointRec(GetMousePosition(), slotRect)) {
+      if (CheckCollisionPointRec(in.mouse, slotRect)) {
         DrawRectangleLinesEx(slotRect, 3.0f * scale, WHITE);
         hoveredItemType = recipe.result;
         hoveredIsCrafting = true;
@@ -608,7 +610,7 @@ void UIManager::renderInventory(Player &player, Maze &maze,
                  ingX + slotSize * 0.8f + 5 * scale, ingY + slotSize * 0.3f,
                  20 * scale, textColor);
 
-        if (CheckCollisionPointRec(GetMousePosition(), ingSlotRect)) {
+        if (CheckCollisionPointRec(in.mouse, ingSlotRect)) {
           hoveredItemType = ing.type;
           hoveredIsCrafting = true;
         }
@@ -627,7 +629,7 @@ void UIManager::renderInventory(Player &player, Maze &maze,
                btnRect.y + (btnRect.height - 20 * scale) / 2, 20 * scale,
                WHITE);
 
-      if (CheckCollisionPointRec(GetMousePosition(), btnRect)) {
+      if (CheckCollisionPointRec(in.mouse, btnRect)) {
         DrawRectangleLinesEx(btnRect, 3.0f * scale, YELLOW);
       }
     }
@@ -635,7 +637,7 @@ void UIManager::renderInventory(Player &player, Maze &maze,
 
   // 5. The stack riding the cursor.
   if (m_heldSlotIndex != -1) {
-    Vector2 mousePos = GetMousePosition();
+    Vector2 mousePos = in.mouse;
     const auto &heldInv = m_heldFromCupboard ? *cupboardInv : playerInv;
     const InventorySlot &slot = heldInv[m_heldSlotIndex];
 
@@ -681,7 +683,7 @@ void UIManager::renderInventory(Player &player, Maze &maze,
     int boxW = std::max(nameW, maxDescW) + 40 * scale;
     int boxH = 40 * scale + (lines * 20 * scale);
 
-    Vector2 mousePos = GetMousePosition();
+    Vector2 mousePos = in.mouse;
     DrawRectangle(mousePos.x + 10 * scale, mousePos.y + 10 * scale, boxW, boxH,
                   Fade(BLACK, 0.9f));
     DrawRectangleLines(mousePos.x + 10 * scale, mousePos.y + 10 * scale, boxW,

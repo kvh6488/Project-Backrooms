@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/input_state.hpp"
 #include <memory>
 
 // Forward declaration if we ever need the Application to be passed down
@@ -28,11 +29,14 @@ public:
     // Called once when the state is removed/switched away from
     virtual void onExit() {}
 
-    // Called every frame to update game logic
-    virtual void update(float dt) = 0;
+    // Called every tick. dt is the fixed simulation step and `in` is this
+    // tick's input - both come from Application, never from raylib directly,
+    // so a state behaves identically under a keyboard or a scripted replay.
+    virtual void update(float dt, const InputState &in) = 0;
 
-    // Called every frame to render graphics
-    virtual void render() = 0;
+    // Called every tick after update. Takes the same InputState so hover
+    // effects can read the mouse without polling hardware mid-draw.
+    virtual void render(const InputState &in) = 0;
 
     // --- Transition mailbox, read by Application after render() ---
 

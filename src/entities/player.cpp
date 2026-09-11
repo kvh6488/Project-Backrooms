@@ -14,12 +14,13 @@ Player::Player(Vector2 startPosition, AreaState startState)
 // ============================================================================
 // Update - Kinematics and Input
 // ============================================================================
-void Player::update(Maze &maze, float dt, bool canMove) {
+void Player::update(Maze &maze, float dt, const InputState &in,
+                    bool canMove) {
   // 1. FRAMERATE INDEPENDENCE (Delta Time)
   // dt is the seconds elapsed since the last frame (e.g. 0.016s at 60 FPS).
   // Multiplying speed by it means we move a fixed number of pixels per real
   // second regardless of how fast the machine runs. It is passed in rather
-  // than read from GetFrameTime() here, so the frame loop owns the clock.
+  // than read from raylib here, so the frame loop owns the clock.
 
   if (m_isPassingOut) {
     float prevTimer = m_passOutTimer;
@@ -93,13 +94,13 @@ void Player::update(Maze &maze, float dt, bool canMove) {
 
   // WASD and Arrow Key Input
   if (canMove) {
-    if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))
+    if (in.moveUp)
       velocity.y -= m_speed;
-    if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))
+    if (in.moveDown)
       velocity.y += m_speed;
-    if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))
+    if (in.moveLeft)
       velocity.x -= m_speed;
-    if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT))
+    if (in.moveRight)
       velocity.x += m_speed;
   }
 
@@ -144,13 +145,13 @@ void Player::update(Maze &maze, float dt, bool canMove) {
   // 1.5 DOOR TRANSITIONS (KEY_K and KEY_L)
   int doorIndexToEnter = -1;
   if (canMove) {
-    if (IsKeyPressed(KEY_K))
+    if (in.door1)
       doorIndexToEnter = 0;
-    if (IsKeyPressed(KEY_L))
+    if (in.door2)
       doorIndexToEnter = 1;
 
-    // INVENTORY PICKUP (KEY_P)
-    if (IsKeyPressed(KEY_P)) {
+    // INVENTORY PICKUP
+    if (in.pickup) {
       pickupItem(maze);
     }
   }

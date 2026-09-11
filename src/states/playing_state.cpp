@@ -83,8 +83,8 @@ void PlayingState::onExit() {
   UnloadShader(m_tripShader);
 }
 
-void PlayingState::update(float dt) {
-  if (IsKeyPressed(KEY_F11)) {
+void PlayingState::update(float dt, const InputState &in) {
+  if (in.toggleFullscreen) {
     ToggleFullscreen();
   }
 
@@ -100,9 +100,9 @@ void PlayingState::update(float dt) {
     m_renderSettings.lightSettingsChanged = false;
   }
 
-  handleInput();
+  handleInput(in);
 
-  m_player.update(m_maze, dt,
+  m_player.update(m_maze, dt, in,
                   !m_uiManager.isInventoryOpen() &&
                       !m_uiManager.isFullscreenMapOpen());
 
@@ -322,8 +322,8 @@ void PlayingState::update(float dt) {
   m_uiManager.update(dt);
 }
 
-void PlayingState::handleInput() {
-  if (IsKeyPressed(KEY_I)) {
+void PlayingState::handleInput(const InputState &in) {
+  if (in.toggleInventory) {
     m_uiManager.toggleInventory();
     if (!m_uiManager.isInventoryOpen()) {
       m_uiManager.setHeldSlotIndex(-1);
@@ -339,7 +339,7 @@ void PlayingState::handleInput() {
     }
   }
 
-  if (IsKeyPressed(KEY_O) && m_focusedCupboardX != -1) {
+  if (in.openCupboard && m_focusedCupboardX != -1) {
     if (m_uiManager.isCupboardInventoryOpen()) {
       m_maze.setItemState(m_focusedCupboardX, m_focusedCupboardY, 0);
       m_uiManager.closeCupboard();
@@ -358,7 +358,7 @@ void PlayingState::handleInput() {
   // Mouse input for the inventory, cupboard and crafting panels. It runs here,
   // in the input phase, so that render() can stay read-only - the UI used to
   // resolve clicks mid-draw.
-  m_uiManager.handleInventoryInput(m_player, m_maze);
+  m_uiManager.handleInventoryInput(m_player, m_maze, in);
 
   if (m_uiManager.isInventoryOpen()) {
     // The bag is a HOTBAR_SLOTS-wide grid: row 0 is the hotbar, the rows below
@@ -370,17 +370,17 @@ void PlayingState::handleInput() {
     constexpr int kLastRowStart = INVENTORY_SLOTS - kCols;
 
     int hotbar = m_uiManager.getActiveHotbarSlot();
-    if (IsKeyPressed(KEY_RIGHT) && (hotbar % kCols != kCols - 1))
+    if (in.navRight && (hotbar % kCols != kCols - 1))
       hotbar++;
-    if (IsKeyPressed(KEY_LEFT) && (hotbar % kCols != 0))
+    if (in.navLeft && (hotbar % kCols != 0))
       hotbar--;
-    if (IsKeyPressed(KEY_DOWN)) {
+    if (in.navDown) {
       if (hotbar >= kCols && hotbar < kLastRowStart)
         hotbar += kCols;
       else if (hotbar >= kLastRowStart)
         hotbar -= kLastRowStart;
     }
-    if (IsKeyPressed(KEY_UP)) {
+    if (in.navUp) {
       if (hotbar >= 2 * kCols)
         hotbar -= kCols;
       else if (hotbar < kCols)
@@ -388,14 +388,15 @@ void PlayingState::handleInput() {
     }
     m_uiManager.setActiveHotbarSlot(hotbar);
   } else {
-    // KEY_ONE..KEY_NINE are contiguous, so slot i is KEY_ONE + i.
+    static_assert(InputState::kHotbarKeys == HOTBAR_SLOTS,
+                  "one number key per hotbar slot");
     for (int i = 0; i < HOTBAR_SLOTS; ++i) {
-      if (IsKeyPressed(KEY_ONE + i))
+      if (in.hotbar[i])
         m_uiManager.setActiveHotbarSlot(i);
     }
   }
 
-  if (IsKeyPressed(KEY_U)) {
+  if (in.use) {
     if (m_uiManager.isFullscreenMapOpen()) {
       m_uiManager.closeFullscreenMap();
     } else {
@@ -403,7 +404,7 @@ void PlayingState::handleInput() {
     }
   }
 
-  if (IsKeyPressed(KEY_Q) && !m_uiManager.isInventoryOpen()) {
+  if (in.place && !m_uiManager.isInventoryOpen()) {
     if (m_isDroppingItem) {
       m_isDroppingItem = false;
     } else {
@@ -420,8 +421,8 @@ void PlayingState::handleInput() {
     }
   }
 
-  if (m_isDroppingItem && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-    Vector2 mouseWorld = GetScreenToWorld2D(GetMousePosition(), m_camera);
+  if (m_isDroppingItem && in.mouseLeftPressed) {
+    Vector2 mouseWorld = GetScreenToWorld2D(in.mouse, m_camera);
     int gridX = m_maze.toGridX(mouseWorld.x);
     int gridY = m_maze.toGridY(mouseWorld.y);
 
@@ -526,7 +527,7 @@ void PlayingState::attemptMagicBookSpawn() {
   }
 }
 
-void PlayingState::render() {
+void PlayingState::render(const InputState &in) {
   if (m_screenTarget.texture.width != GetScreenWidth() ||
       m_screenTarget.texture.height != GetScreenHeight()) {
     UnloadRenderTexture(m_screenTarget);
@@ -612,7 +613,7 @@ void PlayingState::render() {
   // Hand off UI rendering to UIManager, then the debug panel. ImGui must own
   // the last draw of the frame, so the overlay goes after the game UI.
   m_uiManager.render(m_player, m_maze, m_itemRenderer, m_isDroppingItem,
-                     m_totalTime);
+                     m_totalTime, in);
   m_debugOverlay.render(m_player, m_maze, m_renderSettings,
                         m_uiManager.getUIScale());
 

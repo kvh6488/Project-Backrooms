@@ -1,9 +1,16 @@
 #pragma once
 
+#include "core/input_state.hpp"
 #include "dev/debug_overlay.hpp"
 #include "ui/ui_manager.hpp"
 #include "states/game_state.hpp"
 #include <memory>
+
+// How run() should behave. Defaults are the shipping game; the headless
+// harness fills in the rest.
+struct RunConfig {
+  int maxTicks = -1; // -1 = until the window closes
+};
 
 
 // The Application class encapsulates the window and state machine.
@@ -17,8 +24,13 @@ public:
                        bool devMode = false);
   ~Application();
 
-  // Starts the main game loop
-  void run();
+  // The frame loop. Every tick advances the simulation by exactly kFixedDt
+  // of game time regardless of wall-clock frame time: SetTargetFPS paces the
+  // loop to real time when a window is up, and a headless run simply omits
+  // the pacing to fast-forward. One code path for play and test.
+  void run(const RunConfig &config = RunConfig{});
+
+  static constexpr float kFixedDt = 1.0f / 60.0f;
 
 private:
   // --- Window Configuration ---
@@ -27,6 +39,8 @@ private:
 
   unsigned int m_seed;
 
+  // Where each tick's InputState comes from. Hardware in the shipping game.
+  std::unique_ptr<InputSource> m_input;
   UIManager m_uiManager;
   // Owned here rather than by a state so the panel survives future state
   // switches (menu, death screen) and F1 keeps working across them.

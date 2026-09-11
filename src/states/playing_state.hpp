@@ -25,8 +25,8 @@ public:
 
   void onEnter() override;
   void onExit() override;
-  void update(float dt) override;
-  void render() override;
+  void update(float dt, const InputState &in) override;
+  void render(const InputState &in) override;
 
   // The world-building half of onEnter, split out so a test can run it (and
   // a regeneration) without a window. Both are the shipping entry points -
@@ -43,7 +43,7 @@ public:
                                                      int thickness);
 
 private:
-  void handleInput();
+  void handleInput(const InputState &in);
 
   // Width of every shifting strip, in cells. The roadmap plans to vary this
   // per night as the run escalates.
