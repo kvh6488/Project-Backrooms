@@ -1,4 +1,5 @@
 #pragma once
+#include "core/viewport.hpp"
 #include "world/maze.hpp"
 #include <raylib.h>
 
@@ -22,15 +23,19 @@ public:
 
   // Draw the maze based on context (Corridor vs Room) and Frustum Culling
   // camera: the active camera, used for view culling (frustum culling)
-  void render(const Maze &maze, const Camera2D &camera, AreaState state,
-              bool showGenerationZones = true) const;
+  // canvas: the render-texture size the camera projects into
+  void render(const Maze &maze, const Camera2D &camera, const Viewport &canvas,
+              AreaState state, bool showGenerationZones = true) const;
 
   // Step 1: Builds the light mask off-screen (Call BEFORE BeginTextureMode!)
+  // The mask lives in CANVAS space - same size and same camera as the scene -
+  // so the cone lines up with the tiles whatever the window is doing.
   void buildLightMask(Vector2 playerWorldPos, const Camera2D &camera,
-                      AreaState state, FacingDirection dir);
+                      const Viewport &canvas, AreaState state,
+                      FacingDirection dir);
 
   // Step 2: Draws the built light mask (Call inside BeginTextureMode!)
-  void drawLightMask();
+  void drawLightMask(const Viewport &canvas);
 
   // Updates flashlight parameters dynamically. Regenerates gradient if needed.
   void updateLightSettings(float coneAngle, float fadeStrength,
@@ -65,5 +70,5 @@ private:
 
   // Initializes (or re-initializes) the light mask RenderTexture to match
   // the current screen size. Called on first use and on window resize.
-  void initLightMask();
+  void initLightMask(const Viewport &canvas);
 };

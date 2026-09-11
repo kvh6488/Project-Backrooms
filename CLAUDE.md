@@ -126,7 +126,9 @@ Data and presentation are strictly separated: `MazeRenderer` (terrain), `PlayerR
 4. `EndTextureMode`, then blit `m_screenTarget` to the screen, wrapped in `m_tripShader` when `Player::getMushroomEffectStrength() > 0`.
 5. The magic-book overlay and all `UIManager` output draw *after* `EndShaderMode` — they are intentionally exempt from the trip distortion. `DebugOverlay::render` goes last of all, because ImGui must own the final draw of the frame.
 
-`m_screenTarget` is reallocated whenever the window size changes; anything else caching screen-sized textures needs the same check.
+**Two pixel spaces — canvas and window.** The scene renders into `m_screenTarget` (the *canvas*) at `camera.zoom = 1.0`, so a 32px cell is exactly 32 texels, and the canvas is then blitted to the window at `RenderSettings::blitScale`. The invariant is an integer **art** pixel, not an integer blit: all art is 16px drawn at 2× onto the canvas, so an art pixel covers `2 × blitScale` window pixels and that product must be whole — hence the allowed set {1, 1.5, 2, 3} (art at 2×/3×/4×/6×; default 1.5, ~27 tiles across a 1280 window) and why the old 1.2 shimmered. Canvas size is `ceil(window / blitScale)` (`Viewport::canvasFor` in `src/core/viewport.hpp`) — a bigger window is a bigger canvas showing more tiles; sprites never resize. Every render call takes a `Viewport` alongside the camera instead of calling `GetScreenWidth()`: the scene passes, `ViewBounds`, and the light mask all work in **canvas** space; `UIManager`, the pass-out fade and the magic-book overlay (drawn after the blit, through a `windowCamera` with `zoom = blitScale`) work in **window** space. Mouse input arrives in window pixels — convert through `PlayingState::windowToCanvas` before `GetScreenToWorld2D`. `GetScreenWidth()` is only ever the window; if you find yourself calling it inside the render texture, you are in the wrong space.
+
+`m_screenTarget` and `MazeRenderer::m_lightMask` are reallocated whenever the canvas size changes; anything else caching canvas-sized textures needs the same check.
 
 ### Items, crafting, spawning
 

@@ -54,9 +54,9 @@ ItemRenderer::~ItemRenderer() {
 // Each cell is an O(1) lookup into the grid-parallel item array.
 // ============================================================================
 void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
-                          AreaState state) const {
+                          const Viewport &canvas, AreaState state) const {
   // --- FRUSTUM CULLING (shared with MazeRenderer) ---
-  ViewBounds view = ViewBounds::fromCamera(maze, camera);
+  ViewBounds view = ViewBounds::fromCamera(maze, camera, canvas);
   int cellSize = maze.getCellSize();
 
   for (int y = view.startY; y <= view.endY; ++y) {
@@ -141,18 +141,19 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
           cupH = 57.0f;
           yOffset = -14.0f; // Nudge upward to sit flush against wall face
         } else if (wallRight) {
-          // Side-facing cupboard (leaning against right wall)
-          // Sprite rect: top-left (481, 256) to bottom-right (512, 320)
+          // Side-facing cupboard (leaning against right wall). One 32x64
+          // sheet cell, drawn 1:1; the sprite itself is the 15px at columns
+          // 497-511, so it hugs the wall side. cupW must equal the source
+          // width: anything else lands the dest rect on a half pixel and the
+          // edge samples the neighbouring sprite's outline as a black line.
           cupSrc = {480.0f, 256.0f, 32.0f, 64.0f};
-          cupW = 31.0f;
+          cupW = 32.0f;
           cupH = 64.0f;
         } else if (wallLeft) {
-          // Side-facing cupboard (leaning against left wall) — horizontally
-          // flipped Same sprite as wallRight, but we negate the source width
-          // to flip. Raylib convention: negative source width = horizontal
-          // mirror.
+          // Same cell mirrored: a negative source width flips horizontally
+          // (Raylib convention), so the sprite hugs the left side instead.
           cupSrc = {480.0f, 256.0f, 32.0f, 64.0f};
-          cupW = 31.0f;
+          cupW = 32.0f;
           cupH = 64.0f;
           flipH = true;
         } else {
@@ -318,6 +319,7 @@ ItemRenderer::computeTableSprite(const Maze &maze, int x, int y) const {
 // ============================================================================
 void ItemRenderer::renderMagicBookOverlay(const Maze &maze,
                                           const Camera2D &camera,
+                                          const Viewport &view,
                                           AreaState state, Vector2 tripOffset,
                                           float glowScale,
                                           float simTime) const {
@@ -331,7 +333,7 @@ void ItemRenderer::renderMagicBookOverlay(const Maze &maze,
   if (!isCellRenderable(maze, x, y, state)) {
     return;
   }
-  if (!ViewBounds::fromCamera(maze, camera).contains(x, y)) {
+  if (!ViewBounds::fromCamera(maze, camera, view).contains(x, y)) {
     return; // Off screen
   }
 

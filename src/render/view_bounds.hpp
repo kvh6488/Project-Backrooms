@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/viewport.hpp"
 #include "world/maze.hpp"
 #include <cmath>
 #include <raylib.h>
@@ -25,10 +26,14 @@
 struct ViewBounds {
   int startX, endX, startY, endY;
 
-  static ViewBounds fromCamera(const Maze &maze, const Camera2D &camera) {
+  // `view` is the rectangle `camera` projects into, in the camera's own
+  // pixels - the canvas for the scene passes, the window for overlays drawn
+  // after the blit. It is never GetScreenWidth(): that is the window, and
+  // the scene camera does not see the window.
+  static ViewBounds fromCamera(const Maze &maze, const Camera2D &camera,
+                               const Viewport &view) {
     Vector2 topLeft = GetScreenToWorld2D({0.0f, 0.0f}, camera);
-    Vector2 bottomRight = GetScreenToWorld2D(
-        {(float)GetScreenWidth(), (float)GetScreenHeight()}, camera);
+    Vector2 bottomRight = GetScreenToWorld2D(view.size(), camera);
 
     int cellSize = maze.getCellSize();
     return ViewBounds{(int)std::floor(topLeft.x / cellSize) - 1,

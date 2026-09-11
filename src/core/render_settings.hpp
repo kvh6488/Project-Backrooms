@@ -25,7 +25,20 @@ struct RenderSettings {
   bool lightSettingsChanged = false;
 
   // --- Camera ---
-  float cameraZoom = 1.2f;
+  // Canvas-to-window blit factor. See core/viewport.hpp for the model.
+  //
+  // The invariant is not "integer blit" but "integer ART pixel": every sheet
+  // is 16px art drawn at 2x onto the canvas, so one art pixel covers
+  // 2 * blitScale window pixels, and THAT product must be whole or the art
+  // shimmers. 1.5 therefore is fine (an art pixel is 3x3 on screen) while
+  // the old 1.2 was not (2.4 - some pixels fat, some thin).
+  //
+  // Allowed values, with tiles across a 1280-wide window:
+  //   1.0 -> art 2x, 40 tiles    1.5 -> art 3x, 27 tiles (default)
+  //   2.0 -> art 4x, 20 tiles    3.0 -> art 6x, 13 tiles
+  float blitScale = 1.5f;
+  static constexpr float kBlitScales[] = {1.0f, 1.5f, 2.0f, 3.0f};
+  static constexpr int kBlitScaleCount = 4;
 
   // --- Debug visualisation ---
   // Tints the Tic-Tac-Toe regeneration zones in the world and on the minimap.

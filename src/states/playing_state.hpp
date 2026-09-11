@@ -2,6 +2,7 @@
 
 #include "dev/debug_overlay.hpp"
 #include "core/render_settings.hpp"
+#include "core/viewport.hpp"
 #include "ui/ui_manager.hpp"
 #include "entities/player.hpp"
 #include "render/player_renderer.hpp"
@@ -45,6 +46,12 @@ public:
 private:
   void handleInput(const InputState &in);
 
+  // Mouse arrives in window pixels; the scene camera thinks in canvas pixels.
+  Vector2 windowToCanvas(Vector2 p) const {
+    float s = m_renderSettings.blitScale;
+    return {p.x / s, p.y / s};
+  }
+
   // Width of every shifting strip, in cells. The roadmap plans to vary this
   // per night as the run escalates.
   // Keep it >= 6: BSPLeaf::createRooms assumes a leaf at least 6 cells across
@@ -68,7 +75,10 @@ private:
   int m_regenCount = 0;
   Maze m_maze;
   Player m_player;
+  // Scene camera, in CANVAS space: zoom pinned at 1.0, offset = canvas centre.
   Camera2D m_camera;
+  // Canvas = window / blitScale, recomputed each tick (the window resizes).
+  Viewport m_canvas;
   MazeRenderer m_renderer;
   ItemRenderer m_itemRenderer;
   PlayerRenderer m_playerRenderer;

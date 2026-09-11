@@ -64,10 +64,12 @@ void PlayingState::onEnter() {
   // 2. Generate Initial Maze and place the player
   generateWorld();
 
-  // 3. Initialize Camera
+  // 3. Initialize Camera (canvas space; see core/viewport.hpp)
+  m_canvas = Viewport::canvasFor(GetScreenWidth(), GetScreenHeight(),
+                                 m_renderSettings.blitScale);
   m_camera = {0};
   m_camera.target = m_player.getPosition();
-  m_camera.offset = Vector2{GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
+  m_camera.offset = m_canvas.center();
   m_camera.rotation = 0.0f;
   m_camera.zoom = 1.0f;
 
@@ -75,7 +77,7 @@ void PlayingState::onEnter() {
   m_tripShader = assets::loadShader(0, "assets/magic_trip.fs", "PlayingState");
   m_tripTimeLoc = GetShaderLocation(m_tripShader, "time");
   m_tripStrengthLoc = GetShaderLocation(m_tripShader, "strength");
-  m_screenTarget = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+  m_screenTarget = LoadRenderTexture(m_canvas.width, m_canvas.height);
 }
 
 void PlayingState::onExit() {
@@ -170,13 +172,15 @@ void PlayingState::update(float dt, const InputState &in) {
     }
   }
 
-  float scale =
-      std::min((float)GetScreenWidth() / 1280, (float)GetScreenHeight() / 720);
+  // Integer target + integer offset + zoom 1.0 = every tile lands on whole
+  // canvas texels, which the integer blit then preserves.
+  m_canvas = Viewport::canvasFor(GetScreenWidth(), GetScreenHeight(),
+                                 m_renderSettings.blitScale);
   m_camera.target = {std::round(m_player.getPosition().x),
                      std::round(m_player.getPosition().y)};
-  m_camera.zoom = m_renderSettings.cameraZoom * scale;
-  m_camera.offset =
-      Vector2{(float)GetScreenWidth() / 2.0f, (float)GetScreenHeight() / 2.0f};
+  m_camera.zoom = 1.0f;
+  m_camera.offset = {std::floor(m_canvas.width / 2.0f),
+                     std::floor(m_canvas.height / 2.0f)};
 
   // --- Popups Logic (via UIManager) ---
   if (m_player.getAreaState() == AreaState::CORRIDOR &&
@@ -422,7 +426,7 @@ void PlayingState::handleInput(const InputState &in) {
   }
 
   if (m_isDroppingItem && in.mouseLeftPressed) {
-    Vector2 mouseWorld = GetScreenToWorld2D(in.mouse, m_camera);
+    Vector2 mouseWorld = GetScreenToWorld2D(windowToCanvas(in.mouse), m_camera);
     int gridX = m_maze.toGridX(mouseWorld.x);
     int gridY = m_maze.toGridY(mouseWorld.y);
 
@@ -471,8 +475,9 @@ Vector2 PlayingState::computeTripFollowOffset() const {
                        (m_maze.getMagicBookY() + 0.5f) * cellSize};
   Vector2 screen = GetWorldToScreen2D(bookWorld, m_camera);
 
-  float w = (float)GetScreenWidth();
-  float h = (float)GetScreenHeight();
+  // The shader's UVs run over the canvas texture, so normalise by the canvas.
+  float w = (float)m_canvas.width;
+  float h = (float)m_canvas.height;
   if (w <= 0.0f || h <= 0.0f) {
     return {0.0f, 0.0f};
   }
@@ -528,14 +533,14 @@ void PlayingState::attemptMagicBookSpawn() {
 }
 
 void PlayingState::render(const InputState &in) {
-  if (m_screenTarget.texture.width != GetScreenWidth() ||
-      m_screenTarget.texture.height != GetScreenHeight()) {
+  if (m_screenTarget.texture.width != m_canvas.width ||
+      m_screenTarget.texture.height != m_canvas.height) {
     UnloadRenderTexture(m_screenTarget);
-    m_screenTarget = LoadRenderTexture(GetScreenWidth(), GetScreenHeight());
+    m_screenTarget = LoadRenderTexture(m_canvas.width, m_canvas.height);
   }
 
   if (m_renderSettings.flashlightEnabled) {
-    m_renderer.buildLightMask(m_player.getPosition(), m_camera,
+    m_renderer.buildLightMask(m_player.getPosition(), m_camera, m_canvas,
                               m_player.getAreaState(),
                               m_player.getFacingDirection());
   }
@@ -544,19 +549,19 @@ void PlayingState::render(const InputState &in) {
   ClearBackground(Color{20, 20, 25, 255});
 
   BeginMode2D(m_camera);
-  m_renderer.render(m_maze, m_camera, m_player.getAreaState(),
+  m_renderer.render(m_maze, m_camera, m_canvas, m_player.getAreaState(),
                     m_renderSettings.showGenerationZones);
   m_playerRenderer.render(m_player);
-  m_itemRenderer.render(m_maze, m_camera, m_player.getAreaState());
+  m_itemRenderer.render(m_maze, m_camera, m_canvas, m_player.getAreaState());
   EndMode2D();
 
   if (m_renderSettings.flashlightEnabled &&
       m_player.getAreaState() == AreaState::CORRIDOR) {
-    m_renderer.drawLightMask();
+    m_renderer.drawLightMask(m_canvas);
   }
 
   if (m_radiationDarknessAlpha > 0.0f) {
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
+    DrawRectangle(0, 0, m_canvas.width, m_canvas.height,
                   Fade(BLACK, m_radiationDarknessAlpha));
   }
   EndTextureMode();
@@ -573,10 +578,13 @@ void PlayingState::render(const InputState &in) {
     BeginShaderMode(m_tripShader);
   }
 
+  // canvas * blitScale covers the window exactly, or bleeds less than one
+  // canvas pixel past an edge that did not divide - see core/viewport.hpp.
+  const float scale = m_renderSettings.blitScale;
   Rectangle sourceRec = {0.0f, 0.0f, (float)m_screenTarget.texture.width,
                          -(float)m_screenTarget.texture.height};
-  Rectangle destRec = {0.0f, 0.0f, (float)GetScreenWidth(),
-                       (float)GetScreenHeight()};
+  Rectangle destRec = {0.0f, 0.0f, m_canvas.width * scale,
+                       m_canvas.height * scale};
   DrawTexturePro(m_screenTarget.texture, sourceRec, destRec,
                  Vector2{0.0f, 0.0f}, 0.0f, WHITE);
 
@@ -584,9 +592,15 @@ void PlayingState::render(const InputState &in) {
     EndShaderMode();
   }
 
-  // Overlay layer (exempt from main shader)
-  BeginMode2D(m_camera);
-  m_itemRenderer.renderMagicBookOverlay(m_maze, m_camera,
+  // Overlay layer (exempt from main shader). We are in WINDOW space now, so
+  // the scene camera is rescaled: same target, offset and zoom multiplied by
+  // the blit scale, which lands world points exactly where the blit put them.
+  Camera2D windowCamera = m_camera;
+  windowCamera.offset = {m_camera.offset.x * scale, m_camera.offset.y * scale};
+  windowCamera.zoom = scale;
+  Viewport window{GetScreenWidth(), GetScreenHeight()};
+  BeginMode2D(windowCamera);
+  m_itemRenderer.renderMagicBookOverlay(m_maze, windowCamera, window,
                                         m_player.getAreaState(),
                                         computeTripFollowOffset(),
                                         m_debugOverlay.getBookGlowScale(),

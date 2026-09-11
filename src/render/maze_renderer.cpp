@@ -44,11 +44,12 @@ MazeRenderer::~MazeRenderer() {
 }
 
 void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
-                          AreaState state, bool showGenerationZones) const {
+                          const Viewport &canvas, AreaState state,
+                          bool showGenerationZones) const {
   // --- FRUSTUM CULLING ---
   // Shared with the item passes; see view_bounds.hpp for why startY reaches
   // three cells further than the other edges.
-  ViewBounds view = ViewBounds::fromCamera(maze, camera);
+  ViewBounds view = ViewBounds::fromCamera(maze, camera, canvas);
   int cellSize = maze.getCellSize();
 
   for (int y = view.startY; y <= view.endY; ++y) {
@@ -356,9 +357,9 @@ void MazeRenderer::updateLightSettings(float coneAngle, float fadeStrength,
 // ============================================================================
 // initLightMask — Create/Resize the Light Mask RenderTexture
 // ============================================================================
-void MazeRenderer::initLightMask() {
-  int screenW = GetScreenWidth();
-  int screenH = GetScreenHeight();
+void MazeRenderer::initLightMask(const Viewport &canvas) {
+  int screenW = canvas.width;
+  int screenH = canvas.height;
 
   // If already allocated at the right size, skip
   if (m_lightMaskReady && m_lightMask.texture.width == screenW &&
@@ -377,13 +378,14 @@ void MazeRenderer::initLightMask() {
 // ============================================================================
 void MazeRenderer::buildLightMask(Vector2 playerWorldPos,
                                   const Camera2D &camera,
-                                  AreaState state, FacingDirection dir) {
+                                  const Viewport &canvas, AreaState state,
+                                  FacingDirection dir) {
   // Only draw darkness in corridors; rooms are always fully lit
   if (state != AreaState::CORRIDOR)
     return;
 
-  // Ensure the light mask RenderTexture exists and matches screen size
-  initLightMask();
+  // Ensure the light mask RenderTexture exists and matches the canvas
+  initLightMask(canvas);
   if (!m_lightMaskReady)
     return;
 
@@ -434,10 +436,10 @@ void MazeRenderer::buildLightMask(Vector2 playerWorldPos,
   EndTextureMode();
 }
 
-void MazeRenderer::drawLightMask() {
+void MazeRenderer::drawLightMask(const Viewport &canvas) {
   if (!m_lightMaskReady) return;
-  int screenW = GetScreenWidth();
-  int screenH = GetScreenHeight();
+  int screenW = canvas.width;
+  int screenH = canvas.height;
 
   // --- Step 2: Composite the light mask onto the main framebuffer ---
   // BLEND_MULTIPLIED: finalPixel = framebufferPixel × maskPixel

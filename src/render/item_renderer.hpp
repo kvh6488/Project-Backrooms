@@ -1,4 +1,5 @@
 #pragma once
+#include "core/viewport.hpp"
 #include "world/maze.hpp"
 #include <raylib.h>
 
@@ -27,7 +28,7 @@ public:
   // Draws all visible items in the maze. Called AFTER the player renderer
   // inside BeginMode2D so items layer on top of the player sprite.
   void render(const Maze &maze, const Camera2D &camera,
-              AreaState state) const;
+              const Viewport &canvas, AreaState state) const;
 
   // Draws the magic book of maps on its table, as a SEPARATE pass.
   //
@@ -46,9 +47,13 @@ public:
   //
   // simTime is accumulated game time, not GetTime(): a scripted replay must
   // produce the same frame regardless of how long the process has been up.
+  //
+  // This pass draws AFTER the canvas is blitted, so `camera` and `view` are
+  // the WINDOW-space pair, not the scene's canvas pair.
   void renderMagicBookOverlay(const Maze &maze, const Camera2D &camera,
-                              AreaState state, Vector2 tripOffset,
-                              float glowScale, float simTime) const;
+                              const Viewport &view, AreaState state,
+                              Vector2 tripOffset, float glowScale,
+                              float simTime) const;
 
   // --- Screen-Space UI Rendering ---
   // Draws an item icon for the inventory/hotbar UI.

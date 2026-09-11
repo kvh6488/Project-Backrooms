@@ -176,7 +176,19 @@ void DebugOverlay::drawViewSection(RenderSettings &settings) {
   }
   ImGui::Indent();
 
-  ImGui::SliderFloat("Tile zoom", &settings.cameraZoom, 0.5f, 5.0f, "%.2f");
+  // Only the scales that keep art pixels whole are offered; see
+  // RenderSettings::blitScale.
+  static const char *const kLabels[] = {"1x  (40 tiles)", "1.5x  (27 tiles)",
+                                        "2x  (20 tiles)", "3x  (13 tiles)"};
+  int current = 0;
+  for (int i = 0; i < RenderSettings::kBlitScaleCount; ++i) {
+    if (settings.blitScale == RenderSettings::kBlitScales[i])
+      current = i;
+  }
+  if (ImGui::Combo("Zoom", &current, kLabels,
+                   RenderSettings::kBlitScaleCount)) {
+    settings.blitScale = RenderSettings::kBlitScales[current];
+  }
   if (wideButton(IsWindowFullscreen() ? "Exit fullscreen  (F11)"
                                       : "Enter fullscreen  (F11)")) {
     ToggleFullscreen();
