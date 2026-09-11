@@ -12,17 +12,17 @@ Design intent lives in `docs/`: [roadmap.md](docs/roadmap.md) is the authoritati
 
 The `build/` directory is configured for **MinGW Makefiles** with g++ at `C:/ProgramData/mingw64/mingw64/bin/g++.exe` (Debug). All dependencies are pulled by `FetchContent` at configure time, so the first configure needs network access.
 
-**Always name the generator and the toolchain explicitly.** The `cmake` first on `PATH` is often Visual Studio's own (`Common7/IDE/CommonExtensions/.../cmake.exe`), which defaults to the Visual Studio generator and silently corrupts the build tree — see "Generator corruption" below.
+**Configure through the preset, never bare `cmake -S . -B build`.** `CMakePresets.json` pins the generator, both compilers and the build type, so the configure is correct even when the `cmake` first on `PATH` is Visual Studio's own (`Common7/IDE/CommonExtensions/.../cmake.exe`) — which is the usual case on this machine and, without the preset, silently corrupts the build tree (see "Generator corruption" below). VS Code's CMake Tools picks the preset up automatically.
 
 ```bash
-cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_MAKE_PROGRAM=C:/ProgramData/mingw64/mingw64/bin/mingw32-make.exe -DCMAKE_C_COMPILER=C:/ProgramData/mingw64/mingw64/bin/gcc.exe -DCMAKE_CXX_COMPILER=C:/ProgramData/mingw64/mingw64/bin/g++.exe -DCMAKE_BUILD_TYPE=Debug
+cmake --preset mingw-debug
 ```
-
-The short form `cmake -S . -B build -G "MinGW Makefiles"` only works when a MinGW-aware `cmake` resolves first.
 
 ```bash
-cmake --build build -j
+cmake --build --preset mingw-debug
 ```
+
+(`cmake --build build -j` is equivalent once configured.)
 
 Run the game — **must run with `build/` as the working directory**, because assets are loaded via relative paths like `assets/magic_trip.fs`:
 
@@ -44,7 +44,7 @@ A single test or suite:
 
 ### Build gotchas
 
-- **Generator corruption (the most common breakage).** There is no `CMakePresets.json` and no `.vscode/settings.json`, so nothing pins the generator. When VS Code's CMake Tools (or Visual Studio, or any bare `cmake -S . -B build`) reconfigures using the VS-bundled cmake, it rewrites the top-level `build/CMakeCache.txt` to `Visual Studio <N>` while every FetchContent sub-build under `build/_deps/*-subbuild/` keeps its `MinGW Makefiles` cache. A generator is immutable once written to a cache, so the nested raylib configure aborts with *"Does not match the generator used previously"*, the whole configure dies before emitting any `.vcxproj`, and the next build fails with `MSBUILD : error MSB1009: Project file does not exist. Switch: ALL_BUILD.vcxproj`. Recover by deleting **only** the top-level cache and re-running the full configure command above:
+- **Generator corruption (the most common breakage).** `CMakePresets.json` pins the generator, but a bare `cmake -S . -B build` (or any tool that ignores presets) still bypasses it. When such a reconfigure runs with the VS-bundled cmake, it rewrites the top-level `build/CMakeCache.txt` to `Visual Studio <N>` while every FetchContent sub-build under `build/_deps/*-subbuild/` keeps its `MinGW Makefiles` cache. A generator is immutable once written to a cache, so the nested raylib configure aborts with *"Does not match the generator used previously"*, the whole configure dies before emitting any `.vcxproj`, and the next build fails with `MSBUILD : error MSB1009: Project file does not exist. Switch: ALL_BUILD.vcxproj`. Recover by deleting **only** the top-level cache and re-running `cmake --preset mingw-debug`:
   ```bash
   rm -rf "build/CMakeCache.txt" "build/CMakeFiles"
   ```

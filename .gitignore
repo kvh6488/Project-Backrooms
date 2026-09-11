@@ -30,3 +30,8 @@ Thumbs.db
 
 # ImGui state
 imgui.ini
+
+# Headless harness output and secrets (autonomous workflow plan)
+artifacts/
+.env
+scenarios/*.out
