@@ -301,14 +301,16 @@ def error_report(ramps, cols, w, lab):
 # ---- swatch ---------------------------------------------------------------
 
 def draw_swatch(ramps, path):
-    """Labelled ramps. Drawn only in palette colours (darkest/lightest neutral
-    for ground and text, two ramp colours for the world brackets) so the file
-    passes quantize.py --check like everything else in assets/."""
+    """Labelled ramps. Text and brackets use palette colours, but the ground is
+    deliberately off-palette (a dull plum no ramp contains) so the darkest
+    neutral reads as a block against it. The labels are anti-aliased anyway,
+    so quantize.py --check skips this file by name; it is documentation, not
+    a sheet the game loads."""
     cell, pad, label_w = 48, 8, 88
     font = ImageFont.load_default()
     by = {r["name"]: r["colours"] for r in ramps}
     ink = tuple(by["neutral"][-1]["rgb"]); dim = tuple(by["neutral"][-3]["rgb"])
-    ground = tuple(by["neutral"][0]["rgb"])
+    ground = (38, 26, 44)  # off-palette on purpose: see docstring
     over = tuple(by["yellow" if "yellow" in by else "brown"][-2]["rgb"])
     under = tuple(by["green"][3]["rgb"])
     width = label_w + max(len(r["colours"]) for r in ramps) * (cell + pad) + pad

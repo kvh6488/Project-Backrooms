@@ -61,11 +61,16 @@ def check(path, pal_rgb):
     return bad, len(px), stray
 
 
+# Documentation images, not sheets the game loads. The swatch's labels are
+# anti-aliased text, so it can never conform; the game never draws it.
+DOC_IMAGES = {"palette_swatch.png"}
+
+
 def pngs_under(paths):
     for p in paths:
         if os.path.isdir(p):
             for name in sorted(os.listdir(p)):
-                if name.lower().endswith(".png"):
+                if name.lower().endswith(".png") and name not in DOC_IMAGES:
                     yield os.path.join(p, name)
         else:
             yield p
