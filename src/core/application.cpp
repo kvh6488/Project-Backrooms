@@ -7,27 +7,43 @@
 #include "states/playing_state.hpp"
 
 
-Application::Application(unsigned int seed, const char *seedNote, bool devMode)
-    : m_seed(seed), m_input(std::make_unique<HardwareInput>()),
-      m_uiManager(m_screenWidth, m_screenHeight),
-      m_debugOverlay(devMode) {
+Application::Application(const AppConfig &config)
+    : m_headless(config.headless), m_seed(config.seed),
+      m_input(config.input ? config.input : &m_hardwareInput),
+      m_capture(config.capture),
+      m_uiManager(config.windowW, config.windowH),
+      // The panel needs ImGui, which a headless run never sets up.
+      m_debugOverlay(config.devMode && !config.headless) {
   // 0. main() has already armed the logger (it logs before we exist).
   // Raylib's own chatter is also tagged "[INFO]", which drowns our messages.
   // Warnings and errors still come through, so real failures (a texture that
   // did not load) remain visible.
   SetTraceLogLevel(LOG_WARNING);
-  debuglog::log("SEED", "%u  (%s)", seed,
-                seedNote ? seedNote : "unspecified");
-  debuglog::log("SEED", "reproduce with:  Backrooms.exe --seed %u", seed);
-  if (devMode) {
+  debuglog::log("SEED", "%u  (%s)", m_seed,
+                config.seedNote ? config.seedNote : "unspecified");
+  debuglog::log("SEED", "reproduce with:  Backrooms.exe --seed %u", m_seed);
+  if (m_debugOverlay.isVisible()) {
     debuglog::log("DEV", "debug tools armed  (F1 toggles the panel)");
   }
+  if (m_headless) {
+    debuglog::log("HEADLESS", "hidden %dx%d window, blit x%.1f, no pacing",
+                  config.windowW, config.windowH, config.blitScale);
+  }
 
-  // 1. Initialize Raylib System
-  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-  InitWindow(m_screenWidth, m_screenHeight, "Project Backrooms");
-  SetWindowMinSize(m_screenWidth, m_screenHeight);
-  SetTargetFPS(60);
+  // 1. Initialize Raylib System. Headless keeps the GL context (the render
+  // texture and the trip shader need one) but hides the window and drops
+  // SetTargetFPS so ticks run back-to-back; the fixed dt keeps the simulation
+  // seeing 1/60 s per tick regardless.
+  SetConfigFlags(FLAG_WINDOW_RESIZABLE | (m_headless ? FLAG_WINDOW_HIDDEN : 0));
+  InitWindow(config.windowW, config.windowH, "Project Backrooms");
+  SetWindowMinSize(config.windowW, config.windowH);
+  if (!m_headless) {
+    SetTargetFPS(60);
+  }
+  // Raylib seeds GetRandomValue from the clock at InitWindow. The radiation
+  // flicker and the magic-book roll use it, so pin it to the world seed or
+  // two runs of one seed diverge the first time the lights flicker.
+  SetRandomSeed(m_seed);
 
   // 1.5 Set Window Icon
   Image iconImage = LoadImage("assets/guard_yellow_spritesheet.png");
@@ -38,15 +54,17 @@ Application::Application(unsigned int seed, const char *seedNote, bool devMode)
   }
 
   // 2. Initialize ImGui and Textures
-  rlImGuiSetup(true);
+  if (!m_headless) {
+    rlImGuiSetup(true);
+  }
 
   // 2.5 Initialize Item Database
   ItemDatabase::init();
   CraftingSystem::init();
 
   // 3. Set Initial State
-  m_currentState =
-      std::make_unique<PlayingState>(m_uiManager, m_debugOverlay, m_seed);
+  m_currentState = std::make_unique<PlayingState>(
+      m_uiManager, m_debugOverlay, m_seed, m_capture, config.blitScale);
   m_currentState->onEnter();
 }
 
@@ -54,19 +72,25 @@ Application::~Application() {
   if (m_currentState) {
     m_currentState->onExit();
   }
-  rlImGuiShutdown();
+  if (!m_headless) {
+    rlImGuiShutdown();
+  }
   CloseWindow();
 }
 
-void Application::run(const RunConfig &config) {
-  for (int tick = 0; !WindowShouldClose(); ++tick) {
+int Application::run(const RunConfig &config) {
+  int tick = 0;
+  for (; !WindowShouldClose(); ++tick) {
     if (config.maxTicks >= 0 && tick >= config.maxTicks) {
+      break;
+    }
+    if (m_input->finished(tick)) {
       break;
     }
 
     // F1 is deliberately outside InputState: it is a dev-tool switch, not a
     // player action, and a scripted scenario must not be able to reach it.
-    if (IsKeyPressed(KEY_F1)) {
+    if (!m_headless && IsKeyPressed(KEY_F1)) {
       m_debugOverlay.toggle();
     }
 
@@ -79,8 +103,16 @@ void Application::run(const RunConfig &config) {
     }
 
     if (m_currentState) {
+      if (m_capture) {
+        m_capture->beginTick(tick);
+      }
       m_currentState->update(kFixedDt, in);
       m_currentState->render(in);
+      if (m_capture) {
+        Telemetry t;
+        m_currentState->snapshot(t);
+        m_capture->endTick(tick, t);
+      }
 
       // Honour a transition only here, after the frame is fully drawn. The
       // state that raised the request is still live during update/render, so
@@ -96,4 +128,5 @@ void Application::run(const RunConfig &config) {
       }
     }
   }
+  return tick;
 }

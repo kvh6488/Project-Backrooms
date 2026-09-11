@@ -27,6 +27,24 @@ enum class ItemType : int {
   MAGIC_BOOK_OF_MAPS = 9
 };
 
+// Stable identifier for logs and telemetry - the enumerator's own name, not
+// the display name in ItemDatabase, so a test can assert on it.
+inline const char *itemTypeId(ItemType type) {
+  switch (type) {
+  case ItemType::NONE: return "NONE";
+  case ItemType::TOXIC_WASTE: return "TOXIC_WASTE";
+  case ItemType::CUPBOARD: return "CUPBOARD";
+  case ItemType::TABLE: return "TABLE";
+  case ItemType::MUSHROOM: return "MUSHROOM";
+  case ItemType::MAGIC_MUSHROOM: return "MAGIC_MUSHROOM";
+  case ItemType::PAPER: return "PAPER";
+  case ItemType::PENCIL: return "PENCIL";
+  case ItemType::MAP: return "MAP";
+  case ItemType::MAGIC_BOOK_OF_MAPS: return "MAGIC_BOOK_OF_MAPS";
+  }
+  return "UNKNOWN";
+}
+
 // ============================================================================
 // UiTexture
 // ============================================================================

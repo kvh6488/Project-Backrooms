@@ -1,0 +1,21 @@
+# Smoke test: spawn, look around, walk, and prove the loop closes.
+# The "radiation" fixture seed (dev/debug_seeds.hpp) spawns the player inside
+# a radiated room with magic mushrooms nearby.
+seed 1788480606
+window 1280 720
+scale 1.5
+
+checkpoint spawn
+
+# Walk down for a second and a half, then right.
+hold S 90
+checkpoint walked_down
+hold D 90
+checkpoint walked_right
+
+# Open and close the inventory; the frame should show the bag.
+press I
+checkpoint inventory_open
+press I
+checkpoint inventory_closed
+end

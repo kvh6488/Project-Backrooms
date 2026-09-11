@@ -382,11 +382,21 @@ Each phase leaves the game runnable and hand-playable.
 **Risk:** The visible-area change on the default window is mild (40 tiles vs ~33), but an ultrawide monitor now shows ~107 — flagged above as a design question for later. All 24 `GetScreenWidth()`/`GetScreenHeight()` reads must be triaged into canvas space versus window space. `MazeRenderer::buildLightMask` and `drawLightMask` are the subtle ones — they operate in screen space and must move to canvas space or the cone will not line up.
 **Verify:** Screenshot at the default window and confirm exact 1:1 texels, no resampling, no bars. Resize the window and confirm sprites stay the same size while more tiles appear. Flip `PIXEL_SCALE` to 2 and confirm sprites double and tile count halves, still with no bars.
 
-### Phase 4 — Headless harness
+### Phase 4 — Headless harness ✅ (2026-09-11)
 **Changes:** `--headless` flag; `FLAG_WINDOW_HIDDEN`; `json_writer.hpp`; checkpoint capture; a first `scenarios/` set.
 **Unlocks:** The whole loop. This is the payoff phase.
 **Risk:** `LoadImageFromScreen()` against a hidden window is the one thing I could not verify from here — if the back buffer reads empty, fall back to `scene.png` only, which comes from a render texture and is certain to work.
 **Verify:** Run one scenario twice; both `telemetry.json` files and both PNG sets are byte-identical.
+
+**As built.** The game side is `core/capture.hpp`: a `Telemetry` POD that `GameState::snapshot()` fills (a value out, mirroring `InputState` in — no JSON in `states/`) and a four-hook `CaptureSink` (`beginTick` / `onSceneReady` / `onFrameReady` / `endTick`). `main.cpp` builds an `AppConfig` and lends `Application` a `ScriptedInput` and a `HeadlessHarness`; nothing under `states/` includes `dev/`. Five dev headers: `scenario.hpp`, `scripted_input.hpp`, `headless_mode.hpp`, `json_writer.hpp`, `headless_harness.hpp`. Three scenarios: `smoke` (walk, inventory), `corridor` (door → light mask), `pickup` (seed 3, fixture `mushroom_room`: two pickups and a miss, every telemetry prediction in the file's comments holds). Fourteen new tests in `tests/test_harness.cpp`. Verified: `diff -r` of two runs of each scenario is empty; a 187-tick scenario runs in ~0.3 s.
+
+**Found on the way, fixed:**
+- `frame.png` from the hidden window **works** — but only after `rlDrawRenderBatchActive()` before `LoadImageFromScreen()`. rlgl batches draws and flushes at `EndDrawing`; `glReadPixels` does not flush, so the first captures had the scene blit but no UI.
+- **`GetRandomValue` was a determinism hole Phase 1 missed.** Raylib seeds it from the clock at `InitWindow`; the radiation flicker and the magic-book 1-in-3 roll use it. `SetRandomSeed(m_seed)` in the `Application` constructor closes it. The proper fix later is to route both through the shared `std::mt19937`.
+- Grammar deviation from the sketch above, deliberate: `checkpoint` **consumes one idle tick** rather than tagging the next command's tick, so a capture never contains half of the following command. `press KEY` is `hold KEY 1`; held keys fire their "pressed" fields on the first tick only, exactly as `IsKeyDown`/`IsKeyPressed` do. `mouse X Y` moves the persistent cursor without consuming a tick.
+- The `radiation` fixture's note is stale post-Phase 1: seed 1788480606 now spawns in a plain room with no items in view. Left as-is; `mushroom_room` is the fixture for item tests.
+
+**Still open:** the `scene.png` of a corridor at the default light settings is nearly black (a faint cone around the player). Whether that matches the windowed game or is a Phase 3 light-mask regression needs an eye on both side by side — it is a presentation question, not a harness one.
 
 ### Phase 5 — Grid fixes and prop re-cut
 **Changes:** `core/grid.hpp`; downsample the two workshop sheets with a manual touch-up; re-cut all ~14 off-grid rects; make the 9 hardcoded render sites grid-relative; fix the out-of-bounds `wallX`, the two gradient diameters, and the duplicated flashlight defaults; retire `FullSpritesheet.png`.

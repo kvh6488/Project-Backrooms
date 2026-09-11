@@ -86,6 +86,9 @@ class InputSource {
 public:
   virtual ~InputSource() = default;
   virtual InputState sample(int tick) = 0;
+  // True once the source has nothing left to say; the frame loop stops. The
+  // keyboard never runs out, a scripted scenario does.
+  virtual bool finished(int /*tick*/) const { return false; }
 };
 
 class HardwareInput : public InputSource {

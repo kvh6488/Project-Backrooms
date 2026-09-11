@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/capture.hpp"
 #include "core/input_state.hpp"
 #include <memory>
 
@@ -37,6 +38,11 @@ public:
     // Called every tick after update. Takes the same InputState so hover
     // effects can read the mouse without polling hardware mid-draw.
     virtual void render(const InputState &in) = 0;
+
+    // Fills in what a headless checkpoint should record about this state.
+    // A value out, mirroring InputState in: no file I/O here, the harness
+    // serialises it. Default reports nothing.
+    virtual void snapshot(Telemetry & /*out*/) const {}
 
     // --- Transition mailbox, read by Application after render() ---
 

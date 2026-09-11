@@ -42,8 +42,17 @@ A single test or suite:
 ./build/BackroomsTests.exe --gtest_filter=MazeTest.ToroidalWrapping
 ```
 
+Headless run — scripted input, hidden window, no frame pacing; writes screenshots and telemetry per checkpoint (see "Headless harness" below):
+
+```bash
+cd build && ./Backrooms.exe --headless ../scenarios/pickup.txt
+```
+
+Artifacts land in `artifacts/<scenario>/<checkpoint>/` (gitignored). `--out <dir>` overrides, `--ticks N` caps the run.
+
 ### Build gotchas
 
+- **From Git Bash the executables need MinGW on `PATH`.** Both `.exe`s link `libstdc++-6.dll` and `libgcc_s_seh-1.dll` dynamically. PowerShell finds them; Git Bash does not, and the process dies with exit code 127 and no output. Prefix with `PATH="/c/ProgramData/mingw64/mingw64/bin:$PATH"` or run from PowerShell.
 - **Generator corruption (the most common breakage).** `CMakePresets.json` pins the generator, but a bare `cmake -S . -B build` (or any tool that ignores presets) still bypasses it. When such a reconfigure runs with the VS-bundled cmake, it rewrites the top-level `build/CMakeCache.txt` to `Visual Studio <N>` while every FetchContent sub-build under `build/_deps/*-subbuild/` keeps its `MinGW Makefiles` cache. A generator is immutable once written to a cache, so the nested raylib configure aborts with *"Does not match the generator used previously"*, the whole configure dies before emitting any `.vcxproj`, and the next build fails with `MSBUILD : error MSB1009: Project file does not exist. Switch: ALL_BUILD.vcxproj`. Recover by deleting **only** the top-level cache and re-running `cmake --preset mingw-debug`:
   ```bash
   rm -rf "build/CMakeCache.txt" "build/CMakeFiles"
@@ -84,6 +93,8 @@ share `view_bounds.hpp` and change together when the draw pipeline changes.
 ### Ownership chain
 
 `main.cpp` → `Application` (owns the Raylib window, the `UIManager`, and a `unique_ptr<GameState>`; its `run()` is the frame loop) → `PlayingState` (the only concrete `GameState` today) which owns the `Maze`, `Player`, `Camera2D`, all three renderers, the `ItemSpawner`, the seed and the shared `std::mt19937`.
+
+`main.cpp` decides everything that must be known before the window exists and hands it over as one `AppConfig` (seed, dev mode, headless, window size, blit scale, and two non-owning pointers: an `InputSource` and a `CaptureSink`, both null in the shipping game). `Application` borrows those; `main` keeps them alive longer than the `Application`.
 
 `GameState` (`src/states/game_state.hpp`) is the extension point for future states (main menu, death screen). `Application` has no game logic — everything gameplay-side belongs in a state.
 
@@ -150,6 +161,19 @@ Its one write path into the game is `handleInventoryInput(Player&, Maze&)`, call
 
 Gating is runtime only: `Backrooms.exe --dev` arms the panel (`src/dev/dev_mode.hpp`) and `F1` shows/hides it. The code still ships inside the binary — a release build should drop `BACKROOMS_DEV_SOURCES` from the executable and guard the `dev/` includes, which is why the dev tooling is its own directory and its own CMake list.
 
+### Headless harness
+
+`Backrooms.exe --headless <scenario>` replaces the keyboard with a text file and the screen with a directory. The game side is two small things in `core/capture.hpp`, and everything else lives in `dev/`:
+
+- **`Telemetry`** is a POD a state fills on request — `GameState::snapshot(Telemetry&)`, the mirror image of `InputState`: a value out, no JSON and no file I/O in `states/`. `PlayingState::snapshot` reports player cell/facing/area, the camera's world rect, the bag, the items the canvas would draw (same `isCellRenderable` rule as `ItemRenderer`), and the maze counts.
+- **`CaptureSink`** is four hooks per tick. `Application::run` brackets the tick with `beginTick` / `endTick(tick, telemetry)`; `PlayingState::render` calls `onSceneReady(m_screenTarget)` **immediately after `EndTextureMode`** and `onFrameReady()` **immediately before `EndDrawing`**. Those two positions are the whole point: the canvas is complete only there, and the back buffer is undefined after the swap — so the frame capture cannot be done from `Application`.
+
+The `dev/` side: `scenario.hpp` (grammar + parser, documented in its banner), `scripted_input.hpp` (compiles the command list into one `InputState` per tick up front, mirroring `pollHardwareInput`'s held/pressed semantics exactly), `headless_mode.hpp` (CLI), `json_writer.hpp` (emit only — the project deliberately has no JSON parser), and `headless_harness.hpp` (the `CaptureSink` that writes `scene.png`, `frame.png`, `telemetry.json` per checkpoint and `run.json` per run). A `checkpoint` is an idle tick: it records the world after every command before it has settled for one tick, with nothing from the next command leaked in.
+
+Headless still needs a GL context (render texture, trip shader), so the window is created with `FLAG_WINDOW_HIDDEN` rather than not at all; `SetTargetFPS` and `rlImGuiSetup` are skipped. Two things the harness depends on that are easy to break: **`SetRandomSeed(seed)` in the `Application` constructor** (raylib seeds `GetRandomValue` from the clock otherwise, and the radiation flicker uses it), and **`rlDrawRenderBatchActive()` before `LoadImageFromScreen`** (rlgl only flushes its batch at `EndDrawing`, so without it the UI drawn last is missing from `frame.png`). The contract is that one scenario run twice produces byte-identical artifacts; `diff -r` two `--out` directories to check.
+
+Scenarios live in `scenarios/` at the repo root — they are not assets and do not go through the configure-time copy. Named seed fixtures for them are in `dev/debug_seeds.hpp` (`mushroom_room` = seed 3 has a mushroom in pickup range at spawn).
+
 Cached render textures (`DebugOverlay::m_mapTexture`, `UIManager::m_magicBookMapTexture`, per-instance drawn maps) are regenerated only when marked dirty. Any code that changes maze layout must call **both** `DebugOverlay::markMapDirty()` and `UIManager::markMagicBookMapDirty()`.
 
 ### Input
@@ -160,15 +184,16 @@ Time is fixed, not measured: every tick advances the simulation by `Application:
 
 WASD/arrows move · `K`/`L` door 1 / door 2 · `P` pick up · `I` inventory · `O` open focused cupboard · `U` use/consume (or close fullscreen map) · `Q` enter placement mode, then left-click a visible floor tile · `1`–`5` hotbar · `F11` fullscreen · `F1` debug panel (only with `--dev`).
 
-Command line: `--seed <name|number>` pins the world (`src/dev/debug_seeds.hpp`), `--dev` arms the debug panel.
+Command line: `--seed <name|number>` pins the world (`src/dev/debug_seeds.hpp`), `--dev` arms the debug panel, `--headless <scenario> [--out <dir>] [--ticks N]` runs a scripted scenario with no window (`src/dev/headless_mode.hpp`; a `seed` line in the scenario overrides `--seed`).
 
 ## Tests
 
-Three files, split by subject:
+Four files, split by subject:
 
 - `tests/test_maze.cpp` — maze indexing, toroidal wrapping, generator invariants (rooms carved, connectivity, no diagonal leaks), the derived Tic-Tac-Toe zone layout and `isCellRenderable`.
 - `tests/test_inventory.cpp` — pickup/drop/stack/swap rules and crafting, including the full-bag edge cases.
 - `tests/test_magic_book.cpp` — book spawn candidate selection and its search radius.
+- `tests/test_harness.cpp` — the scenario grammar, the tick timeline it compiles to (held vs pressed, checkpoints as idle ticks, mouse persistence), the JSON emitter's exact output, the `--headless` CLI, and `PlayingState::snapshot` against a generated world.
 
 The test target links the whole game including Raylib and ImGui, so tests can construct real game objects, but must not open a window. Anything needing `ItemDatabase` or `CraftingSystem` must call their `init()` itself — only the `Application` constructor does that in the shipping path.
 

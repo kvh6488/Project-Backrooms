@@ -7,16 +7,20 @@
 #include <algorithm>
 #include <cmath>
 #include "core/asset_load.hpp"
+#include "render/view_bounds.hpp"
 #include "dev/debug_log.hpp"
 #include <ctime>
 #include <iostream>
 
 PlayingState::PlayingState(UIManager &uiManager, DebugOverlay &debugOverlay,
-                           unsigned int seed)
-    : m_uiManager(uiManager), m_debugOverlay(debugOverlay),
+                           unsigned int seed, CaptureSink *capture,
+                           float blitScale)
+    : m_uiManager(uiManager), m_debugOverlay(debugOverlay), m_capture(capture),
       m_seed(seed != 0 ? seed : (unsigned int)std::time(nullptr)), m_rng(m_seed),
       m_maze(250, 150, 32, m_seed), m_player(Vector2{0, 0}, AreaState::ROOM),
-      m_itemSpawner(m_rng), m_totalTime(0.0f) {}
+      m_itemSpawner(m_rng), m_totalTime(0.0f) {
+  m_renderSettings.blitScale = blitScale;
+}
 
 PlayingState::~PlayingState() {}
 
@@ -565,6 +569,9 @@ void PlayingState::render(const InputState &in) {
                   Fade(BLACK, m_radiationDarknessAlpha));
   }
   EndTextureMode();
+  if (m_capture) {
+    m_capture->onSceneReady(m_screenTarget);
+  }
 
   BeginDrawing();
   ClearBackground(BLACK);
@@ -631,7 +638,73 @@ void PlayingState::render(const InputState &in) {
   m_debugOverlay.render(m_player, m_maze, m_renderSettings,
                         m_uiManager.getUIScale());
 
+  if (m_capture) {
+    m_capture->onFrameReady();
+  }
   EndDrawing();
+}
+
+void PlayingState::snapshot(Telemetry &out) const {
+  const Vector2 pos = m_player.getPosition();
+  out.playerWorldPos = pos;
+  out.playerCellX = m_maze.toGridX(pos.x);
+  out.playerCellY = m_maze.toGridY(pos.y);
+  out.areaState =
+      m_player.getAreaState() == AreaState::ROOM ? "ROOM" : "CORRIDOR";
+  switch (m_player.getFacingDirection()) {
+  case FacingDirection::UP: out.facing = "UP"; break;
+  case FacingDirection::DOWN: out.facing = "DOWN"; break;
+  case FacingDirection::LEFT: out.facing = "LEFT"; break;
+  case FacingDirection::RIGHT: out.facing = "RIGHT"; break;
+  }
+  out.mushroomEffect = m_player.getMushroomEffectStrength();
+  out.passingOut = m_player.isPassingOut();
+
+  const Vector2 topLeft = GetScreenToWorld2D({0.0f, 0.0f}, m_camera);
+  const Vector2 bottomRight = GetScreenToWorld2D(m_canvas.size(), m_camera);
+  out.cameraTarget = m_camera.target;
+  out.cameraZoom = m_camera.zoom;
+  out.cameraRect = {topLeft.x, topLeft.y, bottomRight.x - topLeft.x,
+                    bottomRight.y - topLeft.y};
+  out.canvasW = m_canvas.width;
+  out.canvasH = m_canvas.height;
+  out.blitScale = m_renderSettings.blitScale;
+
+  out.inventoryOpen = m_uiManager.isInventoryOpen();
+  out.cupboardOpen = m_uiManager.isCupboardInventoryOpen();
+  out.fullscreenMapOpen = m_uiManager.isFullscreenMapOpen();
+
+  out.inventory.clear();
+  const auto &bag = m_player.getInventory();
+  for (int i = 0; i < (int)bag.size(); ++i) {
+    if (bag[i].type != ItemType::NONE) {
+      out.inventory.push_back({i, itemTypeId(bag[i].type), bag[i].count});
+    }
+  }
+
+  // Exactly the cells the canvas shows - no cull margin - filtered by the
+  // same rule ItemRenderer uses, so "visible" means "would have been drawn".
+  out.visibleItems.clear();
+  const int cell = m_maze.getCellSize();
+  const int x0 = (int)std::floor(topLeft.x / cell);
+  const int x1 = (int)std::ceil(bottomRight.x / cell);
+  const int y0 = (int)std::floor(topLeft.y / cell);
+  const int y1 = (int)std::ceil(bottomRight.y / cell);
+  for (int y = y0; y <= y1; ++y) {
+    for (int x = x0; x <= x1; ++x) {
+      ItemType item = m_maze.getItem(x, y);
+      if (item != ItemType::NONE &&
+          isCellRenderable(m_maze, x, y, m_player.getAreaState())) {
+        out.visibleItems.push_back({x, y, itemTypeId(item)});
+      }
+    }
+  }
+
+  out.mazeWidth = m_maze.getWidth();
+  out.mazeHeight = m_maze.getHeight();
+  out.nonWallCount = m_maze.getNonWallCount();
+  out.corridorCount = m_maze.getCorridorCount();
+  out.regenCount = m_regenCount;
 }
 
 // ============================================================================

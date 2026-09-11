@@ -136,6 +136,7 @@ add_executable(BackroomsTests
     tests/test_maze.cpp
     tests/test_magic_book.cpp
     tests/test_inventory.cpp
+    tests/test_harness.cpp
     ${BACKROOMS_GAME_SOURCES}
     ${BACKROOMS_DEV_SOURCES}
     ${BACKROOMS_VENDOR_SOURCES}

@@ -19,15 +19,19 @@
 // The PlayingState represents the core gameplay loop (exploring the maze).
 class PlayingState : public GameState {
 public:
-  // seed of 0 means "pick one from the clock".
+  // seed of 0 means "pick one from the clock". capture is the headless
+  // harness's hook set (null in the shipping game); blitScale pins the
+  // canvas size so a scripted run's screenshots stay diffable.
   PlayingState(UIManager &uiManager, DebugOverlay &debugOverlay,
-               unsigned int seed = 0);
+               unsigned int seed = 0, CaptureSink *capture = nullptr,
+               float blitScale = RenderSettings{}.blitScale);
   ~PlayingState() override;
 
   void onEnter() override;
   void onExit() override;
   void update(float dt, const InputState &in) override;
   void render(const InputState &in) override;
+  void snapshot(Telemetry &out) const override;
 
   // The world-building half of onEnter, split out so a test can run it (and
   // a regeneration) without a window. Both are the shipping entry points -
@@ -66,6 +70,8 @@ private:
 
   // Presentation values the debug panel tunes but the game owns.
   RenderSettings m_renderSettings;
+  // Headless capture hooks; see core/capture.hpp. Null when nobody watches.
+  CaptureSink *m_capture;
 
   // --- Core Systems ---
   unsigned int m_seed;
@@ -76,7 +82,7 @@ private:
   Maze m_maze;
   Player m_player;
   // Scene camera, in CANVAS space: zoom pinned at 1.0, offset = canvas centre.
-  Camera2D m_camera;
+  Camera2D m_camera{};
   // Canvas = window / blitScale, recomputed each tick (the window resizes).
   Viewport m_canvas;
   MazeRenderer m_renderer;

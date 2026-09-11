@@ -1,0 +1,19 @@
+# Pick up a mushroom at spawn, then step onto the next one and take it too.
+# The "mushroom_room" fixture (dev/debug_seeds.hpp): spawn cell (123,74),
+# mushrooms at (124,75) (125,75) (123,76) (124,76) (125,76).
+seed 3
+window 1280 720
+scale 1.5
+
+checkpoint spawn            # visibleItems lists the five MUSHROOMs, bag empty
+
+press P                     # 3x3 scan finds (124,75)
+checkpoint after_pickup     # inventory: slot 0 MUSHROOM x1; four left visible
+
+press P                     # nothing else in range: bag unchanged
+checkpoint pickup_miss
+
+hold S 16                   # ~one cell down (130 px/s at 1/60 s per tick)
+press P                     # now (123,76) is in range
+checkpoint second_pickup    # slot 0 MUSHROOM x2; three left visible
+end

@@ -1,0 +1,14 @@
+# Leave the spawn room through its door and walk the corridor.
+# Exercises the ROOM -> CORRIDOR transition and the light-mask render path.
+seed 1788480606
+window 1280 720
+scale 1.5
+
+hold S 90
+hold D 90
+checkpoint at_door
+press K
+checkpoint in_corridor
+hold D 120
+checkpoint corridor_walked
+end
