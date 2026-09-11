@@ -42,6 +42,5 @@ private:
   static constexpr float FRAME_DURATION = 0.20f;
 
   // Spritesheet constants
-  static constexpr int TILE_SIZE = 16;   // Each tile is 16x16 pixels
   static constexpr int FRAME_COUNT = 4;  // 4 frames per walk cycle row
 };

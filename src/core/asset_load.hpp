@@ -34,6 +34,15 @@ inline Texture2D loadTexture(const char *path, const char *owner) {
   return texture;
 }
 
+// CPU-side image (the window icon is the only user today).
+inline Image loadImage(const char *path, const char *owner) {
+  Image image = LoadImage(path);
+  if (image.data == nullptr) {
+    debuglog::log("ASSET", "%s could not load '%s'", owner, path);
+  }
+  return image;
+}
+
 inline Shader loadShader(const char *vsPath, const char *fsPath,
                          const char *owner) {
   Shader shader = LoadShader(vsPath, fsPath);

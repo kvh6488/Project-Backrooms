@@ -1,29 +1,30 @@
 #include "render/item_renderer.hpp"
 #include "items/item_database.hpp"
 #include "core/asset_load.hpp"
+#include "core/grid.hpp"
 #include "render/view_bounds.hpp"
 #include <cmath>
 #include <iostream>
 
 ItemRenderer::ItemRenderer() {
   m_postApocWorkshopTextures = {0};
-  m_doodadsTexture = {0};
   m_mushroomTexture = {0};
   m_postApocIconsTexture = {0};
+  m_workshopPropIcons = {0};
 }
 
 void ItemRenderer::loadTextures() {
   if (IsWindowReady()) {
     m_postApocWorkshopTextures = assets::loadTexture(
-        "assets/PostApoc_Workshop_WithShadow.png", "ItemRenderer");
-    m_doodadsTexture =
-        assets::loadTexture("assets/doodads_spritesheet.png", "ItemRenderer");
+        "assets/PostApoc_Workshop_16px.png", "ItemRenderer");
     m_mushroomTexture = assets::loadTexture(
         "assets/mushrooms_pixel_asset.png", "ItemRenderer");
     m_postApocIconsTexture = assets::loadTexture(
         "assets/PostApoc_Workshop_Icons.png", "ItemRenderer");
     m_ritualTexture = assets::loadTexture(
         "assets/Spritesheet_TheDarkRitual_BigWander.png", "ItemRenderer");
+    m_workshopPropIcons =
+        assets::loadTexture("assets/workshop_prop_icons.png", "ItemRenderer");
   } else {
     std::cerr << "[ERROR] Window not ready. Cannot load item textures!"
               << std::endl;
@@ -33,10 +34,10 @@ void ItemRenderer::loadTextures() {
 ItemRenderer::~ItemRenderer() {
   if (IsWindowReady()) {
     UnloadTexture(m_postApocWorkshopTextures);
-    UnloadTexture(m_doodadsTexture);
     UnloadTexture(m_mushroomTexture);
     UnloadTexture(m_postApocIconsTexture);
     UnloadTexture(m_ritualTexture);
+    UnloadTexture(m_workshopPropIcons);
   }
 }
 
@@ -53,11 +54,16 @@ ItemRenderer::~ItemRenderer() {
 // Time Complexity: O(V) where V = number of visible cells on screen.
 // Each cell is an O(1) lookup into the grid-parallel item array.
 // ============================================================================
+bool ItemRenderer::isFrontFacingCupboard(const Maze &maze, int x, int y) {
+  return maze.getItem(x, y) == ItemType::CUPBOARD &&
+         maze.getCell(x, y - 1) == Maze::CELL_WALL;
+}
+
 void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
-                          const Viewport &canvas, AreaState state) const {
+                          const Viewport &canvas, AreaState state,
+                          Layer layer) const {
   // --- FRUSTUM CULLING (shared with MazeRenderer) ---
   ViewBounds view = ViewBounds::fromCamera(maze, camera, canvas);
-  int cellSize = maze.getCellSize();
 
   for (int y = view.startY; y <= view.endY; ++y) {
     for (int x = view.startX; x <= view.endX; ++x) {
@@ -66,52 +72,50 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
       if (!isCellRenderable(maze, x, y, state))
         continue;
 
+      // Layer split: only front-facing cupboards go behind the player.
+      bool behind = isFrontFacingCupboard(maze, x, y);
+      if (behind != (layer == Layer::BEHIND_PLAYER))
+        continue;
+
       // --- Item Rendering (Grid-Parallel Switch) ---
       // O(1) lookup per cell. Adding a new item type means adding a
       // new case here — no need to touch any other rendering code.
       switch (maze.getItem(x, y)) {
       case ItemType::TOXIC_WASTE: {
-        Rectangle sourceRectBarrel = {70.0f, 193.0f, 22.0f, 30.0f};
-        Rectangle destRectBarrel = {
-            (float)(x * cellSize) + (cellSize / 2.0f) - 11.0f,
-            (float)(y * cellSize) + cellSize - 30.0f, 22.0f, 30.0f};
-        DrawTexturePro(m_postApocWorkshopTextures, sourceRectBarrel,
-                       destRectBarrel, {0, 0}, 0.0f, WHITE);
+        // The plain workshop barrel, sold as toxic by a fluorescent green
+        // glow rather than a badge. Additive halo behind, then the barrel,
+        // then a tighter halo over it so the drum itself reads as lit.
+        Rectangle cell = grid::cellRect(x, y);
+        int cx = (int)(cell.x + cell.width / 2.0f);
+        int cy = (int)(cell.y + cell.height / 2.0f);
 
-        // Draw radiation symbol centered over the barrel
-        Rectangle sourceRectDoodad = {3.0f * 16.0f, 1.0f * 16.0f, 16.0f, 16.0f};
-        Rectangle destRectDoodad = {(float)(x * cellSize) + (cellSize / 2.0f) -
-                                        8.0f,
-                                    (float)(y * cellSize) + cellSize - 30.0f +
-                                        (30.0f / 2.0f) - 6.0f, // 2px down
-                                    16.0f, 16.0f};
-        DrawTexturePro(m_doodadsTexture, sourceRectDoodad, destRectDoodad,
+        BeginBlendMode(BLEND_ADDITIVE);
+        DrawCircleGradient(cx, cy, grid::CELL * 1.1f, Color{60, 255, 90, 45},
+                           Color{60, 255, 90, 0});
+        EndBlendMode();
+
+        DrawTexturePro(m_postApocWorkshopTextures, grid::srcTile(2, 6), cell,
                        {0, 0}, 0.0f, WHITE);
+
+        BeginBlendMode(BLEND_ADDITIVE);
+        DrawCircleGradient(cx, cy, grid::CELL * 0.45f, Color{80, 255, 120, 55},
+                           Color{80, 255, 120, 0});
+        EndBlendMode();
         break;
       }
       case ItemType::MUSHROOM:
       case ItemType::MAGIC_MUSHROOM: {
-        // Pseudo-random consistent hash to pick a tile from the top 8 (0-7)
-        int tileIndex = (x * 73 + y * 37) % 8;
-        int tx = tileIndex % 4;
-
-        // Normal mushrooms use top half (rows 0-1), magic mushrooms use bottom
-        // half (rows 2-3)
+        // Pseudo-random consistent hash picks one of the six variants: the
+        // sheet is 3 columns wide, normal mushrooms on rows 0-1, magic ones
+        // on rows 2-3.
+        int tileIndex = (x * 73 + y * 37) % 6;
+        int tx = tileIndex % 3;
         int ty = (maze.getItem(x, y) == ItemType::MUSHROOM)
-                     ? (tileIndex / 4)
-                     : (tileIndex / 4) + 2;
-        Rectangle sourceRect = {(float)tx * 16.0f, (float)ty * 16.0f, 16.0f,
-                                16.0f};
+                     ? (tileIndex / 3)
+                     : (tileIndex / 3) + 2;
 
-        // 2 times smaller than the cell size (i.e. twice as large as before)
-        float mSize = cellSize / 2.0f;
-        Rectangle destRect = {
-            (float)(x * cellSize) + (cellSize / 2.0f) - (mSize / 2.0f),
-            (float)(y * cellSize) + (cellSize / 2.0f) - (mSize / 2.0f), mSize,
-            mSize};
-
-        DrawTexturePro(m_mushroomTexture, sourceRect, destRect, {0, 0}, 0.0f,
-                       WHITE);
+        DrawTexturePro(m_mushroomTexture, grid::srcTile(tx, ty),
+                       grid::cellRect(x, y), {0, 0}, 0.0f, WHITE);
         break;
       }
       case ItemType::CUPBOARD: {
@@ -124,99 +128,55 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
         bool wallRight = maze.getCell(x + 1, y) == Maze::CELL_WALL;
         bool wallLeft = maze.getCell(x - 1, y) == Maze::CELL_WALL;
 
-        Rectangle cupSrc = {0};
-        float cupW = 0, cupH = 0;
+        // Every cupboard is one 1x2 tile column on the workshop sheet. The
+        // sheet lays its variants out on a grid: open states are the next
+        // columns along, the red colourway is four rows down.
+        //   front, blue  (14, 6)   side, blue  (15, 8)
+        //   front, red   (14, 10)  side, red   (15, 12)
+        int col = 14, row = 6;
+        bool isSideways = !wallAbove && (wallRight || wallLeft);
         bool flipH = false;
 
-        // Vertical offset: cupboards against the top wall are nudged 3px
-        // upward so they visually "sit flush" against the rendered wall
-        // face (which projects downward via the Zelda-style wall system).
-        float yOffset = 0.0f;
+        // Cupboards against the top wall are nudged upward so they sit
+        // flush against the rendered wall face (which projects downward via
+        // the Zelda-style wall system). Measured in art pixels.
+        int liftArtPx = 0;
 
         if (wallAbove) {
-          // Front-facing cupboard (viewed from the south)
-          // Sprite rect: top-left (449, 198) to bottom-right (479, 255)
-          cupSrc = {449.0f, 197.0f, 32.0f, 60.0f};
-          cupW = 30.0f;
-          cupH = 57.0f;
-          yOffset = -14.0f; // Nudge upward to sit flush against wall face
-        } else if (wallRight) {
-          // Side-facing cupboard (leaning against right wall). One 32x64
-          // sheet cell, drawn 1:1; the sprite itself is the 15px at columns
-          // 497-511, so it hugs the wall side. cupW must equal the source
-          // width: anything else lands the dest rect on a half pixel and the
-          // edge samples the neighbouring sprite's outline as a black line.
-          cupSrc = {480.0f, 256.0f, 32.0f, 64.0f};
-          cupW = 32.0f;
-          cupH = 64.0f;
-        } else if (wallLeft) {
-          // Same cell mirrored: a negative source width flips horizontally
-          // (Raylib convention), so the sprite hugs the left side instead.
-          cupSrc = {480.0f, 256.0f, 32.0f, 64.0f};
-          cupW = 32.0f;
-          cupH = 64.0f;
-          flipH = true;
-        } else {
-          // Fallback: shouldn't happen given spawn rules, but default to front
-          cupSrc = {449.0f, 198.0f, 30.0f, 57.0f};
-          cupW = 30.0f;
-          cupH = 57.0f;
+          liftArtPx = 7;
+        } else if (isSideways) {
+          // The side sprite hugs the right edge of its tile, so it leans on
+          // a wall to the right as drawn; a negative source width flips it
+          // (Raylib convention) to lean left instead.
+          col = 15;
+          row = 8;
+          flipH = wallLeft && !wallRight;
         }
+        // No wall at all cannot happen given the spawn rules; falls through
+        // to the front-facing sprite.
 
         // --- Color Variant Logic ---
         // Deterministically pick red or blue based on coordinates
-        bool isRed = false;
         unsigned int hash = (unsigned int)(x * 73856093 ^ y * 19349663);
         if (hash % 2 == 0) {
-          isRed = true;
-          cupSrc.y += 128.0f; // Red variant is 128px below blue
+          row += 4;
         }
 
         // --- Open Cupboard Logic ---
         if (maze.getItemState(x, y) == 1) { // 1 = open
-          bool isSideways = !wallAbove && (wallRight || wallLeft);
-          if (isSideways) {
-            // Sideways cupboards render the same open texture regardless of
-            // contents
-            cupSrc.x += 32.0f;
-          } else {
-            if (maze.isCupboardEmpty(x, y)) {
-              cupSrc.x += 63.0f; // Open, no items,
-            } else {
-              cupSrc.x += 32.0f; // Open, with items
-              if (isRed) {
-                cupSrc.x -= 1.0f; // Shift red variant 1px left
-              }
-            }
-          }
+          // Sideways cupboards have one open sprite regardless of contents;
+          // front-facing ones show either stocked shelves or bare ones.
+          col += (!isSideways && maze.isCupboardEmpty(x, y)) ? 2 : 1;
         }
 
-        // Scale the sprite to fit within the cell while preserving aspect
-        // ratio. The sprite anchors to the bottom of the cell (furniture sits
-        // on the floor).
-        float scale = (float)cellSize / cupW;
-        float drawW = cupW * scale;
-        float drawH = cupH * scale;
-
-        // If the scaled height exceeds the cell, cap it
-        if (drawH > cellSize * 2.0f) {
-          scale = (cellSize * 2.0f) / cupH;
-          drawW = cupW * scale;
-          drawH = cupH * scale;
+        Rectangle cupSrc = grid::srcTile(col, row, 1, 2);
+        Rectangle dest = grid::standingOn(cupSrc, x, y);
+        dest.y -= liftArtPx * grid::WORLD_SCALE;
+        if (flipH) {
+          cupSrc.width = -cupSrc.width;
         }
-
-        // Negate source width for horizontal flip (Raylib convention)
-        Rectangle srcFinal = {cupSrc.x, cupSrc.y,
-                              flipH ? -cupSrc.width : cupSrc.width,
-                              cupSrc.height};
-
-        // Anchor bottom-center of the cell, applying vertical offset
-        Rectangle destRectCup = {
-            (float)(x * cellSize) + (cellSize / 2.0f) - (drawW / 2.0f),
-            (float)(y * cellSize) + cellSize - drawH + yOffset, drawW, drawH};
-
-        DrawTexturePro(m_postApocWorkshopTextures, srcFinal, destRectCup,
-                       {0, 0}, 0.0f, WHITE);
+        DrawTexturePro(m_postApocWorkshopTextures, cupSrc, dest, {0, 0}, 0.0f,
+                       WHITE);
         break;
       }
       case ItemType::TABLE: {
@@ -261,46 +221,15 @@ ItemRenderer::computeTableSprite(const Maze &maze, int x, int y) const {
 
   bool isGrey = ((unsigned int)(x * 73856093 ^ y * 19349663) % 2 == 0);
 
-  float tableW = 0.0f, tableH = 0.0f;
-  if (state == 1) { // Horizontal Right
-    if (isGrey) {
-      out.src = {352.0f, 19.0f, 63.0f, 45.0f};
-      tableW = 63.0f;
-      tableH = 45.0f;
-    } else {
-      out.src = {353.0f, 406.0f, 61.0f, 41.0f};
-      tableW = 61.0f;
-      tableH = 41.0f;
-    }
-  } else { // state == 3, Vertical Bottom
-    if (isGrey) {
-      out.src = {416.0f, 0.0f, 31.0f, 64.0f};
-      tableW = 31.0f;
-      tableH = 64.0f;
-    } else {
-      out.src = {321.0f, 385.0f, 29.0f, 62.0f};
-      tableW = 29.0f;
-      tableH = 62.0f;
-    }
-  }
-
-  int cellSize = maze.getCellSize();
-  if (state == 1) {
-    // Scale to fit width = 2 * cellSize, anchored to the bottom of the cell
-    // and centered across x and x-1.
-    float scale = (cellSize * 2.0f) / tableW;
-    float drawW = tableW * scale;
-    float drawH = tableH * scale;
-    out.dest = {(float)(x * cellSize) - (drawW / 2.0f),
-                (float)(y * cellSize) + cellSize - drawH, drawW, drawH};
-  } else {
-    // Scale to fit width = 1 * cellSize, anchored bottom, centered
-    // horizontally.
-    float scale = (float)cellSize / tableW;
-    float drawW = tableW * scale;
-    float drawH = tableH * scale;
-    out.dest = {(float)(x * cellSize) + (cellSize / 2.0f) - (drawW / 2.0f),
-                (float)(y * cellSize) + cellSize - drawH, drawW, drawH};
+  // Source rectangles in art pixels. The workshop sheet is an 8px atlas once
+  // halved, so a table top can be a half-tile tall; the density is still
+  // exactly WORLD_SCALE because the dest is derived from the src.
+  if (state == 1) { // Horizontal Right: 2 cells wide, 1.5 tall
+    out.src = isGrey ? Rectangle{176, 8, 32, 24} : Rectangle{176, 200, 32, 24};
+    out.dest = grid::standingOn(out.src, x, y, 2);
+  } else { // state == 3, Vertical Bottom: 1 cell wide, 2 tall
+    out.src = isGrey ? grid::srcTile(13, 0, 1, 2) : grid::srcTile(10, 12, 1, 2);
+    out.dest = grid::standingOn(out.src, x, y);
   }
 
   out.valid = true;
@@ -337,24 +266,25 @@ void ItemRenderer::renderMagicBookOverlay(const Maze &maze,
     return; // Off screen
   }
 
-  int cellSize = maze.getCellSize();
   TableSprite table = computeTableSprite(maze, x, y);
   if (!table.valid) {
     return; // The book is only ever placed on a table root tile.
   }
 
-  Rectangle bookSrc = {48.0f, 97.0f, 16.0f, 16.0f};
-  const float bookW = 16.0f;
-  const float bookH = 16.0f;
+  Rectangle bookSrc = grid::srcTile(3, 6);
+  const float bookW = bookSrc.width;
+  const float bookH = bookSrc.height;
 
   // Sit the book on the table surface rather than its bounding-box center,
   // then ride along with whatever apparent motion the trip shader is giving
   // the table this frame.
   float centerX = table.dest.x + (table.dest.width / 2.0f) + tripOffset.x;
-  float centerY = table.dest.y + (table.dest.height / 2.0f) - 8.0f +
-                  tripOffset.y;
+  float centerY = table.dest.y + (table.dest.height / 2.0f) -
+                  4 * grid::WORLD_SCALE + tripOffset.y;
 
-  float bookScale = (cellSize / 32.0f) * 1.5f;
+  // Drawn at 1.5x rather than the grid's 2x, by request: at a full cell the
+  // book swallowed the table it sits on. The one sprite off the 2x rule.
+  const float bookScale = 1.5f;
   float drawBookW = bookW * bookScale;
   float drawBookH = bookH * bookScale;
 
@@ -399,8 +329,8 @@ void ItemRenderer::renderMagicBookOverlay(const Maze &maze,
 // ============================================================================
 Texture2D ItemRenderer::atlasFor(UiTexture which) const {
   switch (which) {
-  case UiTexture::WORKSHOP:
-    return m_postApocWorkshopTextures;
+  case UiTexture::WORKSHOP_PROPS:
+    return m_workshopPropIcons;
   case UiTexture::WORKSHOP_ICONS:
     return m_postApocIconsTexture;
   case UiTexture::RITUAL:

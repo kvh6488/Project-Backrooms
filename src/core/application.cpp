@@ -1,4 +1,6 @@
 #include "core/application.hpp"
+#include "core/asset_load.hpp"
+#include "core/grid.hpp"
 #include "dev/debug_log.hpp"
 #include "items/item_database.hpp"
 #include "items/crafting_system.hpp"
@@ -46,9 +48,10 @@ Application::Application(const AppConfig &config)
   SetRandomSeed(m_seed);
 
   // 1.5 Set Window Icon
-  Image iconImage = LoadImage("assets/guard_yellow_spritesheet.png");
+  Image iconImage =
+      assets::loadImage("assets/guard_yellow_spritesheet.png", "Application");
   if (IsImageReady(iconImage)) {
-    ImageCrop(&iconImage, Rectangle{0, 0, 16, 16});
+    ImageCrop(&iconImage, grid::srcTile(0, 0));
     SetWindowIcon(iconImage);
     UnloadImage(iconImage);
   }

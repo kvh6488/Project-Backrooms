@@ -1,0 +1,10 @@
+# Furniture on show: the "furniture_room" fixture (dev/debug_seeds.hpp) spawns
+# with a grey and a wooden horizontal table and two side-on cupboards in view.
+# Presentation scenario: the checkpoint exists for its scene.png. Telemetry
+# lists TABLE x6 (three two-cell tables) and CUPBOARD x2 at spawn.
+seed 1
+window 1280 720
+scale 1.5
+
+checkpoint spawn
+end

@@ -54,7 +54,8 @@ inline const char *itemTypeId(ItemType type) {
 // and means a new item is one edit in ItemDatabase rather than two.
 enum class UiTexture : int {
   MUSHROOMS = 0, // mushrooms_pixel_asset.png — also the fallback
-  WORKSHOP,      // PostApoc_Workshop_WithShadow.png
+  WORKSHOP_PROPS,// workshop_prop_icons.png - the paper and pencil, cut at
+                 // native resolution from the pack's furniture sheet
   WORKSHOP_ICONS,// PostApoc_Workshop_Icons.png
   RITUAL         // Spritesheet_TheDarkRitual_BigWander.png
 };

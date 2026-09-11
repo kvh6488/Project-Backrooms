@@ -1,4 +1,5 @@
 #pragma once
+#include "core/render_settings.hpp"
 #include "core/viewport.hpp"
 #include "world/maze.hpp"
 #include <raylib.h>
@@ -51,9 +52,16 @@ private:
   // transparent at edges. Used as a "stamp" in the light mask.
   Texture2D m_lightGradient;
 
-  float m_lightConeAngle = 235.0f;
-  float m_lightFadeStrength = 2.0f;
-  float m_lightSizeScale = 3.125f;
+  // Seeded from RenderSettings so there is exactly one copy of the shipping
+  // values; updateLightSettings() is the only writer after that.
+  float m_lightConeAngle = RenderSettings{}.lightConeAngle;
+  float m_lightFadeStrength = RenderSettings{}.lightFadeStrength;
+  float m_lightSizeScale = RenderSettings{}.lightSizeScale;
+
+  // Texel size of the gradient stamp. It is drawn at ~300 canvas px by
+  // default, so 512 keeps the falloff smooth after scaling; the initial
+  // build and every slider-driven rebuild use this one value.
+  static constexpr int kLightGradientDiameter = 512;
 
   // Off-screen render texture used as a "light mask".
   // Each frame in corridor mode, we:
@@ -66,7 +74,7 @@ private:
   bool m_lightMaskReady;
 
   // Generates the radial gradient texture for the flashlight effect
-  void generateLightGradient(int diameter);
+  void generateLightGradient();
 
   // Initializes (or re-initializes) the light mask RenderTexture to match
   // the current screen size. Called on first use and on window resize.

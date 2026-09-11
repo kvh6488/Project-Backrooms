@@ -6,6 +6,7 @@
 
 enum class AreaState { CORRIDOR, ROOM };
 
+#include "core/grid.hpp"
 #include "items/item.hpp"
 
 
@@ -39,7 +40,8 @@ public:
   // --- Constructor ---
   // Creates a maze of the given dimensions.
   // seed determines the random layout. Same seed = same maze.
-  Maze(int width, int height, int cellSize = 32, unsigned int seed = 12345);
+  Maze(int width, int height, int cellSize = grid::CELL,
+       unsigned int seed = 12345);
   ~Maze();
 
   // --- Core Accessors ---
@@ -169,7 +171,7 @@ public:
 private:
   int m_width;    // Number of cells horizontally
   int m_height;   // Number of cells vertically
-  int m_cellSize; // Size of each cell in pixels (default 32x32)
+  int m_cellSize; // World px per cell; grid::CELL in the shipping game
 
   // Real-time stat tracking
   int m_nonWallCount;

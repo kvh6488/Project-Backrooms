@@ -1,0 +1,9 @@
+# The "barrel_room" fixture (dev/debug_seeds.hpp): a radiated room with a
+# toxic-waste barrel and a vertical wooden table in view. Presentation
+# scenario, like furniture.txt: telemetry has TOXIC_WASTE x1 and TABLE x4.
+seed 38
+window 1280 720
+scale 1.5
+
+checkpoint spawn
+end

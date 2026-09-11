@@ -1,5 +1,6 @@
 #include "render/player_renderer.hpp"
 #include "core/asset_load.hpp"
+#include "core/grid.hpp"
 #include <iostream>
 
 PlayerRenderer::PlayerRenderer()
@@ -55,30 +56,16 @@ void PlayerRenderer::update(float dt, const Player &player) {
 // from state, computes the source rectangle into the spritesheet, and draws.
 //
 // The FacingDirection enum values (0–3) map directly to spritesheet rows,
-// so we can cast them to int and multiply by TILE_SIZE to get the Y offset.
+// so the enum value is the tile row.
 // ============================================================================
 void PlayerRenderer::render(const Player &player) const {
-  // Source rectangle: which 16x16 tile to sample from the spritesheet.
-  // Column = current animation frame (0–3), Row = facing direction (0–3).
+  // Source tile: column = current animation frame (0-3), row = facing
+  // direction (0-3). One tile, one cell, centred on the player's position.
   int row = static_cast<int>(player.getFacingDirection());
-  Rectangle source = {
-      static_cast<float>(m_currentFrame * TILE_SIZE),
-      static_cast<float>(row * TILE_SIZE),
-      static_cast<float>(TILE_SIZE),
-      static_cast<float>(TILE_SIZE)
-  };
-
-  // Destination rectangle: draw a 32x32 sprite (2× scale) centered at the
-  // player's world-space position. 32×32 matches the maze cell size.
-  Rectangle dest = {
-      player.getPosition().x,
-      player.getPosition().y,
-      32.0f,
-      32.0f
-  };
-
-  // Origin at the center of the destination rect for proper centering.
-  Vector2 origin = {16.0f, 16.0f};
+  Rectangle source = grid::srcTile(m_currentFrame, row);
+  Rectangle dest =
+      grid::destFor(source, player.getPosition().x, player.getPosition().y);
+  Vector2 origin = {dest.width / 2.0f, dest.height / 2.0f};
 
   DrawTexturePro(m_playerTexture, source, dest, origin, 0.0f, WHITE);
 }

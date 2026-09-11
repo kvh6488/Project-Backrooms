@@ -190,7 +190,15 @@ private:
   bool m_showFullscreenMap = false;
   int m_openedMapId = 0;
 
-  // Magic Book Map
+  // Magic Book Map: a fixed window of the maze, one texel per cell. The
+  // same numbers size the texture, fill it, and place the player dot.
+  static constexpr int kBookMapX = 55, kBookMapY = 30;
+  static constexpr int kBookMapW = 139, kBookMapH = 89;
   RenderTexture2D m_magicBookMapTexture;
   bool m_magicBookMapDirty = true;
+
+  // Hand-drawn maps: a window this size centred on where the map was made.
+  static constexpr int kDrawnMapW = 53, kDrawnMapH = 35;
+  static constexpr int kDrawnMapX(int centerX) { return centerX - kDrawnMapW / 2; }
+  static constexpr int kDrawnMapY(int centerY) { return centerY - kDrawnMapH / 2; }
 };

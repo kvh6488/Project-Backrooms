@@ -718,3 +718,33 @@ TEST(DeterminismTest, SameSeedSurvivesZoneRegeneration) {
   EXPECT_EQ(first, second)
       << "a zone regeneration must depend only on the seed, not the clock";
 }
+
+// ============================================================================
+// grid.hpp — the one pixel density
+// ============================================================================
+// Every destination rectangle is derived from its source, so a sprite that is
+// N tiles wide covers N cells and never anything else.
+TEST(GridTest, OneTileIsOneCell) {
+  Rectangle src = grid::srcTile(3, 6);
+  EXPECT_EQ(src.x, 48.0f);
+  EXPECT_EQ(src.y, 96.0f);
+  Rectangle dest = grid::destFor(src, 0, 0);
+  EXPECT_EQ(dest.width, (float)grid::CELL);
+  EXPECT_EQ(dest.height, (float)grid::CELL);
+}
+
+TEST(GridTest, StandingFurnitureGrowsUpwardFromItsFloorCell) {
+  // A 1x2 tile cupboard on cell (5, 7) fills cells (5,6) and (5,7).
+  Rectangle cup = grid::standingOn(grid::srcTile(14, 6, 1, 2), 5, 7);
+  EXPECT_EQ(cup.x, 5.0f * grid::CELL);
+  EXPECT_EQ(cup.y, 6.0f * grid::CELL);
+  EXPECT_EQ(cup.width, 1.0f * grid::CELL);
+  EXPECT_EQ(cup.height, 2.0f * grid::CELL);
+
+  // A 2-cell-wide table rooted at x spans cells x-1 and x (its root is the
+  // right-hand tile - see ItemSpawner), and sits on the floor of row y.
+  Rectangle table = grid::standingOn(Rectangle{176, 8, 32, 24}, 10, 4, 2);
+  EXPECT_EQ(table.x, 9.0f * grid::CELL);
+  EXPECT_EQ(table.width, 2.0f * grid::CELL);
+  EXPECT_EQ(table.y + table.height, 5.0f * grid::CELL);
+}

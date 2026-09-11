@@ -1,4 +1,5 @@
 #include "items/item_database.hpp"
+#include "core/grid.hpp"
 
 // Initialize static members
 std::vector<ItemDefinition> ItemDatabase::m_definitions;
@@ -47,7 +48,7 @@ void ItemDatabase::init() {
       true,
       true,
       6,
-      {0, 32, 16, 16}, // MAGIC_MUSHROOM UI Rect
+      grid::srcTile(1, 3), // MAGIC_MUSHROOM UI Rect
       UiTexture::MUSHROOMS};
 
   // PAPER
@@ -58,13 +59,13 @@ void ItemDatabase::init() {
       true,
       false,
       4,
-      {96, 339, 14, 10},
-      UiTexture::WORKSHOP};
+      {0, 0, 14, 10}, // the crumpled-sheet prop, at its native 1:1
+      UiTexture::WORKSHOP_PROPS};
 
   // PENCIL
   m_definitions[(int)ItemType::PENCIL] = {
       "Pencil", "A simple wooden pencil.", false, true, false,
-      1,        {114, 305, 13, 12},        UiTexture::WORKSHOP};
+      1,        {16, 0, 13, 12},           UiTexture::WORKSHOP_PROPS};
 
   // MAP
   m_definitions[(int)ItemType::MAP] = {"Map",
@@ -73,7 +74,7 @@ void ItemDatabase::init() {
                                        true,
                                        true,
                                        1,
-                                       {160, 96, 16, 16},
+                                       grid::srcTile(10, 6),
                                        UiTexture::WORKSHOP_ICONS};
 
   // TABLE
@@ -90,7 +91,7 @@ void ItemDatabase::init() {
       true,
       false,
       1,
-      {48.0f, 97.0f, 16.0f, 16.0f},
+      grid::srcTile(3, 6), // was y = 97: one row off, straddling two tiles
       UiTexture::RITUAL};
 }
 

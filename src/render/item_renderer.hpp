@@ -25,10 +25,16 @@ public:
   void loadTextures();
 
   // --- World-Space Rendering ---
-  // Draws all visible items in the maze. Called AFTER the player renderer
-  // inside BeginMode2D so items layer on top of the player sprite.
+  // Two layers around the player sprite. A front-facing cupboard stands
+  // against the top wall, so the player is always in front of it and it is
+  // drawn BEHIND; everything else (side-on cupboards, tables, barrels) draws
+  // in FRONT so the player walks behind tall furniture.
+  enum class Layer { BEHIND_PLAYER, IN_FRONT_OF_PLAYER };
   void render(const Maze &maze, const Camera2D &camera,
-              const Viewport &canvas, AreaState state) const;
+              const Viewport &canvas, AreaState state, Layer layer) const;
+
+  // A cupboard with a wall above it faces the room; the rest lean sideways.
+  static bool isFrontFacingCupboard(const Maze &maze, int x, int y);
 
   // Draws the magic book of maps on its table, as a SEPARATE pass.
   //
@@ -79,8 +85,8 @@ private:
   Texture2D atlasFor(UiTexture which) const;
 
   Texture2D m_postApocWorkshopTextures;
-  Texture2D m_doodadsTexture;
   Texture2D m_mushroomTexture;
   Texture2D m_postApocIconsTexture;
+  Texture2D m_workshopPropIcons; // the two 1:1 prop cut-outs the bag shows
   Texture2D m_ritualTexture;
 };

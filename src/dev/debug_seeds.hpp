@@ -36,6 +36,10 @@ inline constexpr NamedSeed NAMED[] = {
      "player spawns inside a radiation zone (magic mushrooms nearby)"},
     {"mushroom_room", 3u,
      "spawn room holds five mushrooms; one is in pickup range at spawn"},
+    {"furniture_room", 1u,
+     "both table variants and two side-on cupboards in view at spawn"},
+    {"barrel_room", 38u,
+     "radiated spawn room with a toxic barrel and a vertical table in view"},
 };
 
 inline constexpr int NAMED_COUNT = sizeof(NAMED) / sizeof(NAMED[0]);

@@ -62,7 +62,7 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
   // 1. Check if we need to regenerate the magic book's map
   if (m_magicBookMapTexture.id == 0 || m_magicBookMapDirty) {
     if (m_magicBookMapTexture.id == 0) {
-      m_magicBookMapTexture = LoadRenderTexture(139, 89);
+      m_magicBookMapTexture = LoadRenderTexture(kBookMapW, kBookMapH);
     }
     generateMagicBookMap(maze);
     m_magicBookMapDirty = false;
@@ -112,17 +112,17 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
 
     if (isMagicBookMap) {
       texToDraw = m_magicBookMapTexture;
-      texWidth = 139;
-      texHeight = 89;
-      startX = 55;
-      startY = 30;
+      texWidth = kBookMapW;
+      texHeight = kBookMapH;
+      startX = kBookMapX;
+      startY = kBookMapY;
     } else {
       const auto &mapData = m_drawnMaps[m_openedMapId];
       texToDraw = mapData.texture;
       texWidth = texToDraw.texture.width;
       texHeight = texToDraw.texture.height;
-      startX = mapData.centerX - 26;
-      startY = mapData.centerY - 17;
+      startX = kDrawnMapX(mapData.centerX);
+      startY = kDrawnMapY(mapData.centerY);
     }
 
     // The texture is flipped vertically by OpenGL, so use negative height
@@ -711,10 +711,10 @@ void UIManager::renderInventory(Player &player, Maze &maze,
 }
 
 void UIManager::generateMagicBookMap(Maze &maze) {
-  int startX = 55;
-  int startY = 30;
-  int width = 139;
-  int height = 89;
+  const int startX = kBookMapX;
+  const int startY = kBookMapY;
+  const int width = kBookMapW;
+  const int height = kBookMapH;
 
   BeginTextureMode(m_magicBookMapTexture);
   ClearBackground(BLANK);
@@ -741,15 +741,15 @@ void UIManager::markMapDrawn(int mapId, Maze &maze, int centerX, int centerY) {
   if (m_drawnMaps.find(mapId) != m_drawnMaps.end())
     return;
 
-  RenderTexture2D tex = LoadRenderTexture(53, 35);
+  RenderTexture2D tex = LoadRenderTexture(kDrawnMapW, kDrawnMapH);
   BeginTextureMode(tex);
   ClearBackground(Color{30, 30, 35, 255}); // default off-map color
 
-  int startX = centerX - 26;
-  int startY = centerY - 17;
+  int startX = kDrawnMapX(centerX);
+  int startY = kDrawnMapY(centerY);
 
-  for (int y = 0; y < 35; ++y) {
-    for (int x = 0; x < 53; ++x) {
+  for (int y = 0; y < kDrawnMapH; ++y) {
+    for (int x = 0; x < kDrawnMapW; ++x) {
       int gridX = maze.wrapX(startX + x);
       int gridY = maze.wrapY(startY + y);
 

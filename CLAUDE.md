@@ -70,7 +70,7 @@ Artifacts land in `artifacts/<scenario>/<checkpoint>/` (gitignored). `--out <dir
 ```
 src/
   core/       Application, main, and the things everything may depend on
-              (asset_load, render_settings). Nothing here may include a
+              (asset_load, render_settings, grid). Nothing here may include a
               gameplay header.
   dev/        Developer tooling - the ImGui panel, seed table, console logger.
               Dropped wholesale from a release build.
@@ -132,7 +132,7 @@ Data and presentation are strictly separated: `MazeRenderer` (terrain), `PlayerR
 `PlayingState::render()` has a fixed, order-sensitive pipeline:
 
 1. `buildLightMask(...)` **before** `BeginTextureMode` — it uses its own render texture.
-2. Scene into `m_screenTarget`: maze → **player → items**. Items draw after the player deliberately, so tall furniture occludes the sprite.
+2. Scene into `m_screenTarget`: maze → **items behind → player → items in front** (`ItemRenderer::Layer`). Front-facing cupboards stand against the top wall so they go behind the player; everything else draws after, so tall furniture occludes the sprite.
 3. `drawLightMask()` (corridors only), then the radiation darkness rectangle, still inside the render texture.
 4. `EndTextureMode`, then blit `m_screenTarget` to the screen, wrapped in `m_tripShader` when `Player::getMushroomEffectStrength() > 0`.
 5. The magic-book overlay and all `UIManager` output draw *after* `EndShaderMode` — they are intentionally exempt from the trip distortion. `DebugOverlay::render` goes last of all, because ImGui must own the final draw of the frame.
@@ -140,6 +140,14 @@ Data and presentation are strictly separated: `MazeRenderer` (terrain), `PlayerR
 **Two pixel spaces — canvas and window.** The scene renders into `m_screenTarget` (the *canvas*) at `camera.zoom = 1.0`, so a 32px cell is exactly 32 texels, and the canvas is then blitted to the window at `RenderSettings::blitScale`. The invariant is an integer **art** pixel, not an integer blit: all art is 16px drawn at 2× onto the canvas, so an art pixel covers `2 × blitScale` window pixels and that product must be whole — hence the allowed set {1, 1.5, 2, 3} (art at 2×/3×/4×/6×; default 1.5, ~27 tiles across a 1280 window) and why the old 1.2 shimmered. Canvas size is `ceil(window / blitScale)` (`Viewport::canvasFor` in `src/core/viewport.hpp`) — a bigger window is a bigger canvas showing more tiles; sprites never resize. Every render call takes a `Viewport` alongside the camera instead of calling `GetScreenWidth()`: the scene passes, `ViewBounds`, and the light mask all work in **canvas** space; `UIManager`, the pass-out fade and the magic-book overlay (drawn after the blit, through a `windowCamera` with `zoom = blitScale`) work in **window** space. Mouse input arrives in window pixels — convert through `PlayingState::windowToCanvas` before `GetScreenToWorld2D`. `GetScreenWidth()` is only ever the window; if you find yourself calling it inside the render texture, you are in the wrong space.
 
 `m_screenTarget` and `MazeRenderer::m_lightMask` are reallocated whenever the canvas size changes; anything else caching canvas-sized textures needs the same check.
+
+**One pixel density: `src/core/grid.hpp`.** Every sheet in `assets/` is 16 art px per cell (`SOURCE_TILE`) drawn at 2× (`WORLD_SCALE`), so a cell is `CELL = 32` canvas px. Draw sites address sheets in whole tiles with `grid::srcTile(col, row, w, h)` and derive the destination from the source with `grid::destFor` / `grid::standingOn` — a destination rectangle never carries a scale of its own, and a hand-measured off-grid source rectangle is a bug. Tall furniture stands on its floor cell and grows upward (`standingOn`); a 2-cell table is rooted on its right-hand tile. `Maze::getCellSize()` still exists for world-to-grid maths, but renderers use `grid::CELL`.
+
+The workshop furniture sheet is the one asset that was not authored at this density: the pack draws a locker on 2×4 tiles where the game places it on 1×2 cells. `assets/PostApoc_Workshop_16px.png` is the pack sheet halved by `tools/downsample_sheet.py` (box-average, snap to the sheet's own colours, and a three-way alpha vote that keeps the drop shadows partial — flattening them turns table undersides into slabs). Regenerate it from `../Asset packs/PostApoc_Workshop/PostApoc_Workshop_WithShadow.png` rather than editing it by hand; a 32-based pack (`Mobs/`) goes through the same tool before it enters `assets/`. Once halved, that sheet is an 8px atlas, so some of its rectangles are written in art pixels rather than tiles. `PostApoc_Workshop_Icons.png` is already 16px inventory icons and is used as-is.
+
+Two more derived assets: `mushrooms_pixel_asset.png` is no longer the pack sheet but a PixelLab img2img pass over a 0.7× shrink of it, forced to the pack's palette and then hand-trimmed to 3 columns (six variants per kind; the renderer's hash is `% 6`), so mushrooms stay small on the 2× grid; `workshop_prop_icons.png` holds the paper and pencil inventory icons cut at native 1:1 from the pack's furniture sheet — UI icons are stretched into a slot in window space, so they sit outside the world-density rule. Two deliberate exceptions to "everything at 2×": those two icons, and the magic book, drawn at 1.5× because at a full cell it swallowed its table.
+
+The corridor light mask is not on the grid: its gradient is a 512px stamp (`MazeRenderer::kLightGradientDiameter`) scaled to `3 * CELL * lightSizeScale`, and its three tunables have exactly one home, `RenderSettings` — `MazeRenderer` seeds from it. A dark `scene.png` in a corridor is usually the radiation flicker peaking on that tick, not the mask.
 
 ### Items, crafting, spawning
 
@@ -172,7 +180,7 @@ The `dev/` side: `scenario.hpp` (grammar + parser, documented in its banner), `s
 
 Headless still needs a GL context (render texture, trip shader), so the window is created with `FLAG_WINDOW_HIDDEN` rather than not at all; `SetTargetFPS` and `rlImGuiSetup` are skipped. Two things the harness depends on that are easy to break: **`SetRandomSeed(seed)` in the `Application` constructor** (raylib seeds `GetRandomValue` from the clock otherwise, and the radiation flicker uses it), and **`rlDrawRenderBatchActive()` before `LoadImageFromScreen`** (rlgl only flushes its batch at `EndDrawing`, so without it the UI drawn last is missing from `frame.png`). The contract is that one scenario run twice produces byte-identical artifacts; `diff -r` two `--out` directories to check.
 
-Scenarios live in `scenarios/` at the repo root — they are not assets and do not go through the configure-time copy. Named seed fixtures for them are in `dev/debug_seeds.hpp` (`mushroom_room` = seed 3 has a mushroom in pickup range at spawn).
+Scenarios live in `scenarios/` at the repo root — they are not assets and do not go through the configure-time copy. Named seed fixtures for them are in `dev/debug_seeds.hpp` (`mushroom_room` = seed 3 has a mushroom in pickup range at spawn; `furniture_room` = seed 1 and `barrel_room` = seed 38 put tables, cupboards and a toxic barrel in view for presentation checks — `scenarios/furniture.txt` and `barrel.txt` are single-checkpoint scenarios that exist for their `scene.png`).
 
 Cached render textures (`DebugOverlay::m_mapTexture`, `UIManager::m_magicBookMapTexture`, per-instance drawn maps) are regenerated only when marked dirty. Any code that changes maze layout must call **both** `DebugOverlay::markMapDirty()` and `UIManager::markMagicBookMapDirty()`.
 
@@ -190,7 +198,7 @@ Command line: `--seed <name|number>` pins the world (`src/dev/debug_seeds.hpp`),
 
 Four files, split by subject:
 
-- `tests/test_maze.cpp` — maze indexing, toroidal wrapping, generator invariants (rooms carved, connectivity, no diagonal leaks), the derived Tic-Tac-Toe zone layout and `isCellRenderable`.
+- `tests/test_maze.cpp` — maze indexing, toroidal wrapping, generator invariants (rooms carved, connectivity, no diagonal leaks), the derived Tic-Tac-Toe zone layout, `isCellRenderable`, and the `grid.hpp` geometry.
 - `tests/test_inventory.cpp` — pickup/drop/stack/swap rules and crafting, including the full-bag edge cases.
 - `tests/test_magic_book.cpp` — book spawn candidate selection and its search radius.
 - `tests/test_harness.cpp` — the scenario grammar, the tick timeline it compiles to (held vs pressed, checkpoints as idle ticks, mouse persistence), the JSON emitter's exact output, the `--headless` CLI, and `PlayingState::snapshot` against a generated world.

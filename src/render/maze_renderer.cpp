@@ -1,6 +1,7 @@
 #include "render/maze_renderer.hpp"
 #include "entities/player.hpp"
 #include "core/asset_load.hpp"
+#include "core/grid.hpp"
 #include "render/view_bounds.hpp"
 #include <cmath>
 #include <iostream>
@@ -23,10 +24,7 @@ void MazeRenderer::loadTextures() {
     m_propTileset =
         assets::loadTexture("assets/BCKRMlv1_Prop_set.png", "MazeRenderer");
 
-    // Generate the soft radial gradient for the flashlight overlay.
-    // Diameter of 512px gives us a smooth, high-res gradient circle
-    // that scales well when drawn to screen.
-    generateLightGradient(512);
+    generateLightGradient();
   } else {
     std::cerr << "[ERROR] Window not ready. Cannot load textures!" << std::endl;
   }
@@ -50,7 +48,6 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
   // Shared with the item passes; see view_bounds.hpp for why startY reaches
   // three cells further than the other edges.
   ViewBounds view = ViewBounds::fromCamera(maze, camera, canvas);
-  int cellSize = maze.getCellSize();
 
   for (int y = view.startY; y <= view.endY; ++y) {
     for (int x = view.startX; x <= view.endX; ++x) {
@@ -101,11 +98,8 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
 
       if (isVoid) {
         // Draw the isolated wall tile {2, 1} to fill the void!
-        Rectangle sourceRect = {2.0f * 16.0f, 1.0f * 16.0f, 16.0f, 16.0f};
-        Rectangle destRect = {(float)(x * cellSize), (float)(y * cellSize),
-                              (float)cellSize, (float)cellSize};
-        DrawTexturePro(m_wallTileset, sourceRect, destRect, {0, 0}, 0.0f,
-                       WHITE);
+        DrawTexturePro(m_wallTileset, grid::srcTile(2, 1), grid::cellRect(x, y),
+                       {0, 0}, 0.0f, WHITE);
         continue;
       }
 
@@ -140,12 +134,9 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
             tilePos.x += 8.0f;
           }
 
-          Rectangle sourceRect = {tilePos.x * 16.0f, tilePos.y * 16.0f, 16.0f,
-                                  16.0f};
-          Rectangle destRect = {(float)(x * cellSize), (float)(y * cellSize),
-                                (float)cellSize, (float)cellSize};
-          DrawTexturePro(m_wallTileset, sourceRect, destRect, {0, 0}, 0.0f,
-                         WHITE);
+          DrawTexturePro(m_wallTileset,
+                         grid::srcTile((int)tilePos.x, (int)tilePos.y),
+                         grid::cellRect(x, y), {0, 0}, 0.0f, WHITE);
         } else {
           // state == AreaState::ROOM
           auto isVisibleRoom = [&maze](int cx, int cy) {
@@ -168,8 +159,8 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
             tilePos.x += 8.0f;
           }
 
-          Rectangle sourceRectMask = {tilePos.x * 16.0f, tilePos.y * 16.0f,
-                                      16.0f, 16.0f};
+          Rectangle sourceRectMask =
+              grid::srcTile((int)tilePos.x, (int)tilePos.y);
 
           int belowCell = maze.getCell(x, y + 1);
           // Zelda Top Walls ONLY apply in Rooms when the floor below is
@@ -186,37 +177,22 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
             // Zelda Top Wall: Project UPWARDS into the void!
             // Draw bitmasked roof edge at y-2 (which happens to be {2,2} for
             // mask 4)
-            Rectangle destRectRoof = {(float)(x * cellSize),
-                                      (float)((y - 2) * cellSize),
-                                      (float)cellSize, (float)cellSize};
-            DrawTexturePro(m_wallTileset, sourceRectMask, destRectRoof, {0, 0},
-                           0.0f, wallTint);
+            DrawTexturePro(m_wallTileset, sourceRectMask,
+                           grid::cellRect(x, y - 2), {0, 0}, 0.0f, wallTint);
 
-            float wallX = 5.0f;
-            if (isDoorInRoom && !isDoorWithRoomBelow) {
-              wallX += 8.0f;
-            }
-
-            // Draw upper wallpaper at y-1
-            Rectangle sourceRectTop = {wallX * 16.0f, 4.0f * 16.0f, 16.0f,
-                                       16.0f};
-            Rectangle destRectTop = {(float)(x * cellSize),
-                                     (float)((y - 1) * cellSize),
-                                     (float)cellSize, (float)cellSize};
-            DrawTexturePro(m_wallTileset, sourceRectTop, destRectTop, {0, 0},
-                           0.0f, wallTint);
-
-            // Draw base wallpaper at y
-            Rectangle sourceRectBot = {wallX * 16.0f, 6.0f * 16.0f, 16.0f,
-                                       16.0f};
-            Rectangle destRectBot = {(float)(x * cellSize),
-                                     (float)(y * cellSize), (float)cellSize,
-                                     (float)cellSize};
-            DrawTexturePro(m_wallTileset, sourceRectBot, destRectBot, {0, 0},
-                           0.0f, wallTint);
+            // Wallpaper: upper course at y-1, base course at y - column 5,
+            // rows 4 and 6 of the wall sheet. A door cell reaching this
+            // branch always has visible room floor below it, i.e. it is
+            // isDoorWithRoomBelow, so there is no door-wallpaper variant.
+            DrawTexturePro(m_wallTileset, grid::srcTile(5, 4),
+                           grid::cellRect(x, y - 1), {0, 0}, 0.0f, wallTint);
+            DrawTexturePro(m_wallTileset, grid::srcTile(5, 6),
+                           grid::cellRect(x, y), {0, 0}, 0.0f, wallTint);
 
             if (isDoorWithRoomBelow) {
-              float scale = cellSize / 16.0f;
+              // One tile wide, 29 art px tall, standing on the base course.
+              // The frame sits off the 16px grid on the prop sheet, so it is
+              // addressed in art pixels.
               Rectangle sourceRectDoor = {16.0f, 2.0f, 16.0f, 29.0f};
 
               // If there is another door directly to the left on this same
@@ -226,33 +202,19 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
                 sourceRectDoor = {80.0f, 19.0f, 16.0f, 29.0f};
               }
 
-              Rectangle destRectDoor = {
-                  (float)(x * cellSize),
-                  (float)((y * cellSize) + cellSize - (29.0f * scale)),
-                  (float)cellSize, 29.0f * scale};
-              DrawTexturePro(m_propTileset, sourceRectDoor, destRectDoor,
-                             {0, 0}, 0.0f, wallTint);
+              DrawTexturePro(m_propTileset, sourceRectDoor,
+                             grid::standingOn(sourceRectDoor, x, y), {0, 0},
+                             0.0f, wallTint);
             }
           } else {
             // Bottom Wall / Inner Mass: Just draw the bitmasked roof tile at y
-            Rectangle destRectTop = {(float)(x * cellSize),
-                                     (float)(y * cellSize), (float)cellSize,
-                                     (float)cellSize};
-            DrawTexturePro(m_wallTileset, sourceRectMask, destRectTop, {0, 0},
-                           0.0f, WHITE);
+            DrawTexturePro(m_wallTileset, sourceRectMask, grid::cellRect(x, y),
+                           {0, 0}, 0.0f, WHITE);
           }
         }
       } else {
         // Floor or Room
-        bool isTexture = false;
-        Rectangle sourceRect = {0};
-
         if (cell == Maze::CELL_CORRIDOR || cell == Maze::CELL_ROOM) {
-          isTexture = true;
-          sourceRect = {9.0f * 16.0f, 0.0f * 16.0f, 16.0f, 16.0f};
-        }
-
-        if (isTexture) {
           // The light mask overlay handles all darkness/shadows now.
           // We just draw the tiles at full brightness (WHITE).
           Color drawColor = WHITE;
@@ -266,13 +228,10 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
             drawColor = (Color){200, 255, 200, 255};
           }
 
-          Rectangle destRect = {(float)(x * cellSize), (float)(y * cellSize),
-                                (float)cellSize, (float)cellSize};
-          DrawTexturePro(m_floorTileset, sourceRect, destRect, {0, 0}, 0.0f,
-                         drawColor);
+          DrawTexturePro(m_floorTileset, grid::srcTile(9, 0),
+                         grid::cellRect(x, y), {0, 0}, 0.0f, drawColor);
         } else {
-          DrawRectangle(x * cellSize, y * cellSize, cellSize, cellSize,
-                        MAGENTA);
+          DrawRectangleRec(grid::cellRect(x, y), MAGENTA);
         }
       }
     }
@@ -290,7 +249,8 @@ void MazeRenderer::render(const Maze &maze, const Camera2D &camera,
 // This is drawn on top of a black screen-filling rectangle to create
 // the "flashlight hole" effect.
 // ============================================================================
-void MazeRenderer::generateLightGradient(int diameter) {
+void MazeRenderer::generateLightGradient() {
+  const int diameter = kLightGradientDiameter;
   Image img = GenImageColor(diameter, diameter, BLACK);
   float center = diameter / 2.0f;
   float radius = center;
@@ -337,6 +297,8 @@ void MazeRenderer::generateLightGradient(int diameter) {
 // ============================================================================
 // updateLightSettings — Update flashlight parameters and regenerate if needed
 // ============================================================================
+// Cone angle and edge fade are baked into the gradient texture, so changing
+// either rebuilds it; the radius is only a draw-time scale.
 void MazeRenderer::updateLightSettings(float coneAngle, float fadeStrength,
                                        float sizeScale) {
   bool needsRegen =
@@ -346,11 +308,11 @@ void MazeRenderer::updateLightSettings(float coneAngle, float fadeStrength,
   m_lightFadeStrength = fadeStrength;
   m_lightSizeScale = sizeScale;
 
-  if (needsRegen) {
+  if (needsRegen && IsWindowReady()) {
     if (m_lightGradient.id != 0) {
       UnloadTexture(m_lightGradient);
     }
-    generateLightGradient(250);
+    generateLightGradient();
   }
 }
 
@@ -392,8 +354,8 @@ void MazeRenderer::buildLightMask(Vector2 playerWorldPos,
   // Convert player's world position to screen position
   Vector2 playerScreen = GetWorldToScreen2D(playerWorldPos, camera);
 
-  // Scale the gradient to match the FOV radius.
-  float overlaySize = 3.0f * 32.0f * camera.zoom * m_lightSizeScale;
+  // Gradient diameter on the canvas: three cells, times the radius slider.
+  float overlaySize = 3.0f * grid::CELL * m_lightSizeScale;
 
   // Calculate rotation based on facing direction
   // The texture is generated facing UP (0 degrees rotation).
@@ -427,8 +389,8 @@ void MazeRenderer::buildLightMask(Vector2 playerWorldPos,
 
   // Shift the origin backward (down in local texture space) so the tip
   // of the cone drops slightly behind the player. This ensures the player's
-  // full sprite is visible.
-  float backwardOffset = 28.0f * camera.zoom;
+  // full sprite is visible. 14 art px, in canvas pixels.
+  float backwardOffset = 14.0f * grid::WORLD_SCALE;
   Vector2 origin = {overlaySize / 2.0f, (overlaySize / 2.0f) - backwardOffset};
 
   DrawTexturePro(m_lightGradient, srcRect, destRect, origin, rotation, WHITE);

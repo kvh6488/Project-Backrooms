@@ -17,7 +17,7 @@ PlayingState::PlayingState(UIManager &uiManager, DebugOverlay &debugOverlay,
                            float blitScale)
     : m_uiManager(uiManager), m_debugOverlay(debugOverlay), m_capture(capture),
       m_seed(seed != 0 ? seed : (unsigned int)std::time(nullptr)), m_rng(m_seed),
-      m_maze(250, 150, 32, m_seed), m_player(Vector2{0, 0}, AreaState::ROOM),
+      m_maze(250, 150, grid::CELL, m_seed), m_player(Vector2{0, 0}, AreaState::ROOM),
       m_itemSpawner(m_rng), m_totalTime(0.0f) {
   m_renderSettings.blitScale = blitScale;
 }
@@ -555,8 +555,11 @@ void PlayingState::render(const InputState &in) {
   BeginMode2D(m_camera);
   m_renderer.render(m_maze, m_camera, m_canvas, m_player.getAreaState(),
                     m_renderSettings.showGenerationZones);
+  m_itemRenderer.render(m_maze, m_camera, m_canvas, m_player.getAreaState(),
+                        ItemRenderer::Layer::BEHIND_PLAYER);
   m_playerRenderer.render(m_player);
-  m_itemRenderer.render(m_maze, m_camera, m_canvas, m_player.getAreaState());
+  m_itemRenderer.render(m_maze, m_camera, m_canvas, m_player.getAreaState(),
+                        ItemRenderer::Layer::IN_FRONT_OF_PLAYER);
   EndMode2D();
 
   if (m_renderSettings.flashlightEnabled &&
