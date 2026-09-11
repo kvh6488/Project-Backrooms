@@ -177,6 +177,9 @@ private:
 
   // Crafting State
   int m_selectedCraftingRecipeIdx = -1;
+  // Both in simulation seconds (accumulated in update), never GetTime(), so a
+  // replayed session flashes on the same frames as the original.
+  float m_simTime = 0.0f;
   float m_craftFlashEndTime = 0.0f;
 
   // Drawn Maps Cache

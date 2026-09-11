@@ -43,9 +43,12 @@ public:
   // because it owns the shader; the renderer stays ignorant of it.
   //
   // glowScale multiplies the halo radius, for tuning by eye.
+  //
+  // simTime is accumulated game time, not GetTime(): a scripted replay must
+  // produce the same frame regardless of how long the process has been up.
   void renderMagicBookOverlay(const Maze &maze, const Camera2D &camera,
                               AreaState state, Vector2 tripOffset,
-                              float glowScale) const;
+                              float glowScale, float simTime) const;
 
   // --- Screen-Space UI Rendering ---
   // Draws an item icon for the inventory/hotbar UI.

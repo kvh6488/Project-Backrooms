@@ -22,6 +22,8 @@ UIManager::~UIManager() {
 }
 
 void UIManager::update(float dt) {
+  m_simTime += dt;
+
   // Update active popups
   for (auto it = m_activePopups.begin(); it != m_activePopups.end();) {
     it->timer -= dt;
@@ -373,7 +375,7 @@ void UIManager::handleInventoryInput(Player &player, Maze &maze) {
       // Flash the missing ingredient counts rather than raise a popup - the
       // reason the craft failed is already on screen, it just needs pointing
       // at.
-      m_craftFlashEndTime = GetTime() + 0.5f;
+      m_craftFlashEndTime = m_simTime + 0.5f;
     }
   }
 }
@@ -596,8 +598,8 @@ void UIManager::renderInventory(Player &player, Maze &maze,
 
         // handleInventoryInput sets the flash deadline when a craft is
         // refused; this only reads the clock against it.
-        if (!hasEnough && GetTime() < m_craftFlashEndTime) {
-          if ((int)(GetTime() * 15) % 2 == 0) {
+        if (!hasEnough && m_simTime < m_craftFlashEndTime) {
+          if ((int)(m_simTime * 15) % 2 == 0) {
             textColor = WHITE;
           }
         }

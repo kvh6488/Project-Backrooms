@@ -28,6 +28,14 @@ public:
   void update(float dt) override;
   void render() override;
 
+  // The world-building half of onEnter, split out so a test can run it (and
+  // a regeneration) without a window. Both are the shipping entry points -
+  // the debug panel's regen button goes through regenerateTicTacToeZones too.
+  void generateWorld();
+  void regenerateTicTacToeZones();
+  const Maze &getMaze() const { return m_maze; }
+  unsigned int getSeed() const { return m_seed; }
+
   // The eight shifting strips, derived from the world's dimensions rather than
   // hardcoded to 250x150. A pure function of its arguments — no instance state
   // — so the layout can be pinned by a test without standing up a window.
@@ -36,7 +44,6 @@ public:
 
 private:
   void handleInput();
-  void regenerateTicTacToeZones();
 
   // Width of every shifting strip, in cells. The roadmap plans to vary this
   // per night as the run escalates.
@@ -56,6 +63,9 @@ private:
   // --- Core Systems ---
   unsigned int m_seed;
   std::mt19937 m_rng;
+  // Each regeneration seeds its own RNG from (m_seed, m_regenCount), so the
+  // Nth regen of a seed is the same world no matter what happened in between.
+  int m_regenCount = 0;
   Maze m_maze;
   Player m_player;
   Camera2D m_camera;

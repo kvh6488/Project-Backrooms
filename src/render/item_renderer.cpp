@@ -319,7 +319,8 @@ ItemRenderer::computeTableSprite(const Maze &maze, int x, int y) const {
 void ItemRenderer::renderMagicBookOverlay(const Maze &maze,
                                           const Camera2D &camera,
                                           AreaState state, Vector2 tripOffset,
-                                          float glowScale) const {
+                                          float glowScale,
+                                          float simTime) const {
   if (!maze.isMagicBookSpawned()) {
     return;
   }
@@ -356,10 +357,8 @@ void ItemRenderer::renderMagicBookOverlay(const Maze &maze,
   float drawBookH = bookH * bookScale;
 
   // --- Pulsing glow ---
-  // Map sin from [-1, 1] into [0, 1] so it can drive a lerp directly. Driving
-  // it off wall-clock time (not accumulated delta) keeps it frame-rate
-  // independent.
-  float pulse = (sinf((float)GetTime() * 5.0f) + 1.0f) * 0.5f;
+  // Map sin from [-1, 1] into [0, 1] so it can drive a lerp directly.
+  float pulse = (sinf(simTime * 5.0f) + 1.0f) * 0.5f;
 
   BeginBlendMode(BLEND_ADDITIVE);
 

@@ -20,13 +20,7 @@ PlayingState::PlayingState(UIManager &uiManager, DebugOverlay &debugOverlay,
 
 PlayingState::~PlayingState() {}
 
-void PlayingState::onEnter() {
-  // 1. Load Textures
-  m_renderer.loadTextures();
-  m_itemRenderer.loadTextures();
-  m_playerRenderer.loadTextures();
-
-  // 2. Generate Initial Maze
+void PlayingState::generateWorld() {
   debuglog::log("MAZE", "generating %dx%d world from seed %u",
                 m_maze.getWidth(), m_maze.getHeight(), m_seed);
   m_debugOverlay.setSeed(m_seed);
@@ -50,7 +44,6 @@ void PlayingState::onEnter() {
   m_debugOverlay.markMapDirty();
   m_uiManager.markMagicBookMapDirty();
 
-  // 3. Initialize Player Position
   Vector2 playerStartPos = {0.0f, 0.0f};
   if (!m_maze.getRooms().empty() && midRoomIdx >= 0) {
     const auto &closestRoom = m_maze.getRooms()[midRoomIdx];
@@ -60,8 +53,18 @@ void PlayingState::onEnter() {
         (closestRoom.y + closestRoom.height / 2.0f) * m_maze.getCellSize();
   }
   m_player = Player(playerStartPos, AreaState::ROOM);
+}
 
-  // 4. Initialize Camera
+void PlayingState::onEnter() {
+  // 1. Load Textures
+  m_renderer.loadTextures();
+  m_itemRenderer.loadTextures();
+  m_playerRenderer.loadTextures();
+
+  // 2. Generate Initial Maze and place the player
+  generateWorld();
+
+  // 3. Initialize Camera
   m_camera = {0};
   m_camera.target = m_player.getPosition();
   m_camera.offset = Vector2{GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
@@ -585,7 +588,8 @@ void PlayingState::render() {
   m_itemRenderer.renderMagicBookOverlay(m_maze, m_camera,
                                         m_player.getAreaState(),
                                         computeTripFollowOffset(),
-                                        m_debugOverlay.getBookGlowScale());
+                                        m_debugOverlay.getBookGlowScale(),
+                                        m_totalTime);
   EndMode2D();
 
   if (m_player.isPassingOut()) {
@@ -676,7 +680,9 @@ void PlayingState::regenerateTicTacToeZones() {
     m_maze.eraseZone(z.x, z.y, z.width, z.height);
   }
 
-  std::mt19937 regenRng(time(0));
+  // Golden-ratio stride spreads consecutive counts across the seed space so
+  // regen N and N+1 do not share a prefix of their random streams.
+  std::mt19937 regenRng(m_seed + 0x9E3779B9u * (unsigned int)(++m_regenCount));
   BSPGenerator bsp;
   PrimsGenerator prims;
   LoopGenerator loops;

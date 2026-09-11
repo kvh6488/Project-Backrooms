@@ -6,7 +6,12 @@
 #include "states/playing_state.hpp"
 #include "world/maze.hpp"
 #include "render/view_bounds.hpp"
+#include "dev/debug_overlay.hpp"
+#include "items/item_database.hpp"
+#include "ui/ui_manager.hpp"
+#include <chrono>
 #include <ctime>
+#include <thread>
 #include <gtest/gtest.h>
 #include <queue>
 
@@ -665,4 +670,51 @@ TEST(ViewBoundsTest, IsCellRenderableAppliesTheRoomAndCorridorRules) {
   EXPECT_TRUE(isCellRenderable(maze, 12, 12, AreaState::CORRIDOR));
   EXPECT_FALSE(isCellRenderable(maze, 6, 6, AreaState::CORRIDOR))
       << "room interiors stay hidden while the player is in the corridors";
+}
+
+// ============================================================================
+// Seed determinism through the full shipping path
+// ============================================================================
+// "Same seed => same world" is the assumption every scripted-replay test will
+// rest on. It has to survive a zone regeneration, which used to seed its RNG
+// from the wall clock - so two runs a second apart diverged. The sleep is
+// what makes this a real regression test: without it two clock-seeded regens
+// inside one second would still agree.
+// ============================================================================
+namespace {
+std::string worldFingerprint(const Maze &maze) {
+  std::string out;
+  out.reserve((size_t)maze.getWidth() * maze.getHeight() * 2);
+  for (int y = 0; y < maze.getHeight(); ++y) {
+    for (int x = 0; x < maze.getWidth(); ++x) {
+      out.push_back((char)('0' + maze.getCell(x, y)));
+      out.push_back((char)('A' + (int)maze.getItem(x, y)));
+    }
+  }
+  return out;
+}
+} // namespace
+
+TEST(DeterminismTest, SameSeedSurvivesZoneRegeneration) {
+  ItemDatabase::init();
+  const unsigned int seed = 1788480606u;
+
+  auto run = [&]() {
+    UIManager ui(1280, 720);
+    DebugOverlay overlay(false);
+    PlayingState state(ui, overlay, seed);
+    state.generateWorld();
+    std::string initial = worldFingerprint(state.getMaze());
+    state.regenerateTicTacToeZones();
+    std::string regen = worldFingerprint(state.getMaze());
+    EXPECT_NE(initial, regen) << "regeneration should actually change the world";
+    return regen;
+  };
+
+  std::string first = run();
+  std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+  std::string second = run();
+
+  EXPECT_EQ(first, second)
+      << "a zone regeneration must depend only on the seed, not the clock";
 }
