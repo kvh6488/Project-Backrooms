@@ -165,6 +165,8 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
     if (inBounds) {
       float px = fsX + relX * fsScale + (fsScale / 2.0f);
       float py = fsY + relY * fsScale + (fsScale / 2.0f);
+      // Ring first, dot on top: the ring separates the dot from any map colour.
+      DrawCircle(px, py, 7.0f * scale, theme::ground);
       DrawCircle(px, py, 5.0f * scale, theme::mapPlayer);
     }
     DrawRectangleLinesEx(Rectangle{fsX, fsY, fsWidth, fsHeight}, 4.0f * scale,
@@ -728,7 +730,7 @@ void UIManager::generateMagicBookMap(Maze &maze) {
         DrawPixel(x, y, theme::mapWall);
       } else {
         if (maze.isShiftingZone(gridX, gridY)) {
-          DrawPixel(x, y, theme::mapPlayer);
+          DrawPixel(x, y, theme::mapZone);
         } else {
           DrawPixel(x, y, theme::groundCool);
         }

@@ -23,7 +23,8 @@ inline constexpr Color highlight = pal::yellow[11];  // selected slot, tooltip t
 inline constexpr Color good = pal::accent[5];        // enough ingredients, craftable, popups
 inline constexpr Color bad = pal::accent[3];         // missing ingredients, uncraftable
 inline constexpr Color mapWall = pal::neutral[3];
-inline constexpr Color mapPlayer = pal::accent[3];
+inline constexpr Color mapZone = pal::accent[3];        // shifting-zone cells on the map
+inline constexpr Color mapPlayer = pal::accent[4];      // lavender dot, ringed in ground
 inline constexpr Color radiationGlow = pal::accent[5];  // barrel halos, additive
 
 }  // namespace theme
