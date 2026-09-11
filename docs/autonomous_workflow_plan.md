@@ -419,12 +419,14 @@ Each phase leaves the game runnable and hand-playable.
 
 **Gate outcome (your review, same day):** four changes. The magic book goes back to its old 24px — the one sprite off the 2× rule, at a full cell it swallowed its table. Paper and pencil go back to the old prop cut-outs, kept at native 1:1 in a two-cell `workshop_prop_icons.png` (UI icons are slot-stretched in window space, so world density does not apply). The barrel loses its badge altogether: PixelLab at 16px and 32px both produced mush (2 generations spent) and a rasterised 9px trefoil still hid the drum, so the plain workshop barrel is sold as toxic by two additive fluorescent-green `DrawCircleGradient` halos (one behind, one tight over the drum) — the same trick as the magic book's glow. Mushrooms are regenerated smaller: a 0.7× nearest shrink of the pack sheet as the init image, one `create_image_pixflux` pass at strength 300 with the sheet's own palette forced (3 generations spent across two attempts; the higher-strength one won), then hand-trimmed to three columns — six variants per kind. Budget: 5 of my 20 used, 35 remain on the trial. `doodads_spritesheet.png` is retired with the overlay.
 
-### Phase 6 — Master palette
+### Phase 6 — Master palette ✅ (2026-09-11)
 **Changes:** `tools/palette_sample.py`; `docs/palette.md`; swatch sheet; then `tools/quantize.py` applied to `assets/`.
 **Unlocks:** Visual coherence, and the banded-lighting and day/night work in §16.6.
 **Risk:** Quantization can flatten intentional gradients. Quantize to a copy, compare, then commit.
 **Gate:** You approve the hex list and the swatch sheet before anything is quantized.
 **Verify:** A conformance checker reports 100% of pixels in `assets/` are exact palette members; harness screenshots before/after side by side.
+
+**As built.** `tools/palette_sample.py` proposes; `tools/quantize.py` applies and `--check`s; `docs/palette.json` is the palette and `docs/palette.md` the reasoning and the maintenance rules. Two deviations from the table above, both from the data: the plan had no yellow ramp while ochre is a third of the shipping pixels, and 8 steps flattened the carpet weave (its shades sit 0.02–0.04 L apart against a 0.08 rung), so the palette is **7 ramps / 56 colours**, the yellow ramp at 12 steps. Ramps are straight lines through OKLab fitted per hue family and snapped to real sheet colours, so no hex is invented. Verified the plan's way: `--check assets/` at 100 %, telemetry byte-identical across all four scenarios before and after, 66 tests green. The one honest cost was named in the plan and measured here: about 12 % of shipping pixels move more than 0.10 ΔE, all of them the workshop's saturated oranges and the guards' uniforms, which is the coherence the palette exists to buy.
 
 ### Phase 7 — The two skills
 **Changes:** `.claude/skills/headless-test/SKILL.md`, `.claude/skills/generate-asset/SKILL.md`, `tools/index_packs.py`, `tools/gen_asset.py`.
