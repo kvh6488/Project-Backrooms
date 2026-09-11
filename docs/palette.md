@@ -7,7 +7,9 @@ is the acceptance test and must stay at 100 %.
 ## Working with it
 
 - **The palette is [palette.json](palette.json).** The table below is a copy for
-  reading; the JSON is what `quantize.py` reads.
+  reading; the JSON is what `quantize.py` reads. `palette_swatch.png` is the
+  labelled picture of it; `palette_strip.png` (one pixel per colour) is the
+  file to import into Aseprite or GIMP so you paint with it.
 - **Adding a sheet:** `python tools/quantize.py <src.png> assets/<name>.png`, then
   reconfigure cmake. Sources stay outside `assets/` (the packs, or a generated
   file) so a later re-quantize starts from the original, not from a
@@ -39,7 +41,7 @@ is the acceptance test and must stay at 100 %.
 
 Evidence from the gate:
 
-- `artifacts/palette_swatch.png` — the ramps, with the per-world windows bracketed.
+- [palette_swatch.png](palette_swatch.png) — the ramps, with the per-world windows bracketed.
 - `artifacts/palette_preview/side_by_side.png` — three scenes rendered through
   the current sheets and through sheets quantized to each candidate palette.
 - `artifacts/palette_preview/carpet_zoom.png` — 4× of the carpet and a table,

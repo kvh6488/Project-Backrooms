@@ -3,7 +3,7 @@
 
 Usage:
     python tools/palette_sample.py [--config plan|yellow|yellow12] [--out docs/palette.json]
-                                   [--swatch artifacts/palette_swatch.png]
+                                   [--swatch docs/palette_swatch.png] [--strip docs/palette_strip.png]
 
 Why: assets/ holds 828 distinct colours from five artists with five different
 greens, greys and blacks, so the sheets read as five places. The plan calls for
@@ -328,7 +328,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", choices=CONFIGS, default="plan")
     ap.add_argument("--out", default=os.path.join(ROOT, "docs", "palette.json"))
-    ap.add_argument("--swatch", default=os.path.join(ROOT, "artifacts", "palette_swatch.png"))
+    ap.add_argument("--swatch", default=os.path.join(ROOT, "docs", "palette_swatch.png"))
+    ap.add_argument("--strip", default=os.path.join(ROOT, "docs", "palette_strip.png"),
+                    help="one pixel per colour, ramp by ramp; import into Aseprite/GIMP as a palette")
     a = ap.parse_args()
 
     print("sampling")
