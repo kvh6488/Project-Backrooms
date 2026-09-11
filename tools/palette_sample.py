@@ -50,6 +50,11 @@ Reports the weighted share of pixels in each family and the quantization
 error the whole corpus would suffer against the proposal (mean OKLab distance
 to the nearest palette entry; 0.02 is about a just-noticeable difference).
 
+Once assets/ has been quantized, a plain re-run samples the quantized sheets
+and drifts the palette by a few hexes - it is no longer the same input. To
+re-derive, point SOURCES at the original sheets (docs/palette.md lists them).
+To redraw the images from the approved JSON without sampling, use --render.
+
 Requires numpy and Pillow. Deterministic for a given input set and config.
 """
 import argparse
@@ -322,6 +327,13 @@ def draw_swatch(ramps, path):
     img.save(path)
 
 
+def write_images(ramps, swatch, strip):
+    draw_swatch(ramps, swatch)
+    rgb = [tuple(c["rgb"]) for r in ramps for c in r["colours"]]
+    Image.frombytes("RGB", (len(rgb), 1), bytes(v for c in rgb for v in c)).save(strip)
+    print(f"wrote {os.path.relpath(swatch, ROOT)} and {os.path.relpath(strip, ROOT)}")
+
+
 # ---- main -----------------------------------------------------------------
 
 def main():
@@ -331,7 +343,15 @@ def main():
     ap.add_argument("--swatch", default=os.path.join(ROOT, "docs", "palette_swatch.png"))
     ap.add_argument("--strip", default=os.path.join(ROOT, "docs", "palette_strip.png"),
                     help="one pixel per colour, ramp by ramp; import into Aseprite/GIMP as a palette")
+    ap.add_argument("--render", action="store_true",
+                    help="skip sampling; redraw the swatch and strip from the existing --out JSON")
     a = ap.parse_args()
+
+    if a.render:
+        with open(a.out) as f:
+            ramps = json.load(f)["ramps"]
+        write_images(ramps, a.swatch, a.strip)
+        return 0
 
     print("sampling")
     hist = sample()

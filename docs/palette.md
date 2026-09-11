@@ -21,7 +21,10 @@ is the acceptance test and must stay at 100 %.
   listed in the "Provenance" section below. To *re-derive* the palette from
   new material (a new pack): add it to `SOURCES` in `palette_sample.py`,
   re-run, and compare the swatch against this one before adopting it — the
-  sampler proposes, it does not decide. Adding an entry is cheap; renumbering
+  sampler proposes, it does not decide. Mind that `assets/` is now quantized:
+  a re-run that samples it reads the palette back and drifts by a few hexes,
+  so a re-derivation must sample the original sheets. To redraw the images
+  from the JSON without sampling: `python tools/palette_sample.py --render`. Adding an entry is cheap; renumbering
   a ramp is not once the §16.6 lighting depends on step indices.
 - **Generated art** (`/generate-asset`, Phase 7): PixelLab takes a forced
   palette, then the result goes through `quantize.py` anyway so the check
