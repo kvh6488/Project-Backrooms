@@ -1,4 +1,5 @@
 #include "ui/ui_manager.hpp"
+#include "render/theme.hpp"
 #include "imgui.h"
 #include "items/crafting_system.hpp"
 #include "items/item_database.hpp"
@@ -90,7 +91,7 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
     int y = screenH - (190 * scale);
 
     DrawRectangle(x - (15 * scale), y - (5 * scale), textWidth + (30 * scale),
-                  40 * scale, Fade(BLACK, 0.6f));
+                  40 * scale, Fade(theme::ground, 0.6f));
     DrawText(msg, x, y, 30 * scale, WHITE);
   }
 
@@ -149,7 +150,7 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
     bool inBounds = (relX >= 0 && relX < texWidth && relY >= 0 && relY < texHeight);
 
     // Fullscreen Overlay
-    DrawRectangle(0, 0, screenW, screenH, Fade(BLACK, 0.85f));
+    DrawRectangle(0, 0, screenW, screenH, Fade(theme::ground, 0.85f));
 
     float fsScale = std::min(screenW / (texWidth * 1.2f), screenH / (texHeight * 1.2f));
     float fsWidth = texWidth * fsScale;
@@ -164,7 +165,7 @@ void UIManager::render(Player &player, Maze &maze, ItemRenderer &itemRenderer,
     if (inBounds) {
       float px = fsX + relX * fsScale + (fsScale / 2.0f);
       float py = fsY + relY * fsScale + (fsScale / 2.0f);
-      DrawCircle(px, py, 5.0f * scale, RED);
+      DrawCircle(px, py, 5.0f * scale, theme::mapPlayer);
     }
     DrawRectangleLinesEx(Rectangle{fsX, fsY, fsWidth, fsHeight}, 4.0f * scale,
                           WHITE);
@@ -183,21 +184,21 @@ void UIManager::renderPopups(float scale, int screenW, int screenH,
       int y = screenH - (147 * scale);
 
       DrawRectangle(x - (15 * scale), y - (5 * scale), textWidth + (30 * scale),
-                    40 * scale, Fade(BLACK, 0.6f));
-      DrawText(popup.text.c_str(), x, y, 30 * scale, Fade(WHITE, alpha));
+                    40 * scale, Fade(theme::ground, 0.6f));
+      DrawText(popup.text.c_str(), x, y, 30 * scale, Fade(theme::ink, alpha));
     } else if (popup.type == PopupType::SUBTLE_BOTTOM) {
       int textWidth = MeasureText(popup.text.c_str(), 30 * scale);
       int x = (screenW - textWidth) / 2;
       int y = screenH - (150 * scale);
-      DrawText(popup.text.c_str(), x, y, 30 * scale, Fade(WHITE, alpha));
+      DrawText(popup.text.c_str(), x, y, 30 * scale, Fade(theme::ink, alpha));
     } else if (popup.type == PopupType::HEADER_GREEN) {
       int textWidth = MeasureText(popup.text.c_str(), 60 * scale);
       int x = (screenW - textWidth) / 2;
       int y = screenH / 8;
 
       DrawText(popup.text.c_str(), x + 2 * scale, y + 2 * scale, 60 * scale,
-               Fade(BLACK, alpha * 0.7f));
-      DrawText(popup.text.c_str(), x, y, 60 * scale, Fade(GREEN, alpha));
+               Fade(theme::ground, alpha * 0.7f));
+      DrawText(popup.text.c_str(), x, y, 60 * scale, Fade(theme::good, alpha));
     } else if (popup.type == PopupType::HEADER_RAINBOW) {
       int textWidth = MeasureText(popup.text.c_str(), 40 * scale);
       int x = (screenW - textWidth) / 2;
@@ -207,7 +208,7 @@ void UIManager::renderPopups(float scale, int screenW, int screenH,
           ColorFromHSV(fmodf(totalTime * 100.0f, 360.0f), 1.0f, 1.0f);
 
       DrawText(popup.text.c_str(), x + 2 * scale, y + 2 * scale, 40 * scale,
-               Fade(BLACK, alpha * 0.7f));
+               Fade(theme::ground, alpha * 0.7f));
       DrawText(popup.text.c_str(), x, y, 40 * scale, Fade(rainbow, alpha));
     }
   }
@@ -461,13 +462,13 @@ void UIManager::renderInventory(Player &player, Maze &maze,
                       bool isCupboardSlot) {
     bool isHeldSlot =
         (index == m_heldSlotIndex) && (m_heldFromCupboard == isCupboardSlot);
-    Color bgColor = isHeldSlot ? Fade(YELLOW, 0.3f) : Fade(BLACK, 0.7f);
+    Color bgColor = isHeldSlot ? Fade(theme::highlight, 0.3f) : Fade(theme::ground, 0.7f);
     DrawRectangleRec(slotRect, bgColor);
 
     if (!isCupboardSlot && index == m_activeHotbarSlot) {
       DrawRectangleLinesEx(slotRect, 4.0f * scale, WHITE);
     } else {
-      DrawRectangleLinesEx(slotRect, 2.0f * scale, GRAY);
+      DrawRectangleLinesEx(slotRect, 2.0f * scale, theme::border);
     }
 
     const auto &currentInv = isCupboardSlot ? *cupboardInv : playerInv;
@@ -495,12 +496,12 @@ void UIManager::renderInventory(Player &player, Maze &maze,
 
     if (isHotbar) {
       DrawText(TextFormat("%d", index + 1), slotRect.x + 5 * scale,
-               slotRect.y + 5 * scale, 15 * scale, LIGHTGRAY);
+               slotRect.y + 5 * scale, 15 * scale, theme::inkDim);
     }
   };
 
   if (m_inventoryOpen || m_cupboardInventoryOpen) {
-    DrawRectangle(0, 0, screenW, screenH, Fade(BLACK, 0.75f));
+    DrawRectangle(0, 0, screenW, screenH, Fade(theme::ground, 0.75f));
   }
 
   // 1. Hotbar (always on screen).
@@ -543,8 +544,8 @@ void UIManager::renderInventory(Player &player, Maze &maze,
       Rectangle slotRect = layout.craftingSlot(visibleIdx);
       bool isSelected = (m_selectedCraftingRecipeIdx == (int)i);
       DrawRectangleRec(slotRect,
-                       isSelected ? Fade(YELLOW, 0.3f) : Fade(BLACK, 0.7f));
-      DrawRectangleLinesEx(slotRect, 2.0f * scale, isSelected ? WHITE : GRAY);
+                       isSelected ? Fade(theme::highlight, 0.3f) : Fade(theme::ground, 0.7f));
+      DrawRectangleLinesEx(slotRect, 2.0f * scale, isSelected ? theme::ink : theme::border);
 
       if (CheckCollisionPointRec(in.mouse, slotRect)) {
         DrawRectangleLinesEx(slotRect, 3.0f * scale, WHITE);
@@ -561,7 +562,7 @@ void UIManager::renderInventory(Player &player, Maze &maze,
 
     if (visibleIdx == 0) {
       DrawText("Go get yourself some items", layout.bagX, layout.craftingY,
-               20 * scale, GRAY);
+               20 * scale, theme::border);
     }
 
     // Selected recipe details.
@@ -582,8 +583,8 @@ void UIManager::renderInventory(Player &player, Maze &maze,
         const auto &ing = recipe.ingredients[i];
         Rectangle ingSlotRect = {ingX, ingY, slotSize * 0.8f, slotSize * 0.8f};
 
-        DrawRectangleRec(ingSlotRect, Fade(BLACK, 0.7f));
-        DrawRectangleLinesEx(ingSlotRect, 2.0f * scale, GRAY);
+        DrawRectangleRec(ingSlotRect, Fade(theme::ground, 0.7f));
+        DrawRectangleLinesEx(ingSlotRect, 2.0f * scale, theme::border);
 
         Rectangle ingDestRect = {ingX + padding * 0.8f, ingY + padding * 0.8f,
                                  (slotSize - 2 * padding) * 0.8f,
@@ -596,13 +597,13 @@ void UIManager::renderInventory(Player &player, Maze &maze,
             playerHas += slot.count;
 
         bool hasEnough = playerHas >= ing.count;
-        Color textColor = hasEnough ? GREEN : RED;
+        Color textColor = hasEnough ? theme::good : theme::bad;
 
         // handleInventoryInput sets the flash deadline when a craft is
         // refused; this only reads the clock against it.
         if (!hasEnough && m_simTime < m_craftFlashEndTime) {
           if ((int)(m_simTime * 15) % 2 == 0) {
-            textColor = WHITE;
+            textColor = theme::ink;
           }
         }
 
@@ -621,7 +622,7 @@ void UIManager::renderInventory(Player &player, Maze &maze,
       // Craft button.
       Rectangle btnRect = layout.craftButton();
       bool canCraft = player.canCraft(recipe);
-      DrawRectangleRec(btnRect, canCraft ? Fade(GREEN, 0.6f) : Fade(RED, 0.6f));
+      DrawRectangleRec(btnRect, canCraft ? Fade(theme::good, 0.6f) : Fade(theme::bad, 0.6f));
       DrawRectangleLinesEx(btnRect, 2.0f * scale, WHITE);
 
       int textW = MeasureText("Craft", 20 * scale);
@@ -630,7 +631,7 @@ void UIManager::renderInventory(Player &player, Maze &maze,
                WHITE);
 
       if (CheckCollisionPointRec(in.mouse, btnRect)) {
-        DrawRectangleLinesEx(btnRect, 3.0f * scale, YELLOW);
+        DrawRectangleLinesEx(btnRect, 3.0f * scale, theme::highlight);
       }
     }
   }
@@ -685,18 +686,18 @@ void UIManager::renderInventory(Player &player, Maze &maze,
 
     Vector2 mousePos = in.mouse;
     DrawRectangle(mousePos.x + 10 * scale, mousePos.y + 10 * scale, boxW, boxH,
-                  Fade(BLACK, 0.9f));
+                  Fade(theme::ground, 0.9f));
     DrawRectangleLines(mousePos.x + 10 * scale, mousePos.y + 10 * scale, boxW,
-                       boxH, GRAY);
+                       boxH, theme::border);
     DrawText(def.name.c_str(), mousePos.x + 20 * scale, mousePos.y + 15 * scale,
-             20 * scale, YELLOW);
+             20 * scale, theme::highlight);
 
     int lineY = mousePos.y + 40 * scale;
     std::string currentLine;
     for (char c : desc) {
       if (c == '\n') {
         DrawText(currentLine.c_str(), mousePos.x + 20 * scale, lineY,
-                 15 * scale, LIGHTGRAY);
+                 15 * scale, theme::inkDim);
         currentLine = "";
         lineY += 20 * scale;
       } else {
@@ -705,7 +706,7 @@ void UIManager::renderInventory(Player &player, Maze &maze,
     }
     if (!currentLine.empty()) {
       DrawText(currentLine.c_str(), mousePos.x + 20 * scale, lineY, 15 * scale,
-               LIGHTGRAY);
+               theme::inkDim);
     }
   }
 }
@@ -724,12 +725,12 @@ void UIManager::generateMagicBookMap(Maze &maze) {
       int gridY = maze.wrapY(startY + y);
 
       if (maze.getCell(gridX, gridY) == Maze::CELL_WALL) {
-        DrawPixel(x, y, Color{100, 100, 100, 255});
+        DrawPixel(x, y, theme::mapWall);
       } else {
         if (maze.isShiftingZone(gridX, gridY)) {
-          DrawPixel(x, y, Color{255, 100, 100, 255});
+          DrawPixel(x, y, theme::mapPlayer);
         } else {
-          DrawPixel(x, y, Color{30, 30, 35, 255});
+          DrawPixel(x, y, theme::groundCool);
         }
       }
     }
@@ -743,7 +744,7 @@ void UIManager::markMapDrawn(int mapId, Maze &maze, int centerX, int centerY) {
 
   RenderTexture2D tex = LoadRenderTexture(kDrawnMapW, kDrawnMapH);
   BeginTextureMode(tex);
-  ClearBackground(Color{30, 30, 35, 255}); // default off-map color
+  ClearBackground(theme::groundCool); // default off-map color
 
   int startX = kDrawnMapX(centerX);
   int startY = kDrawnMapY(centerY);
@@ -754,9 +755,9 @@ void UIManager::markMapDrawn(int mapId, Maze &maze, int centerX, int centerY) {
       int gridY = maze.wrapY(startY + y);
 
       if (maze.getCell(gridX, gridY) == Maze::CELL_WALL) {
-        DrawPixel(x, y, Color{100, 100, 100, 255});
+        DrawPixel(x, y, theme::mapWall);
       } else {
-        DrawPixel(x, y, Color{30, 30, 35, 255});
+        DrawPixel(x, y, theme::groundCool);
       }
     }
   }

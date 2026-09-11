@@ -16,8 +16,14 @@ is the acceptance test and must stay at 100 %.
   quantized copy.
 - **Hand-editing a sheet:** paint with palette colours only, then `--check`.
   A stray colour is a build defect, not a style choice.
-- **Changing the palette** — a new hex, a moved step: edit `palette.json`, then
-  re-quantize every sheet from its source and reconfigure. The sources are
+- **The C++ side** never spells a colour. `src/core/palette.hpp` is generated
+  from the JSON by `python tools/palette_header.py`; `src/render/theme.hpp`
+  maps roles (`ink`, `border`, `highlight`, `good`, `bad`, `radiationGlow`…)
+  onto ramp steps by hand. UI and renderers name a role. The test
+  `PaletteHeader.MatchesStrip` fails if the header and the strip disagree.
+- **Changing the palette** — a new hex, a moved step: edit `palette.json`, run
+  `palette_sample.py --render` and `palette_header.py`, then re-quantize every
+  sheet from its source and reconfigure. The sources are
   listed in the "Provenance" section below. To *re-derive* the palette from
   new material (a new pack): add it to `SOURCES` in `palette_sample.py`,
   re-run, and compare the swatch against this one before adopting it — the

@@ -748,3 +748,28 @@ TEST(GridTest, StandingFurnitureGrowsUpwardFromItsFloorCell) {
   EXPECT_EQ(table.width, 2.0f * grid::CELL);
   EXPECT_EQ(table.y + table.height, 5.0f * grid::CELL);
 }
+
+// ==== Palette header <-> strip ====
+// core/palette.hpp is generated from assets/palette.json; palette_strip.png is
+// too. If someone edits the JSON and regenerates one but not the other, the
+// UI and the sheets stop agreeing on what a colour is. LoadImage needs no
+// window, so the strip is readable here.
+#include "core/palette.hpp"
+
+TEST(PaletteHeader, MatchesStrip) {
+  Image strip = LoadImage("assets/palette_strip.png");
+  ASSERT_EQ(strip.width, pal::totalColours) << "strip and header hold different colour counts";
+  ASSERT_EQ(strip.height, 1);
+  int i = 0;
+  for (int r = 0; r < pal::rampCount; ++r) {
+    int steps = 0;
+    const Color* ramp = pal::rampByIndex(r, steps);
+    for (int s = 0; s < steps; ++s, ++i) {
+      Color c = GetImageColor(strip, i, 0);
+      EXPECT_EQ(c.r, ramp[s].r) << "ramp " << r << " step " << s;
+      EXPECT_EQ(c.g, ramp[s].g) << "ramp " << r << " step " << s;
+      EXPECT_EQ(c.b, ramp[s].b) << "ramp " << r << " step " << s;
+    }
+  }
+  UnloadImage(strip);
+}

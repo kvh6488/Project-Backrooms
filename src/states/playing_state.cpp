@@ -1,4 +1,5 @@
 #include "states/playing_state.hpp"
+#include "render/theme.hpp"
 #include "items/item_database.hpp"
 #include "world/generators/bsp_generator.hpp"
 #include "world/generators/loop_generator.hpp"
@@ -550,7 +551,7 @@ void PlayingState::render(const InputState &in) {
   }
 
   BeginTextureMode(m_screenTarget);
-  ClearBackground(Color{20, 20, 25, 255});
+  ClearBackground(theme::ground);
 
   BeginMode2D(m_camera);
   m_renderer.render(m_maze, m_camera, m_canvas, m_player.getAreaState(),
@@ -569,7 +570,7 @@ void PlayingState::render(const InputState &in) {
 
   if (m_radiationDarknessAlpha > 0.0f) {
     DrawRectangle(0, 0, m_canvas.width, m_canvas.height,
-                  Fade(BLACK, m_radiationDarknessAlpha));
+                  Fade(theme::ground, m_radiationDarknessAlpha));
   }
   EndTextureMode();
   if (m_capture) {
@@ -577,7 +578,7 @@ void PlayingState::render(const InputState &in) {
   }
 
   BeginDrawing();
-  ClearBackground(BLACK);
+  ClearBackground(theme::ground);
 
   float tripStrength = m_player.getMushroomEffectStrength();
   if (tripStrength > 0.0f) {
@@ -631,7 +632,7 @@ void PlayingState::render(const InputState &in) {
     if (fadeAlpha < 0.0f)
       fadeAlpha = 0.0f;
     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
-                  Fade(BLACK, fadeAlpha));
+                  Fade(theme::ground, fadeAlpha));
   }
 
   // Hand off UI rendering to UIManager, then the debug panel. ImGui must own

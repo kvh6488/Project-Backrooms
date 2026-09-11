@@ -1,4 +1,5 @@
 #include "render/item_renderer.hpp"
+#include "render/theme.hpp"
 #include "items/item_database.hpp"
 #include "core/asset_load.hpp"
 #include "core/grid.hpp"
@@ -90,16 +91,16 @@ void ItemRenderer::render(const Maze &maze, const Camera2D &camera,
         int cy = (int)(cell.y + cell.height / 2.0f);
 
         BeginBlendMode(BLEND_ADDITIVE);
-        DrawCircleGradient(cx, cy, grid::CELL * 1.1f, Color{60, 255, 90, 45},
-                           Color{60, 255, 90, 0});
+        DrawCircleGradient(cx, cy, grid::CELL * 1.1f, Fade(theme::radiationGlow, 45 / 255.0f),
+                           Fade(theme::radiationGlow, 0.0f));
         EndBlendMode();
 
         DrawTexturePro(m_postApocWorkshopTextures, grid::srcTile(2, 6), cell,
                        {0, 0}, 0.0f, WHITE);
 
         BeginBlendMode(BLEND_ADDITIVE);
-        DrawCircleGradient(cx, cy, grid::CELL * 0.45f, Color{80, 255, 120, 55},
-                           Color{80, 255, 120, 0});
+        DrawCircleGradient(cx, cy, grid::CELL * 0.45f, Fade(theme::radiationGlow, 55 / 255.0f),
+                           Fade(theme::radiationGlow, 0.0f));
         EndBlendMode();
         break;
       }
@@ -348,7 +349,7 @@ void ItemRenderer::renderItemUI(ItemType type, Rectangle destRect,
   // The barrel has no inventory icon: it is drawn as a flat green swatch, so
   // it deliberately never reaches the atlas path.
   if (type == ItemType::TOXIC_WASTE) {
-    DrawRectangleRec(destRect, GREEN);
+    DrawRectangleRec(destRect, theme::good);
     return;
   }
 
